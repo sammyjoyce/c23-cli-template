@@ -7,6 +7,8 @@ repos:
         exclude: ^.template/|^.github/
       - id: end-of-file-fixer
         exclude: ^.template/|^.github/|^.devcontainer/
+      - id: markdownlint
+        exclude: ^.template/|^.github/|^.devcontainer/|examples/
       - id: check-yaml
       - id: check-added-large-files
 
