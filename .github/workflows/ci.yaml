@@ -69,7 +69,7 @@ jobs:
       - name: Extract binary name from build.zig.zon
         id: binary_name
         run: |
-          BINARY_NAME=$(grep -o '"\.\?[^"]*"' build.zig.zon | head -n 1 | sed 's/"//g' | sed 's/^\.//')
+          BINARY_NAME=$(grep -o '\.[a-zA-Z0-9_-]*' build.zig.zon | head -n 1 | sed 's/^\.//')
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
         shell: bash
 
