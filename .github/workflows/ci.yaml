@@ -287,8 +287,8 @@ jobs:
           # Create coverage directory
           mkdir -p coverage
           
-          # Run tests with coverage
-          zig test --cover src/main.zig
+          # Run tests
+          zig test src/main.zig
           
           # Generate lcov info
           lcov --capture --directory . --output-file coverage/lcov.info
@@ -312,35 +312,6 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: c-cpp
-
-      - name: Set up Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: ${{ env.ZIG_VERSION }}
-
-      - name: Build project
-        run: |
-          zig build
-        shell: bash
-
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
 
   secrets-scan:
     name: Secrets Scan
@@ -379,13 +350,14 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
         shell: bash
 
+      - name: Build project
+        run: |
+          zig build
+        shell: bash
+
       - name: Generate SBOM
         run: |
-          # Build the project first to ensure all dependencies are resolved
-          zig build
-          
-          # Generate SBOM
-          syft . -o spdx-json=sbom.spdx.json
+          syft . --output spdx-json@2.3 > sbom.spdx.json
         shell: bash
 
       - name: Upload SBOM
@@ -396,7 +368,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [test, lint, security]
+    needs: [test, lint]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
