@@ -13,7 +13,7 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c, c++]
-        args: [-i]  # In-place editing
+        args: [--dry-run]  # Don't modify files, just check formatting
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.35.0
