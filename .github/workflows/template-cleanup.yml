@@ -1,0 +1,71 @@
+name: Template Cleanup
+# This workflow runs when someone creates a new repository from this template
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  template-cleanup:
+    name: Template Cleanup
+    runs-on: ubuntu-latest
+    if: github.event.repository.name != 'maxprofiles'
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cleanup
+        run: |
+          # Get repository info
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
+          
+          # Replace placeholders
+          find . -type f -name "*.md" -o -name "*.c" -o -name "*.h" -o -name "*.zig" -o -name "*.json" -o -name "*.yaml" -o -name "*.yml" | while read file; do
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+              sed -i '' "s/myapp/${REPO_NAME}/g" "$file"
+              sed -i '' "s/cli_starter/${REPO_NAME}/g" "$file"
+              sed -i '' "s/cli-starter/${REPO_NAME}/g" "$file"
+              sed -i '' "s/yourusername/${REPO_OWNER}/g" "$file"
+              sed -i '' "s/yourproject/${REPO_NAME}/g" "$file"
+              sed -i '' "s/Your Name/${REPO_OWNER}/g" "$file"
+            else
+              sed -i "s/myapp/${REPO_NAME}/g" "$file"
+              sed -i "s/cli_starter/${REPO_NAME}/g" "$file"
+              sed -i "s/cli-starter/${REPO_NAME}/g" "$file"
+              sed -i "s/yourusername/${REPO_OWNER}/g" "$file"
+              sed -i "s/yourproject/${REPO_NAME}/g" "$file"
+              sed -i "s/Your Name/${REPO_OWNER}/g" "$file"
+            fi
+          done
+          
+          # Move template README to actual README
+          if [ -f "TEMPLATE_README.md" ]; then
+            mv TEMPLATE_README.md README.md
+          fi
+          
+          # Remove template-specific files
+          rm -f .github/workflows/template-cleanup.yml
+          rm -f .github/TEMPLATE_SUPPORT.md
+          rm -f .github/template.yml
+          rm -f USING_THIS_TEMPLATE.md
+          rm -f TEMPLATE_ENHANCEMENTS.md
+          rm -f cleanup-template.sh
+          
+          # Update build.zig.zon with new name
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/\.cli_starter/.${REPO_NAME}/g" build.zig.zon
+          else
+            sed -i "s/\.cli_starter/.${REPO_NAME}/g" build.zig.zon
+          fi
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git diff --staged --quiet || git commit -m "Initial setup from MaxProfiles template"
+          git push

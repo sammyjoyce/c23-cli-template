@@ -1,0 +1,15 @@
+# GitHub template repository configuration
+name: MaxProfiles - C23 + Zig CLI Template
+description: Modern C23 CLI application starter with Zig build system, NCurses TUI support, and comprehensive project structure
+topics:
+  - cli
+  - c
+  - c23
+  - zig
+  - template
+  - starter-template
+  - command-line
+  - cli-app
+  - ncurses
+  - tui
+  - zig-build
