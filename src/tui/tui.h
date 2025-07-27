@@ -4,7 +4,11 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include <pdcurses.h>
+#else
 #include <ncurses.h>
+#endif
 #include <stdbool.h>
 #include <stddef.h>
 

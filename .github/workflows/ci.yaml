@@ -70,7 +70,7 @@ jobs:
         id: extract_binary_name
         run: |
           # Extract the name field from build.zig.zon, handling both quoted and unquoted formats
-          BINARY_NAME=$(awk -F'[=,.]' '/\.name = / {gsub(/^[[:space:]]*|[[:space:]]*$/, "", $3); gsub(/"/, "", $3); print $3}' build.zig.zon)
+          BINARY_NAME=$(awk '/\.name = \./ {gsub(/.*\.name = \./, ""); gsub(/,.*/, ""); print}' build.zig.zon)
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo "binary_name=$BINARY_NAME" >> $GITHUB_OUTPUT
         shell: bash
