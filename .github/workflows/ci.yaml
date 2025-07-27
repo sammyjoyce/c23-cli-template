@@ -136,6 +136,17 @@ jobs:
             exit 1
           fi
           
+          # On Windows, check for DLL dependencies
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "Checking binary dependencies:"
+            # Try to run with full path to see actual error
+            "./zig-out/bin/$BINARY_NAME$BINARY_EXT" --help 2>&1 || echo "Exit code: $?"
+            
+            # Add pdcurses DLL to PATH
+            export PATH="$PATH:$VCPKG_ROOT/installed/x64-windows/bin"
+            echo "Updated PATH with vcpkg bin directory"
+          fi
+          
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT --help
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT --version
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT hello
