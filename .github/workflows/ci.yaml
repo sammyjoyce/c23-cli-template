@@ -284,7 +284,7 @@ jobs:
 
       - name: Run tests
         run: |
-          zig test
+          zig test src/main.zig --test-cmd ./test-runner.sh --test-cmd-bin
         shell: bash
 
       - name: Upload coverage to Codecov
