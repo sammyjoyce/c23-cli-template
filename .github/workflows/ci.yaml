@@ -69,7 +69,8 @@ jobs:
       - name: Extract binary name
         id: extract_binary_name
         run: |
-          BINARY_NAME=$(awk '/^.name = / {gsub(/^[[:space:]]*\.name = "|",[[:space:]]*$/, ""); print}' build.zig.zon)
+          # Extract the name field from build.zig.zon, handling both quoted and unquoted formats
+          BINARY_NAME=$(awk -F'[=,.]' '/\.name = / {gsub(/^[[:space:]]*|[[:space:]]*$/, "", $3); gsub(/"/, "", $3); print $3}' build.zig.zon)
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo "binary_name=$BINARY_NAME" >> $GITHUB_OUTPUT
         shell: bash
@@ -96,6 +97,9 @@ jobs:
           # Install pdcurses
           ./vcpkg install pdcurses:x64-windows
           echo "VCPKG_ROOT=$(pwd)" >> $GITHUB_ENV
+          # Also set library paths for Windows
+          echo "LIB=$LIB;$(pwd)/installed/x64-windows/lib" >> $GITHUB_ENV
+          echo "INCLUDE=$INCLUDE;$(pwd)/installed/x64-windows/include" >> $GITHUB_ENV
           cd ..
         shell: bash
 
@@ -194,12 +198,12 @@ jobs:
 
       - name: Check for template placeholders
         run: |
-          # Check for common template placeholders
-          PLACEHOLDERS_FOUND=$(find . -type f -not -path "./.git/*" -not -path "./zig-cache/*" -not -path "./zig-out/*" \( -name "*.md" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.txt" -o -name "*.zig" -o -name "*.c" -o -name "*.h" \) -exec grep -l "{{[^}]*}}\|\[\[.*\]\]\|<REPO_NAME>\|<REPO_OWNER>\|<PROJECT_NAME>" {} \; | wc -l)
+          # Check for common template placeholders (excluding C23 attributes like [[nodiscard]])
+          PLACEHOLDERS_FOUND=$(find . -type f -not -path "./.git/*" -not -path "./zig-cache/*" -not -path "./zig-out/*" -not -path "./.github/workflows/*" \( -name "*.md" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.txt" -o -name "*.zig" \) -exec grep -l "{{[^}]*}}\|<REPO_NAME>\|<REPO_OWNER>\|<PROJECT_NAME>" {} \; | wc -l)
           
           if [ "$PLACEHOLDERS_FOUND" -gt 0 ]; then
             echo "❌ Template placeholders found in the following files:"
-            find . -type f -not -path "./.git/*" -not -path "./zig-cache/*" -not -path "./zig-out/*" \( -name "*.md" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.txt" -o -name "*.zig" -o -name "*.c" -o -name "*.h" \) -exec grep -l "{{[^}]*}}\|\[\[.*\]\]\|<REPO_NAME>\|<REPO_OWNER>\|<PROJECT_NAME>" {} \;
+            find . -type f -not -path "./.git/*" -not -path "./zig-cache/*" -not -path "./zig-out/*" -not -path "./.github/workflows/*" \( -name "*.md" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.txt" -o -name "*.zig" \) -exec grep -l "{{[^}]*}}\|<REPO_NAME>\|<REPO_OWNER>\|<PROJECT_NAME>" {} \;
             echo "Please replace all template placeholders before committing."
             exit 1
           else

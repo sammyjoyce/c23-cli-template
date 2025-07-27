@@ -54,6 +54,7 @@ pub fn build(b: *std.Build) void {
         flags.appendSlice(&base_flags) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
+        flags.append("-DAPP_BUILD_DATE=\"reproducible\"") catch @panic("OOM");
 
         if (enable_tui) {
             flags.append("-DENABLE_TUI=1") catch @panic("OOM");
@@ -72,6 +73,7 @@ pub fn build(b: *std.Build) void {
         flags.append(b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch @panic("OOM");
+        flags.append("-DAPP_BUILD_DATE=\"reproducible\"") catch @panic("OOM");
         flags.append("-DENABLE_TUI=1") catch @panic("OOM");
 
         // TUI sources
@@ -93,7 +95,21 @@ pub fn build(b: *std.Build) void {
     // NCurses configuration (only if TUI is enabled)
     if (enable_tui) {
         if (target.result.os.tag == .windows) {
+            // On Windows, use pdcurses
             exe.linkSystemLibrary("pdcurses");
+
+            // Add vcpkg paths if available
+            if (std.process.getEnvVarOwned(b.allocator, "VCPKG_ROOT")) |vcpkg_root| {
+                defer b.allocator.free(vcpkg_root);
+                const include_path = b.fmt("{s}/installed/x64-windows/include", .{vcpkg_root});
+                const lib_path = b.fmt("{s}/installed/x64-windows/lib", .{vcpkg_root});
+                exe.addIncludePath(.{ .cwd_relative = include_path });
+                exe.addLibraryPath(.{ .cwd_relative = lib_path });
+            } else |_| {
+                // Fallback to common Windows paths
+                exe.addIncludePath(.{ .cwd_relative = "C:/vcpkg/installed/x64-windows/include" });
+                exe.addLibraryPath(.{ .cwd_relative = "C:/vcpkg/installed/x64-windows/lib" });
+            }
         } else {
             exe.linkSystemLibrary("ncurses");
 
