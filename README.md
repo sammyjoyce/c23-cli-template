@@ -1,17 +1,13 @@
 # CLI Starter Template - C23 + Zig 🚀
 
-<div align="center">
-
-[![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/yourusername/maxprofiles/generate)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![C23](https://img.shields.io/badge/C-23-00599C?style=for-the-badge&logo=c)](https://en.wikipedia.org/wiki/C23)
+[![GitHub Release](https://img.shields.io/github/v/release/sammyjoyce/maxprofiles?style=for-the-badge)](https://github.com/sammyjoyce/maxprofiles)
+[![License](https://img.shields.io/github/license/sammyjoyce/maxprofiles?style=for-the-badge)](https://github.com/sammyjoyce/maxprofiles/blob/main/LICENSE)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/maxprofiles/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/maxprofiles/actions/workflows/ci.yaml)  
 [![Zig](https://img.shields.io/badge/Zig-master-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
 
-**A modern C23 CLI application starter template with Zig build system**
+## A modern C23 CLI application starter template with Zig build system
 
-[**Use this template**](https://github.com/yourusername/maxprofiles/generate) • [**View Demo**](https://github.com/yourusername/maxprofiles) • [**Report Bug**](https://github.com/yourusername/maxprofiles/issues)
-
-</div>
+[Use this template](https://github.com/sammyjoyce/maxprofiles/generate) • [View Demo](https://github.com/sammyjoyce/maxprofiles) • [Report Bug](https://github.com/sammyjoyce/maxprofiles/issues)
 
 ---
 
@@ -32,31 +28,20 @@
 
 ### Create Your Project
 
-<table>
-<tr>
-<td>
+### Option 1: GitHub UI
 
-**Option 1: GitHub UI**
-
-1. Click ["Use this template"](https://github.com/yourusername/maxprofiles/generate)
+1. Click ["Use this template"](https://github.com/sammyjoyce/maxprofiles/generate)
 2. Name your repository
 3. Click "Create repository"
 
-</td>
-<td>
-
-**Option 2: GitHub CLI**
+### Option 2: GitHub CLI
 
 ```bash
 gh repo create my-cli \
-  --template yourusername/maxprofiles \
+  --template sammyjoyce/maxprofiles \
   --public \
   --clone
 ```
-
-</td>
-</tr>
-</table>
 
 ### Build & Run
 
@@ -78,7 +63,8 @@ zig build -Doptimize=ReleaseSafe -Denable-tui=false
 ## 📖 What's Included
 
 ### Project Structure
-```
+
+```text
 your-cli/
 ├── src/
 │   ├── main.c              # Entry point
@@ -128,8 +114,10 @@ $ myapp menu
 ### 1. After Creating Your Repo
 
 The template automatically:
-- ✅ Replaces `myapp` with your repo name
-- ✅ Updates all placeholders
+
+- ✅ Replaces `myapp` with your project name
+- ✅ Updates all references and metadata
+- ✅ Preserves template structure
 - ✅ Removes template-specific files
 - ✅ Commits the changes
 
@@ -215,34 +203,25 @@ Your app supports config from multiple sources:
 
 ## 🆘 Getting Help
 
-<table>
-<tr>
-<td>
-
-**Template Issues**
+### Template Issues
 
 For problems with the template itself:
-- Check [existing issues](https://github.com/yourusername/maxprofiles/issues)
+
+- Check [existing issues](https://github.com/sammyjoyce/maxprofiles/issues)
 - Create a new issue
 - Read [template support](/.github/TEMPLATE_SUPPORT.md)
 
-</td>
-<td>
-
-**Your Project Issues**
+### Your Project Issues
 
 For issues with your generated project:
+
 - Use your own repository's issues
 - Check Zig [documentation](https://ziglang.org/documentation/)
 - See C23 [reference](https://en.cppreference.com/w/c/23)
 
-</td>
-</tr>
-</table>
-
 ## 🌟 Projects Using This Template
 
-> Using this template? [Add your project!](https://github.com/yourusername/maxprofiles/edit/main/README.md)
+> Using this template? [Add your project!](https://github.com/sammyjoyce/maxprofiles/edit/main/README.md)
 
 - [Example CLI](https://github.com/example/cli) - Description
 - Your project here!
@@ -255,12 +234,8 @@ When you use this template, you can choose any license for your project.
 
 ---
 
-<div align="center">
-
 **Ready to build your CLI app?**
 
-[![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/yourusername/maxprofiles/generate)
+[![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/sammyjoyce/maxprofiles/generate)
 
 Made with ❤️ by the open source community
-
-</div>
