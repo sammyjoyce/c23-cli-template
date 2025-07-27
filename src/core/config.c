@@ -5,11 +5,13 @@
 #include "config.h"
 
 #include <limits.h>
+#ifndef _WIN32
 #include <pwd.h>
+#include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "../utils/logging.h"
 #include "../utils/memory.h"
