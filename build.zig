@@ -6,6 +6,8 @@ pub fn build(b: *std.Build) void {
 
     const version_str = "1.0.0";
     const app_name = "myapp";
+    const binary_name = app_name;
+    const git_commit = "unknown";
 
     // Build options
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: true)") orelse true;
@@ -16,7 +18,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = app_name,
+        .name = binary_name,
         .root_module = b.createModule(.{
             .root_source_file = null,
             .target = target,
@@ -69,6 +71,7 @@ pub fn build(b: *std.Build) void {
         flags.appendSlice(&base_flags) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
+        flags.append(b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch @panic("OOM");
         flags.append("-DENABLE_TUI=1") catch @panic("OOM");
 
         // TUI sources

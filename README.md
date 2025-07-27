@@ -2,8 +2,12 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template)
 [![License](https://img.shields.io/github/license/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template/blob/main/LICENSE)
-[![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)  
+[![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
+[![Codecov](https://img.shields.io/codecov/c/github/sammyjoyce/c23-cli-template?style=for-the-badge&logo=codecov)](https://codecov.io/gh/sammyjoyce/c23-cli-template)
 [![Zig](https://img.shields.io/badge/Zig-master-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
+[![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CodeQL)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
 
 ## A modern C23 CLI application starter template with Zig build system
 

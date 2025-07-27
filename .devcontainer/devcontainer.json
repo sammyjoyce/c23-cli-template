@@ -23,6 +23,9 @@
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.11",
       "installTools": true
+    },
+    "ghcr.io/devcontainers/features/zig:1": {
+      "version": "0.13.0"
     }
   },
 
@@ -46,6 +49,7 @@
         "ms-vscode.cmake-tools",
         "ziglang.vscode-zig",
         "vadimcn.vscode-lldb",
+        "webfreak.debug",
         "streetsidesoftware.code-spell-checker",
         "yzhang.markdown-all-in-one",
         "davidanson.vscode-markdownlint",
@@ -82,7 +86,7 @@
   "remoteUser": "vscode",
 
   // Additional features
-  "updateContentCommand": "sudo apt-get update && sudo apt-get install -y build-essential clang clang-format lldb gdb cmake ninja-build valgrind",
+  "updateContentCommand": "sudo apt-get update && sudo apt-get install -y build-essential clang clang-format lldb gdb cmake ninja-build valgrind codelldb lldb-mi",
 
   // Workspace settings
   "workspaceFolder": "/workspace",

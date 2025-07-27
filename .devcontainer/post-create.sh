@@ -3,16 +3,6 @@ set -e
 
 echo "🚀 Setting up development environment..."
 
-# Install Zig
-ZIG_VERSION="master"
-echo "📦 Installing Zig ${ZIG_VERSION}..."
-cd /tmp
-wget -q https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz
-tar -xf zig-linux-x86_64-${ZIG_VERSION}.tar.xz
-sudo mv zig-linux-x86_64-${ZIG_VERSION} /opt/zig
-sudo ln -sf /opt/zig/zig /usr/local/bin/zig
-rm zig-linux-x86_64-${ZIG_VERSION}.tar.xz
-
 # Verify installations
 echo "✅ Verifying installations..."
 echo "Zig version: $(zig version)"

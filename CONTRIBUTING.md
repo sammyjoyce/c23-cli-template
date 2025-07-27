@@ -104,7 +104,28 @@ docs(readme): update installation instructions
    sudo dnf install ncurses-devel
    ```
 
-4. **Build the project**:
+4. **Set up pre-commit hooks** (recommended):
+
+   ```bash
+   # Install pre-commit
+   pip install pre-commit
+
+   # Install Node.js for markdownlint
+   # (varies by OS - use your preferred method)
+
+   # Install the hooks
+   pre-commit install
+   ```
+
+5. **Alternative: Use Devcontainer** (recommended for consistency):
+
+   This project includes a devcontainer configuration for VS Code that provides a consistent development environment.
+   - Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code
+   - Open the project in VS Code
+   - When prompted, choose "Reopen in Container"
+   - The container will automatically install all dependencies
+
+6. **Build the project**:
 
    ```bash
    zig build
@@ -113,7 +134,7 @@ docs(readme): update installation instructions
    zig build -Denable-tui=false
    ```
 
-4. **Run tests**:
+7. **Run tests**:
 
    ```bash
    zig build test
