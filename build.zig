@@ -71,10 +71,18 @@ pub fn build(b: *std.Build) void {
         flags.append(b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
         flags.append("-DENABLE_TUI=1") catch @panic("OOM");
 
-        exe.addCSourceFile(.{
-            .file = b.path("src/tui/ncurses_wrapper.c"),
-            .flags = flags.items,
-        });
+        // TUI sources
+        const tui_sources = [_][]const u8{
+            "src/tui/tui.c",
+            "src/tui/tui_progress.c",
+        };
+
+        for (tui_sources) |src| {
+            exe.addCSourceFile(.{
+                .file = b.path(src),
+                .flags = flags.items,
+            });
+        }
     }
 
     exe.linkLibC();

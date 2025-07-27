@@ -1,0 +1,112 @@
+{
+  "variables": {
+    "PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME": {
+      "placeholders": ["myapp", "cli_starter", "cli-starter", "yourproject"],
+      "description": "The name of the project/A modern CLI application",
+      "source": "repository_name",
+      "validation": "^[a-zA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z][a-zA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z0-9_-]*$"
+    },
+    "PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME_SNA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationKE": {
+      "placeholders": ["cli_starter"],
+      "description": "Project name in snake_case format",
+      "source": "repository_name",
+      "transform": "snake_case",
+      "validation": "^[a-z][a-z0-9_]*$"
+    },
+    "PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME_KEBA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationB": {
+      "placeholders": ["cli-starter", "cli-starter-c23", "c23-cli-template"],
+      "description": "Project name in kebab-case format",
+      "source": "repository_name",
+      "transform": "kebab_case",
+      "validation": "^[a-z][a-z0-9-]*$"
+    },
+    "PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME_PA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationSCA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationL": {
+      "placeholders": ["CliStarter"],
+      "description": "Project name in PascalCase format",
+      "source": "repository_name",
+      "transform": "pascal_case",
+      "validation": "^[A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z][a-zA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z0-9]*$"
+    },
+    "GITHUB_USERNA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME": {
+      "placeholders": ["yourusername", "sammyjoyce"],
+      "description": "GitHub username or organization",
+      "source": "repository_owner",
+      "validation": "^[a-zA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z0-9][a-zA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z0-9-]*$"
+    },
+    "A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationUTHOR_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME": {
+      "placeholders": ["Sam Joyce Sam Joyce", "[Sam Joyce Sam Joyce]"],
+      "description": "Full name of the project author",
+      "source": "git_user_name",
+      "fallback": "repository_owner",
+      "validation": "^[\\w\\s.-]+$"
+    },
+    "A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationUTHOR_EMA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationIL": {
+      "placeholders": ["samjoyce@me.com"],
+      "description": "Email address of the project author",
+      "source": "git_user_email",
+      "required": false,
+      "validation": "^[^@]+@[^@]+\\.[^@]+$"
+    },
+    "PROJECT_DESCRIPTION": {
+      "placeholders": ["A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application A modern A modern CLI A modern CLI application A modern CLI application A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationro A modern CLI application"],
+      "description": "Short description of the project",
+      "source": "repository_description",
+      "fallback": "A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application",
+      "required": false
+    },
+    "CURRENT_YEA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationR": {
+      "placeholders": ["2025"],
+      "description": "Current year for copyright notices",
+      "source": "current_year",
+      "validation": "^\\d{4}$"
+    },
+    "LICENSE_TYPE": {
+      "placeholders": ["MIT"],
+      "description": "License type for the project",
+      "source": "license",
+      "fallback": "MIT",
+      "validation": "^[A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z][A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application-Z0-9-]*$"
+    },
+    "GITHUB_RUNNER_LINUX": {
+      "placeholders": ["ubuntu-latest"],
+      "description": "GitHub A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationctions runner label for Linux",
+      "source": "static",
+      "value": "ubuntu-latest"
+    },
+    "GITHUB_RUNNER_MA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationCOS": {
+      "placeholders": ["macos-latest"],
+      "description": "GitHub A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationctions runner label for macOS",
+      "source": "static",
+      "value": "macos-latest"
+    }
+  },
+  "file_patterns": [
+    "*.md",
+    "*.c",
+    "*.h",
+    "*.zig",
+    "*.json",
+    "*.yaml",
+    "*.yml",
+    "*.txt",
+    "LICENSE*",
+    "Makefile",
+    "CMakeLists.txt"
+  ],
+  "exclude_patterns": [
+    ".git/*",
+    ".github/workflows/template-cleanup.yml",
+    ".template/*",
+    "zig-out/*",
+    ".zig-cache/*",
+    "node_modules/*",
+    "vendor/*",
+    "*.bak"
+  ],
+  "special_replacements": {
+    "A modern CLI application.zig.zon": {
+      ".cli_starter": ".${PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME_SNA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationKE}",
+      ".myapp": ".${PROJECT_NA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationME_SNA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationKE}"
+    }
+  }
+}

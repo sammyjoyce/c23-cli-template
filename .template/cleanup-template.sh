@@ -4,62 +4,24 @@
 
 set -e
 
+# Script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 echo "🧹 CLI Template Cleanup Script"
 echo "=============================="
 echo ""
 
-# Get repository name from current directory or ask user
-if [ -d .git ]; then
-    REPO_NAME=$(basename `git rev-parse --show-toplevel`)
-else
-    read -p "Enter your application name: " REPO_NAME
-fi
-
-read -p "Enter your GitHub username (or organization): " REPO_OWNER
-read -p "Enter your full name: " AUTHOR_NAME
-
-echo ""
-echo "📝 Configuration:"
-echo "  App name: $REPO_NAME"
-echo "  Owner: $REPO_OWNER"
-echo "  Author: $AUTHOR_NAME"
-echo ""
-read -p "Continue? (y/n) " -n 1 -r
-echo ""
-
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelled."
+# Check if template-replacer.sh exists
+if [ ! -f "${SCRIPT_DIR}/template-replacer.sh" ]; then
+    echo "Error: template-replacer.sh not found in ${SCRIPT_DIR}"
     exit 1
 fi
 
-echo "🔄 Replacing placeholders..."
+# Make template-replacer.sh executable
+chmod +x "${SCRIPT_DIR}/template-replacer.sh"
 
-# Function to replace in all relevant files
-replace_all() {
-    find . -type f \( -name "*.md" -o -name "*.c" -o -name "*.h" -o -name "*.zig" -o -name "*.json" -o -name "*.yaml" -o -name "*.yml" \) \
-        -not -path "./.git/*" \
-        -not -path "./zig-out/*" \
-        -not -path "./.zig-cache/*" \
-        -exec sed -i.bak "$1" {} \;
-    
-    # Clean up backup files
-    find . -name "*.bak" -type f -delete
-}
-
-# Replace placeholders
-replace_all "s/myapp/${REPO_NAME}/g"
-replace_all "s/cli_starter/${REPO_NAME}/g"
-replace_all "s/cli-starter/${REPO_NAME}/g"
-replace_all "s/cli-starter-c23/${REPO_NAME}/g"
-replace_all "s/c23-cli-template/${REPO_NAME}/g"
-replace_all "s/yourusername/${REPO_OWNER}/g"
-replace_all "s/yourproject/${REPO_NAME}/g"
-replace_all "s/Your Name/${AUTHOR_NAME}/g"
-replace_all "s/\[Your Name\]/${AUTHOR_NAME}/g"
-
-# Update build.zig.zon
-sed -i.bak "s/\.cli_starter/.${REPO_NAME}/g" build.zig.zon
-rm -f build.zig.zon.bak
+# Run the template replacer in interactive mode
+"${SCRIPT_DIR}/template-replacer.sh" --interactive
 
 echo "📁 Cleaning up template files..."
 

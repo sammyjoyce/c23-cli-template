@@ -11,11 +11,13 @@ By participating in this project, you agree to be respectful and constructive in
 ### Reporting Issues
 
 Before creating an issue, please:
+
 - Check existing issues to avoid duplicates
 - Use the issue templates when available
 - Include as much relevant information as possible
 
 When reporting bugs, include:
+
 - Your operating system and version
 - Zig version (run `zig version`)
 - Steps to reproduce the issue
@@ -25,6 +27,7 @@ When reporting bugs, include:
 ### Suggesting Features
 
 Feature requests are welcome! Please:
+
 - Check if the feature has already been requested
 - Explain the use case and why it would be valuable
 - Consider if it aligns with the project's goals
@@ -52,6 +55,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -62,6 +66,7 @@ Types:
 - `perf`: Performance improvements
 
 Examples:
+
 ```
 feat(cli): add new command for file processing
 fix(config): handle missing config file gracefully
@@ -71,6 +76,7 @@ docs(readme): update installation instructions
 ### Development Setup
 
 1. **Install Zig** (master branch recommended):
+
    ```bash
    # Using zvm (recommended)
    zvm install master
@@ -78,33 +84,37 @@ docs(readme): update installation instructions
    ```
 
 2. **Clone your fork**:
+
    ```bash
    git clone https://github.com/yourusername/yourproject.git
    cd yourproject
    ```
 
 3. **Install optional dependencies**:
+
    ```bash
    # For TUI support
    # macOS
    brew install ncurses
-   
+
    # Ubuntu/Debian
    sudo apt-get install libncurses-dev
-   
+
    # Fedora/RHEL
    sudo dnf install ncurses-devel
    ```
 
 4. **Build the project**:
+
    ```bash
    zig build
-   
+
    # Or without TUI support
    zig build -Denable-tui=false
    ```
 
 4. **Run tests**:
+
    ```bash
    zig build test
    ```
@@ -148,22 +158,23 @@ zig build test -Doptimize=ReleaseFast
 - Follow the .clang-format configuration
 
 Example:
+
 ```c
 app_error process_input(const char* input, size_t len) {
   // Validate input parameters
   if (!input || len == 0) {
     return APP_ERROR_INVALID_ARG;
   }
-  
+
   // Process the input
   app_buffer_t buffer = {0};
   app_error err = process_data(input, len, &buffer);
-  
+
   if (err != APP_SUCCESS) {
     app_secure_free(buffer.data, buffer.capacity);
     return err;
   }
-  
+
   // Clean up
   app_secure_free(buffer.data, buffer.capacity);
   return APP_SUCCESS;
