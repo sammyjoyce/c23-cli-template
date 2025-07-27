@@ -8,6 +8,10 @@
 #ifndef _WIN32
 #include <pwd.h>
 #include <unistd.h>
+#else
+#include <io.h>
+#define R_OK 4
+#define access _access
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +92,17 @@ static char *find_config_file(void) {
     return strdup(config_env);
   }
 
-  // Try $HOME/.config/myapp/config.json
+  // Try user config directory
+#ifdef _WIN32
+  const char *home = getenv("USERPROFILE");
+  if (home) {
+    snprintf(config_path, PATH_MAX, "%s\\AppData\\Local\\%s\\config.json", home,
+             APP_NAME);
+    if (access(config_path, R_OK) == 0) {
+      return strdup(config_path);
+    }
+  }
+#else
   const char *home = getenv("HOME");
   if (home) {
     snprintf(config_path, PATH_MAX, "%s/.config/%s/config.json", home,
@@ -97,9 +111,14 @@ static char *find_config_file(void) {
       return strdup(config_path);
     }
   }
+#endif
 
-  // Try /etc/myapp/config.json
+  // Try system config directory
+#ifdef _WIN32
+  snprintf(config_path, PATH_MAX, "C:\\ProgramData\\%s\\config.json", APP_NAME);
+#else
   snprintf(config_path, PATH_MAX, "/etc/%s/config.json", APP_NAME);
+#endif
   if (access(config_path, R_OK) == 0) {
     return strdup(config_path);
   }
@@ -107,7 +126,7 @@ static char *find_config_file(void) {
   return NULL;
 }
 
-app_error app_config_load_file(app_config_t *config, const char *path) {
+app_error app_config_load_file(app_config_t *const config, const char *path) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
 
   // Use provided path or find default
@@ -182,6 +201,9 @@ app_error app_config_load_env(app_config_t *config) {
 
 app_error app_config_load_args(app_config_t *config, int argc, char *argv[]) {
   // This is handled by args.c
+  (void)config;
+  (void)argc;
+  (void)argv;
   return APP_SUCCESS;
 }
 

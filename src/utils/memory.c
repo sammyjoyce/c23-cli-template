@@ -87,8 +87,9 @@ void *app_secure_realloc(void *ptr, size_t old_size, size_t new_size) {
     if (ptr != nullptr) {
       app_secure_zero(ptr, old_size);
 #ifndef _WIN32
+#ifndef _WIN32
       munlock(ptr, old_size);
-#endif
+#endif #endif
       free(ptr);
     }
     return nullptr;
