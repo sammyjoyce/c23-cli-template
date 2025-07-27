@@ -103,7 +103,7 @@ void *app_secure_realloc(void *ptr, size_t old_size, size_t new_size) {
     size_t copy_size = old_size < new_size ? old_size : new_size;
     memcpy(new_ptr, ptr, copy_size);
     app_secure_zero(ptr, old_size);
-    #ifndef _WIN32
+#ifndef _WIN32
     munlock(ptr, old_size);
 #endif
     free(ptr);

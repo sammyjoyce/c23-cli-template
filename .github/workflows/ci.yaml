@@ -126,6 +126,16 @@ jobs:
             BINARY_EXT=""
           fi
           
+          # Debug: List contents of zig-out/bin
+          echo "Contents of zig-out/bin:"
+          ls -la zig-out/bin/ || echo "zig-out/bin directory not found"
+          
+          # Check if binary exists
+          if [ ! -f "./zig-out/bin/$BINARY_NAME$BINARY_EXT" ]; then
+            echo "Error: Binary ./zig-out/bin/$BINARY_NAME$BINARY_EXT not found!"
+            exit 1
+          fi
+          
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT --help
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT --version
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT hello
