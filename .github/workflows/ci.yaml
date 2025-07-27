@@ -23,13 +23,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [namespace-profile-linux-amd64, namespace-profile-macos-arm64]
         include:
-          - os: ubuntu-latest
+          - os: namespace-profile-linux-amd64
             artifact_name: myapp-linux
-          - os: macos-latest
+          - os: namespace-profile-macos-arm64
             artifact_name: myapp-macos
-    
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -45,10 +45,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.os }}" = "namespace-profile-linux-amd64" ]; then
             sudo apt-get update
             sudo apt-get install -y libncurses-dev
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          elif [ "${{ matrix.os }}" = "namespace-profile-macos-arm64" ]; then
             brew install ncurses
           fi
 
@@ -82,8 +82,8 @@ jobs:
 
   lint:
     name: Lint and Format
-    runs-on: ubuntu-latest
-    
+    runs-on: namespace-profile-linux-amd64
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -104,11 +104,11 @@ jobs:
 
   security:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-amd64
     permissions:
       contents: read
       security-events: write
-    
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -121,11 +121,11 @@ jobs:
   release:
     name: Create Release
     needs: [test, lint, security]
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-amd64
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-    
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
