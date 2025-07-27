@@ -12,12 +12,12 @@ if (strcmp(command, "greet") == 0) {
         fprintf(stderr, "Error: greet command requires at least one name\n");
         return APP_ERROR_MISSING_ARG;
     }
-    
+
     printf("Greetings to:\n");
     for (int i = 0; i < argc; i++) {
         printf("  👋 %s\n", argv[i]);
     }
-    
+
     printf("\nHave a great day!\n");
     return APP_SUCCESS;
 }
@@ -27,12 +27,14 @@ if (strcmp(command, "greet") == 0) {
 
 In `src/cli/help.c`, add your command to both help functions:
 
-### In `app_print_concise_help()`:
+### In `app_print_concise_help()`
+
 ```c
 printf("  greet <names...> Greet multiple people\n");
 ```
 
-### In `app_print_verbose_usage()`:
+### In `app_print_verbose_usage()`
+
 ```c
 printf("  greet <names...>   Greet multiple people\n");
 printf("                     Displays a greeting for each name provided\n\n");
@@ -41,6 +43,7 @@ printf("                     Displays a greeting for each name provided\n\n");
 ## 3. Add to Examples Section
 
 Still in `app_print_verbose_usage()`:
+
 ```c
 printf("  Greet multiple people:\n");
 printf("    $ %s greet Alice Bob Charlie\n", program_name);
@@ -87,7 +90,7 @@ In `test/main.zig`, add a test for your command:
 ```zig
 fn testGreetCommand(allocator: std.mem.Allocator) !void {
     std.debug.print("Testing greet command...\n", .{});
-    
+
     // Test with one name
     {
         const result = try std.process.Child.run(.{
@@ -100,7 +103,7 @@ fn testGreetCommand(allocator: std.mem.Allocator) !void {
         try testing.expect(result.term.Exited == 0);
         try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Alice") != null);
     }
-    
+
     // Test with multiple names
     {
         const result = try std.process.Child.run(.{
@@ -114,7 +117,7 @@ fn testGreetCommand(allocator: std.mem.Allocator) !void {
         try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Alice") != null);
         try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Bob") != null);
     }
-    
+
     // Test with no names (should error)
     {
         const result = try std.process.Child.run(.{
@@ -127,12 +130,13 @@ fn testGreetCommand(allocator: std.mem.Allocator) !void {
         try testing.expect(result.term.Exited != 0);
         try testing.expect(std.mem.indexOf(u8, result.stderr, "requires at least one name") != null);
     }
-    
+
     std.debug.print("✓ Greet command works correctly\n", .{});
 }
 ```
 
 Don't forget to call it in the main test:
+
 ```zig
 try testGreetCommand(allocator);
 ```
@@ -153,6 +157,7 @@ zig build test
 ## Result
 
 You've successfully added a new command that:
+
 - ✅ Accepts multiple arguments
 - ✅ Validates input
 - ✅ Has help documentation
