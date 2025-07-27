@@ -43,16 +43,16 @@ static app_error show_data_viewer(void) {
     // Main loop
     bool running = true;
     int data_value = 0;
-    
+
     while (running) {
         // Clear data window content
         tui_clear_window(data_win);
-        
+
         // Display some data
         tui_set_color(data_win->win, TUI_COLOR_INFO);
         mvwprintw(data_win->win, 2, 2, "Current Value: %d", data_value);
         wattroff(data_win->win, COLOR_PAIR(TUI_COLOR_INFO));
-        
+
         // Draw a simple bar graph
         int bar_width = (data_win->width - 4) * data_value / 100;
         mvwprintw(data_win->win, 4, 2, "[");
@@ -62,17 +62,17 @@ static app_error show_data_viewer(void) {
         }
         wattroff(data_win->win, COLOR_PAIR(TUI_COLOR_SUCCESS));
         mvwprintw(data_win->win, 4, 3 + bar_width, "]");
-        
+
         // Instructions
         tui_set_color(main_win->win, TUI_COLOR_INFO);
-        mvwprintw(main_win->win, max_y - 4, 2, 
+        mvwprintw(main_win->win, max_y - 4, 2,
                   "Press: [+] Increase  [-] Decrease  [r] Reset  [q] Quit");
         wattroff(main_win->win, COLOR_PAIR(TUI_COLOR_INFO));
-        
+
         // Refresh windows
         tui_refresh_window(data_win);
         tui_refresh_window(main_win);
-        
+
         // Handle input
         int ch = tui_get_char();
         switch (ch) {
@@ -100,7 +100,7 @@ static app_error show_data_viewer(void) {
     tui_destroy_window(data_win);
     tui_destroy_window(main_win);
     tui_cleanup();
-    
+
     return APP_SUCCESS;
 }
 #endif
@@ -125,11 +125,13 @@ if (strcmp(command, "viewer") == 0) {
 ## 3. Using TUI Components
 
 ### Message Boxes
+
 ```c
 tui_show_message("Success", "Operation completed successfully!");
 ```
 
 ### Confirmation Dialogs
+
 ```c
 if (tui_confirm("Delete File", "Are you sure you want to delete this file?")) {
     // Perform deletion
@@ -137,6 +139,7 @@ if (tui_confirm("Delete File", "Are you sure you want to delete this file?")) {
 ```
 
 ### Input Dialogs
+
 ```c
 char username[256] = {0};
 if (tui_input_dialog("Login", "Enter username:", username, sizeof(username)) == APP_SUCCESS) {
@@ -145,6 +148,7 @@ if (tui_input_dialog("Login", "Enter username:", username, sizeof(username)) == 
 ```
 
 ### Progress Bars
+
 ```c
 tui_progress_t *progress = tui_progress_create("Processing Files", 100);
 for (int i = 0; i <= 100; i++) {
@@ -157,6 +161,7 @@ tui_progress_destroy(progress);
 ```
 
 ### Menus
+
 ```c
 tui_menu_item_t options[] = {
     {"Option 1", "First option description", 1, true},
@@ -190,6 +195,7 @@ The TUI wrapper provides predefined color pairs:
 - `TUI_COLOR_TITLE` - Window titles (magenta)
 
 Use them like:
+
 ```c
 tui_set_color(window->win, TUI_COLOR_ERROR);
 mvwprintw(window->win, y, x, "Error: %s", error_message);

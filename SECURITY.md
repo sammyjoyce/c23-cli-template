@@ -19,7 +19,7 @@ We take the security of our software seriously. If you believe you have found a 
 
 Instead, please report them via one of the following methods:
 
-1. **Email**: Send an email to security@yourorganization.com with:
+1. **Email**: Send an email to <security@yourorganization.com> with:
    - Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
    - Full paths of source file(s) related to the manifestation of the issue
    - The location of the affected source code (tag/branch/commit or direct URL)
@@ -60,7 +60,8 @@ When using this template, please ensure you:
 ## Contact
 
 For any security-related questions or concerns, please contact:
-- Security Team: security@yourorganization.com
+
+- Security Team: <security@yourorganization.com>
 - Project Maintainers: See CODEOWNERS file
 
 Thank you for helping keep this project and its users safe!
