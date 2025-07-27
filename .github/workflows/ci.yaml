@@ -191,6 +191,8 @@ jobs:
   validate-template:
     name: Validate Template
     runs-on: ubuntu-latest
+    # Skip validation for the template repository itself
+    if: github.repository != 'sammyjoyce/c23-cli-template'
 
     steps:
       - name: Check out repository
