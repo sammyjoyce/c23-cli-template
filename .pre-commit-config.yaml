@@ -24,7 +24,7 @@ repos:
         language: node
         types: [markdown]
         args: [--fix]
-        exclude: ^.template/
+        exclude: ^\.template/
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v2.3.0
