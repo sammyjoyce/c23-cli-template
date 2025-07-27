@@ -6,12 +6,15 @@
  * with proper error handling, configuration management, and testing support.
  */
 
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#ifndef _WIN32
+#include <signal.h>
 #include <unistd.h>
+#endif
 
 #include "cli/args.h"
 #include "cli/help.h"
@@ -28,7 +31,7 @@
 #include "utils/memory.h"
 
 #if __STDC_VERSION__ >= 201112L
-static _Thread_local int thread_id = 0;
+static _Thread_local int app_thread_id = 0;
 #endif
 
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
@@ -216,7 +219,7 @@ static app_error handle_command(const app_config_t *config, const char *command,
 
 int main(int argc, char *argv[]) {
 #if __STDC_VERSION__ >= 201112L
-  (void)thread_id;  // Suppress unused variable warning
+  (void)app_thread_id;  // Suppress unused variable warning
 #endif
 
   // Start performance timing
