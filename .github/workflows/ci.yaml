@@ -11,6 +11,10 @@ on:
 
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 env:
   ZIG_VERSION: master
 
@@ -23,11 +27,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [namespace-profile-linux-amd64, namespace-profile-macos-arm64]
+        os: [ubuntu-latest, macos-latest]
         include:
-          - os: namespace-profile-linux-amd64
+          - os: ubuntu-latest
             artifact_name: myapp-linux
-          - os: namespace-profile-macos-arm64
+          - os: macos-latest
             artifact_name: myapp-macos
 
     runs-on: ${{ matrix.os }}
@@ -43,46 +47,73 @@ jobs:
         with:
           version: ${{ env.ZIG_VERSION }}
 
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            zig-out
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-
+
+      - name: Extract binary name from build.zig.zon
+        id: binary_name
+        run: |
+          BINARY_NAME=$(grep -o '"\.\?[^"]*"' build.zig.zon | head -n 1 | sed 's/"//g' | sed 's/^\.//')
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+        shell: bash
+
       - name: Install dependencies
         run: |
-          if [ "${{ matrix.os }}" = "namespace-profile-linux-amd64" ]; then
+          if [ "${{ runner.os }}" = "Linux" ]; then
             sudo apt-get update
             sudo apt-get install -y libncurses-dev
-          elif [ "${{ matrix.os }}" = "namespace-profile-macos-arm64" ]; then
+          elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install ncurses
           fi
+        shell: bash
 
       - name: Run `install` step
         run: zig build install
+        timeout-minutes: 10
+        shell: bash
 
       - name: Run `check` step
         run: zig build check
+        timeout-minutes: 10
+        shell: bash
 
       - name: Run `test` step
         run: zig build test
+        timeout-minutes: 15
+        shell: bash
 
       - name: Test binary functionality
         run: |
-          ./zig-out/bin/myapp --help
-          ./zig-out/bin/myapp --version
-          ./zig-out/bin/myapp hello
-          ./zig-out/bin/myapp hello Alice
-          ./zig-out/bin/myapp echo Hello World
-          ./zig-out/bin/myapp info
+          ./zig-out/bin/$BINARY_NAME --help
+          ./zig-out/bin/$BINARY_NAME --version
+          ./zig-out/bin/$BINARY_NAME hello
+          ./zig-out/bin/$BINARY_NAME hello Alice
+          ./zig-out/bin/$BINARY_NAME echo Hello World
+          ./zig-out/bin/$BINARY_NAME info
+        shell: bash
 
       - name: Build release binary
         run: zig build -Doptimize=ReleaseSafe
+        timeout-minutes: 15
+        shell: bash
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.1
         with:
-          name: ${{ matrix.artifact_name }}
-          path: zig-out/bin/myapp
+          name: ${{ matrix.artifact_name }}-${{ github.run_number }}
+          path: zig-out/bin/$BINARY_NAME
           retention-days: 7
 
   lint:
     name: Lint and Format
-    runs-on: namespace-profile-linux-amd64
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -95,16 +126,18 @@ jobs:
 
       - name: Check formatting
         run: zig fmt --check src/ test/
+        shell: bash
 
       - name: Run clang-format check
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format
           find src -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
+        shell: bash
 
   security:
     name: Security Scan
-    runs-on: namespace-profile-linux-amd64
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
@@ -112,6 +145,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
 
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -121,7 +159,7 @@ jobs:
   release:
     name: Create Release
     needs: [test, lint, security]
-    runs-on: namespace-profile-linux-amd64
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -131,12 +169,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           path: artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.0.4
         with:
           files: artifacts/**/*
           generate_release_notes: true
