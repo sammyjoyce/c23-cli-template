@@ -1,5 +1,5 @@
 # GitHub template repository configuration
-name: MaxProfiles - C23 + Zig CLI Template
+name: C23 CLI Template - Modern C23 with Zig Build System
 description: Modern C23 CLI application starter with Zig build system, NCurses TUI support, and comprehensive project structure
 topics:
   - cli

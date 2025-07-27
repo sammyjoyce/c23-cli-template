@@ -1,13 +1,13 @@
 # CLI Starter Template - C23 + Zig 🚀
 
-[![GitHub Release](https://img.shields.io/github/v/release/sammyjoyce/maxprofiles?style=for-the-badge)](https://github.com/sammyjoyce/maxprofiles)
-[![License](https://img.shields.io/github/license/sammyjoyce/maxprofiles?style=for-the-badge)](https://github.com/sammyjoyce/maxprofiles/blob/main/LICENSE)
-[![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/maxprofiles/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/maxprofiles/actions/workflows/ci.yaml)  
+[![GitHub Release](https://img.shields.io/github/v/release/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template)
+[![License](https://img.shields.io/github/license/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template/blob/main/LICENSE)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)  
 [![Zig](https://img.shields.io/badge/Zig-master-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
 
 ## A modern C23 CLI application starter template with Zig build system
 
-[Use this template](https://github.com/sammyjoyce/maxprofiles/generate) • [View Demo](https://github.com/sammyjoyce/maxprofiles) • [Report Bug](https://github.com/sammyjoyce/maxprofiles/issues)
+[Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
 
 ---
 
@@ -30,7 +30,7 @@
 
 ### Option 1: GitHub UI
 
-1. Click ["Use this template"](https://github.com/sammyjoyce/maxprofiles/generate)
+1. Click ["Use this template"](https://github.com/sammyjoyce/c23-cli-template/generate)
 2. Name your repository
 3. Click "Create repository"
 
@@ -38,7 +38,7 @@
 
 ```bash
 gh repo create my-cli \
-  --template sammyjoyce/maxprofiles \
+  --template sammyjoyce/c23-cli-template \
   --public \
   --clone
 ```
@@ -207,7 +207,7 @@ Your app supports config from multiple sources:
 
 For problems with the template itself:
 
-- Check [existing issues](https://github.com/sammyjoyce/maxprofiles/issues)
+- Check [existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
 - Create a new issue
 - Read [template support](/.github/TEMPLATE_SUPPORT.md)
 
@@ -221,7 +221,7 @@ For issues with your generated project:
 
 ## 🌟 Projects Using This Template
 
-> Using this template? [Add your project!](https://github.com/sammyjoyce/maxprofiles/edit/main/README.md)
+> Using this template? [Add your project!](https://github.com/sammyjoyce/c23-cli-template/edit/main/README.md)
 
 - [Example CLI](https://github.com/example/cli) - Description
 - Your project here!
@@ -236,6 +236,6 @@ When you use this template, you can choose any license for your project.
 
 **Ready to build your CLI app?**
 
-[![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/sammyjoyce/maxprofiles/generate)
+[![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/sammyjoyce/c23-cli-template/generate)
 
 Made with ❤️ by the open source community
