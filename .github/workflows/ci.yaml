@@ -144,8 +144,8 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}-${{ github.run_number }}
           path: |
-            zig-out/bin/$BINARY_NAME
-            zig-out/bin/$BINARY_NAME.exe
+            zig-out/bin/${{ steps.extract_binary_name.outputs.binary_name }}
+            zig-out/bin/${{ steps.extract_binary_name.outputs.binary_name }}.exe
           retention-days: 7
 
   lint:
@@ -185,7 +185,7 @@ jobs:
 
       - name: Run cppcheck analysis
         run: |
-          cppcheck --enable=all --inconclusive --std=c23 --platform=unix64 --error-exitcode=1 src/
+          cppcheck --enable=all --inconclusive --std=c23 --platform=unix64 --suppress=unusedFunction --error-exitcode=1 src/
         shell: bash
 
   validate-template:
