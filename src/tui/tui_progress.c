@@ -2,12 +2,13 @@
  * tui_progress.c - progress bar implementation using ncurses windows.
  */
 
+#include "tui_progress.h"
+
 #include <stdlib.h>
 #include <string.h>
 
-#include "tui.h"
-#include "tui_progress.h"
 #include "../utils/memory.h"
+#include "tui.h"
 
 struct tui_progress {
   tui_window_t *window;
@@ -16,14 +17,15 @@ struct tui_progress {
   char *title;
 };
 
-static void tui_progress_draw(const tui_progress_t *progress, const char *status) {
+static void tui_progress_draw(const tui_progress_t *progress,
+                              const char *status) {
   if (!progress || !progress->window) {
     return;
   }
-  
+
   const tui_window_t *window = progress->window;
   WINDOW *win = window->win;
-  tui_clear_window((tui_window_t *)window); // Cast away const for ncurses API
+  tui_clear_window((tui_window_t *)window);  // Cast away const for ncurses API
 
   // Draw title
   if (progress->title) {
@@ -33,20 +35,22 @@ static void tui_progress_draw(const tui_progress_t *progress, const char *status
   }
 
   // Progress bar dimensions
-  const int bar_width = window->width - 6; // padding
+  const int bar_width = window->width - 6;  // padding
   const int bar_y = window->height / 2;
   const int bar_x = 3;
 
   // Calculate fill ratio and clamp to [0.0, 1.0]
   double ratio = (double)progress->current_value / (double)progress->max_value;
-  if (ratio < 0.0) ratio = 0.0;
-  if (ratio > 1.0) ratio = 1.0;
-  
+  if (ratio < 0.0)
+    ratio = 0.0;
+  if (ratio > 1.0)
+    ratio = 1.0;
+
   const int fill_width = (int)(ratio * bar_width);
 
   // Draw progress bar background
   mvwhline(win, bar_y, bar_x, ' ', bar_width);
-  
+
   // Draw filled portion
   tui_set_color(win, TUI_COLOR_HIGHLIGHT);
   mvwhline(win, bar_y, bar_x, ' ', fill_width);
@@ -97,7 +101,8 @@ APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   return progress;
 }
 
-void tui_progress_update(tui_progress_t *progress, int current, const char *status) {
+void tui_progress_update(tui_progress_t *progress, int current,
+                         const char *status) {
   if (!progress)
     return;
   progress->current_value = current;
