@@ -83,7 +83,7 @@ static app_error handle_command(const app_config_t *config, const char *command,
   if (strcmp(command, "info") == 0) {
     printf("Application: %s\n", APP_NAME);
     printf("Version: %s\n", APP_VERSION);
-    printf("Build: %s\n", __DATE__ " " __TIME__);
+    printf("Build: %s\n", APP_BUILD_DATE);
     return APP_SUCCESS;
   }
 
@@ -146,7 +146,7 @@ static app_error handle_command(const app_config_t *config, const char *command,
                  "Build Date: %s\n"
                  "Terminal Size: %dx%d\n"
                  "Colors Supported: %s",
-                 APP_NAME, APP_VERSION, __DATE__ " " __TIME__, max_x, max_y,
+                 APP_NAME, APP_VERSION, APP_BUILD_DATE, max_x, max_y,
                  has_colors() ? "Yes" : "No");
         tui_show_message("System Information", info_msg);
         break;

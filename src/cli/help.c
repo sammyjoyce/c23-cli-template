@@ -53,8 +53,8 @@ void app_print_verbose_usage(const char *program_name) {
     program_name = APP_NAME;
   }
 
-  const char *bold = app_use_colors(nullptr) ? COLOR_BOLD : "";
-  const char *reset = app_use_colors(nullptr) ? COLOR_RESET : "";
+  const char *bold = app_use_colors(nullptr) ? APP_COLOR_BOLD : "";
+  const char *reset = app_use_colors(nullptr) ? APP_COLOR_RESET : "";
 
   printf("%s%s - A modern CLI application%s\n", bold, APP_NAME, reset);
   printf("Version %s\n\n", APP_VERSION);

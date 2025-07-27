@@ -64,6 +64,11 @@ typedef struct {
 #define APP_NAME "myapp"
 #endif
 
+// Build date - should be provided by build system
+#ifndef APP_BUILD_DATE
+#define APP_BUILD_DATE "unknown"
+#endif
+
 // Buffer and limit constants
 #define INPUT_BUFFER_INITIAL_SIZE (128 * 1024)
 #define INPUT_BUFFER_READ_CHUNK_SIZE 8192
