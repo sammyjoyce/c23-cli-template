@@ -24,4 +24,25 @@ repos:
         types_or: [c, c++]
         args: [-i]  # In-place editing
 
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint
+        name: Markdown lint
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        args: [--fix]
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v2.3.0
+    hooks:
+      - id: conventional-pre-commit
+        name: Commit message lint
+        entry: conventional-pre-commit
+        language: python
+        stages: [commit-msg]
+        args: []
+
 # Note: When using this template, run `pre-commit install` to set up the hooks.
+# For commit message linting, also run `pre-commit install --hook-type commit-msg`.
