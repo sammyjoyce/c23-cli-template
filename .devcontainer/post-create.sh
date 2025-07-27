@@ -4,10 +4,10 @@ set -e
 echo "🚀 Setting up development environment..."
 
 # Install Zig
-ZIG_VERSION="0.14.1"
+ZIG_VERSION="master"
 echo "📦 Installing Zig ${ZIG_VERSION}..."
 cd /tmp
-wget -q https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz
+wget -q https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz
 tar -xf zig-linux-x86_64-${ZIG_VERSION}.tar.xz
 sudo mv zig-linux-x86_64-${ZIG_VERSION} /opt/zig
 sudo ln -sf /opt/zig/zig /usr/local/bin/zig

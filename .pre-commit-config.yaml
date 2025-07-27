@@ -1,0 +1,27 @@
+# Pre-commit hooks for Zig projects
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/ziglang/zig
+    rev: 0.15.0
+    hooks:
+      - id: zig-fmt
+        name: Format Zig code
+        entry: zig fmt
+        language: system
+        types: [zig]
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v16.0.6
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+        args: [-i]  # In-place editing
+
+# Note: When using this template, run `pre-commit install` to set up the hooks.

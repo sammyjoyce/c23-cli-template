@@ -22,7 +22,20 @@
 - 🔧 **Configuration** - Layered config system (file → env → args)
 - 📦 **Minimal Dependencies** - Only Zig, libc, and ncurses
 - 🤖 **CI/CD Ready** - GitHub Actions workflow included
+- 🔄 **Conditional Runners** - Uses self-hosted runners for template repo, GitHub-hosted for derived repos
+- ⚡ **Caching** - Speeds up builds by caching Zig dependencies and build artifacts
+- 🔒 **Release Gating** - Ensures releases only happen on tags in main branch
+- 🛡️ **Security Scanning** - CodeQL integration for vulnerability detection
+- 📦 **Artifact Management** - Unique artifact naming to avoid collisions
+- 🏷️ **Version Pinning** - Pinned GitHub Actions versions for reproducibility
+- 🚫 **Concurrency Control** - Cancels redundant CI runs on same branch
+- 📊 **Dynamic Binary Naming** - Extracts binary name from build.zig.zon
+- 🧹 **Template Cleanup** - Automated cleanup of template-specific files and placeholders
 - 📚 **OpenCLI Compliant** - Standardized CLI behavior
+- 🔄 **Dependency Updates** - Automated updates with Dependabot/Renovate
+- 📝 **Pre-commit Hooks** - Code quality enforcement before commits
+- 🐳 **Devcontainer Support** - Consistent development environments
+- 📋 **Comprehensive Documentation** - Detailed guides and examples
 
 ## 🎯 Quick Start
 
@@ -161,6 +174,16 @@ const c_sources = [_][]const u8{
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
+
+### Development Environment
+
+This template provides several tools to enhance your development experience:
+
+- **Devcontainer Support** - Pre-configured development environment with all dependencies
+- **VS Code Settings** - Opinionated settings for C/Zig development
+- **Pre-commit Hooks** - Automated code quality checks before commits
+- **Tasks Configuration** - Predefined build and test tasks for VS Code
+- **Debug Configuration** - Ready-to-use debugging setup for VS Code
 
 ### Commands
 
