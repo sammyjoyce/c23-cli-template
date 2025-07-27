@@ -1,6 +1,7 @@
 .{
     .name = .myapp,
     .version = "0.15.0",
+    .fingerprint = 0x8798022a387365d7,
     .dependencies = .{
         .aro = .{
             .url = "git+https://github.com/Vexu/aro/#5204da998cb6d966bbb39d3ccf687b6b008cebc6",

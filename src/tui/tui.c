@@ -1,8 +1,8 @@
 /*
- * NCurses wrapper implementation.
+ * Terminal UI (TUI) implementation using ncurses.
  */
 
-#include "ncurses_wrapper.h"
+#include "tui.h"
 
 #include <locale.h>
 #include <stdlib.h>
@@ -12,14 +12,6 @@
 #include "../utils/memory.h"
 
 static bool tui_initialized = false;
-
-// Progress bar structure
-struct tui_progress {
-  tui_window_t *window;
-  int max_value;
-  int current_value;
-  char *title;
-};
 
 app_error tui_init(void) {
   if (tui_initialized) {
@@ -170,15 +162,13 @@ void tui_set_window_title(tui_window_t *window, const char *title) {
 
   // Draw title if window has border
   if (window->has_border) {
-    int max_width = window->width - 4;  // Account for borders and spacing
-    int title_len = strlen(title);
-    if (title_len > max_width) {
-      title_len = max_width;
-    }
+    const int max_width = window->width - 4;  // Account for borders and spacing
+    const size_t title_len = strlen(title);
+    const int display_len = (title_len > (size_t)max_width) ? max_width : (int)title_len;
 
-    int x = (window->width - title_len) / 2;
+    const int x_pos = (window->width - display_len) / 2;
     tui_set_color(window->win, TUI_COLOR_TITLE);
-    mvwprintw(window->win, 0, x, " %.*s ", max_width, title);
+    mvwprintw(window->win, 0, x_pos, " %.*s ", max_width, title);
     wattroff(window->win, COLOR_PAIR(TUI_COLOR_TITLE));
   }
 }
@@ -400,28 +390,30 @@ void tui_show_message(const char *title, const char *message) {
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
 
-  tui_window_t *dialog = tui_create_window(height, width, y, x);
-  if (!dialog) {
+  tui_window_t *window = tui_create_window(height, width, y, x);
+  if (!window) {
     return;
   }
 
-  tui_draw_border(dialog);
+  tui_draw_border(window);
   if (title) {
-    tui_set_window_title(dialog, title);
+    tui_set_window_title(window, title);
   }
 
-  // Display message
-  tui_print_wrapped(dialog->win, 2, 2, width - 4, message);
+  // Print message
+  if (message) {
+    tui_print_wrapped(window->win, 2, 2, width - 4, message);
+  }
 
   // Instructions
-  tui_set_color(dialog->win, TUI_COLOR_INFO);
-  tui_print_centered(dialog->win, height - 2, "Press any key to continue");
-  wattroff(dialog->win, COLOR_PAIR(TUI_COLOR_INFO));
+  tui_set_color(window->win, TUI_COLOR_INFO);
+  tui_print_centered(window->win, height - 2, "Press any key to continue");
+  wattroff(window->win, COLOR_PAIR(TUI_COLOR_INFO));
 
-  tui_refresh_window(dialog);
+  tui_refresh_window(window);
   tui_get_char();
 
-  tui_destroy_window(dialog);
+  tui_destroy_window(window);
   touchwin(stdscr);
   refresh();
 }
@@ -431,39 +423,55 @@ bool tui_confirm(const char *title, const char *question) {
     return false;
   }
 
-  tui_menu_item_t items[] = {{"Yes", "Confirm the action", 1, true},
-                             {"No", "Cancel the action", 0, true}};
-
   int max_y = getmaxy(stdscr);
   int max_x = getmaxx(stdscr);
 
   int width = 50;
-  int height = 12;
+  int height = 8;
   if (width > max_x - 4)
     width = max_x - 4;
-  if (height > max_y - 4)
-    height = max_y - 4;
 
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
 
-  tui_window_t *dialog = tui_create_window(height, width, y, x);
-  if (!dialog) {
+  tui_window_t *window = tui_create_window(height, width, y, x);
+  if (!window) {
     return false;
   }
 
-  tui_draw_border(dialog);
+  tui_draw_border(window);
+  if (title) {
+    tui_set_window_title(window, title);
+  }
 
-  // Show question
-  tui_print_wrapped(dialog->win, 2, 2, width - 4, question);
+  // Print question
+  if (question) {
+    tui_print_wrapped(window->win, 2, 2, width - 4, question);
+  }
 
-  int result = tui_show_menu(dialog, title, items, 2, 1);  // Default to "No"
+  // Instructions
+  tui_set_color(window->win, TUI_COLOR_INFO);
+  tui_print_centered(window->win, height - 2, "y/n");
+  wattroff(window->win, COLOR_PAIR(TUI_COLOR_INFO));
 
-  tui_destroy_window(dialog);
+  tui_refresh_window(window);
+
+  bool result = false;
+  while (1) {
+    int ch = tui_get_char();
+    if (ch == 'y' || ch == 'Y') {
+      result = true;
+      break;
+    } else if (ch == 'n' || ch == 'N' || ch == 27) {  // ESC
+      result = false;
+      break;
+    }
+  }
+
+  tui_destroy_window(window);
   touchwin(stdscr);
   refresh();
-
-  return result == 1;
+  return result;
 }
 
 app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
@@ -479,137 +487,35 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
   int height = 8;
   if (width > max_x - 4)
     width = max_x - 4;
-  if (height > max_y - 4)
-    height = max_y - 4;
 
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
 
-  tui_window_t *dialog = tui_create_window(height, width, y, x);
-  if (!dialog) {
-    return APP_ERROR_MEMORY;
+  tui_window_t *window = tui_create_window(height, width, y, x);
+  if (!window) {
+    return APP_ERROR_INTERNAL;
   }
 
-  tui_draw_border(dialog);
+  tui_draw_border(window);
   if (title) {
-    tui_set_window_title(dialog, title);
+    tui_set_window_title(window, title);
   }
 
-  // Show prompt
-  mvwprintw(dialog->win, 2, 2, "%s", prompt);
+  // Print prompt
+  if (prompt) {
+    mvwprintw(window->win, 2, 2, "%s", prompt);
+  }
 
-  // Create input field
-  mvwprintw(dialog->win, 4, 2, "> ");
-  wrefresh(dialog->win);
+  // Input field
+  mvwprintw(window->win, 4, 2, "> ");
+  tui_refresh_window(window);
 
-  // Get input
-  wmove(dialog->win, 4, 4);
-  app_error result = tui_get_string(dialog->win, buffer, size, NULL);
+  app_error result = tui_get_string(window->win, buffer, size, NULL);
 
-  tui_destroy_window(dialog);
+  tui_destroy_window(window);
   touchwin(stdscr);
   refresh();
-
   return result;
-}
-
-tui_progress_t *tui_progress_create(const char *title, int max) {
-  if (!tui_initialized || max <= 0) {
-    return NULL;
-  }
-
-  tui_progress_t *progress = app_secure_malloc(sizeof(tui_progress_t));
-  if (!progress) {
-    return NULL;
-  }
-
-  int max_y = getmaxy(stdscr);
-  int max_x = getmaxx(stdscr);
-
-  int width = 60;
-  int height = 7;
-  if (width > max_x - 4)
-    width = max_x - 4;
-
-  int y = (max_y - height) / 2;
-  int x = (max_x - width) / 2;
-
-  progress->window = tui_create_window(height, width, y, x);
-  if (!progress->window) {
-    app_secure_free(progress, sizeof(tui_progress_t));
-    return NULL;
-  }
-
-  progress->max_value = max;
-  progress->current_value = 0;
-  progress->title = title ? app_secure_strdup(title) : NULL;
-
-  tui_draw_border(progress->window);
-  if (title) {
-    tui_set_window_title(progress->window, title);
-  }
-
-  return progress;
-}
-
-void tui_progress_update(tui_progress_t *progress, int current,
-                         const char *status) {
-  if (!progress || !progress->window) {
-    return;
-  }
-
-  progress->current_value = current;
-  if (progress->current_value > progress->max_value) {
-    progress->current_value = progress->max_value;
-  }
-
-  // Clear content area
-  for (int i = 2; i < progress->window->height - 2; i++) {
-    mvwhline(progress->window->win, i, 1, ' ', progress->window->width - 2);
-  }
-
-  // Draw progress bar
-  int bar_width = progress->window->width - 6;
-  int filled = (progress->current_value * bar_width) / progress->max_value;
-
-  mvwprintw(progress->window->win, 2, 2, "[");
-  tui_set_color(progress->window->win, TUI_COLOR_SUCCESS);
-  for (int i = 0; i < filled; i++) {
-    waddch(progress->window->win, '=');
-  }
-  wattroff(progress->window->win, COLOR_PAIR(TUI_COLOR_SUCCESS));
-  for (int i = filled; i < bar_width; i++) {
-    waddch(progress->window->win, ' ');
-  }
-  waddch(progress->window->win, ']');
-
-  // Show percentage
-  int percent = (progress->current_value * 100) / progress->max_value;
-  mvwprintw(progress->window->win, 3, 2, "%d%% (%d/%d)", percent,
-            progress->current_value, progress->max_value);
-
-  // Show status if provided
-  if (status) {
-    tui_print_centered(progress->window->win, 4, status);
-  }
-
-  tui_refresh_window(progress->window);
-}
-
-void tui_progress_destroy(tui_progress_t *progress) {
-  if (!progress) {
-    return;
-  }
-
-  if (progress->title) {
-    app_secure_free(progress->title, strlen(progress->title) + 1);
-  }
-
-  tui_destroy_window(progress->window);
-  app_secure_free(progress, sizeof(tui_progress_t));
-
-  touchwin(stdscr);
-  refresh();
 }
 
 void tui_beep(void) {

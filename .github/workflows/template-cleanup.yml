@@ -17,37 +17,23 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Install jq
+        run: |
+          if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          elif command -v yum &> /dev/null; then
+            sudo yum install -y jq
+          elif command -v brew &> /dev/null; then
+            brew install jq
+          fi
+
       - name: Cleanup
         run: |
-          # Get repository info
-          REPO_NAME="${GITHUB_REPOSITORY##*/}"
-          REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
-
-          # Replace placeholders
-          # Only process files in project directories to avoid accidentally modifying third-party files
-          find . -type f \( -path "./src/*" -o -path "./test/*" -o -path "./docs/*" -o -name "README.md" -o -name "build.zig" -o -name "build.zig.zon" -o -name "*.yaml" -o -name "*.yml" \) -not -path "./.git/*" -not -path "./.github/workflows/template-cleanup.yml" | while read file; do
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-              sed -i '' "s/myapp/${REPO_NAME}/g" "$file"
-              sed -i '' "s/cli_starter/${REPO_NAME}/g" "$file"
-              sed -i '' "s/cli-starter/${REPO_NAME}/g" "$file"
-              sed -i '' "s/yourusername/${REPO_OWNER}/g" "$file"
-              sed -i '' "s/yourproject/${REPO_NAME}/g" "$file"
-              sed -i '' "s/Your Name/${REPO_OWNER}/g" "$file"
-              # Replace self-hosted runner labels with GitHub-hosted defaults
-              sed -i '' "s/namespace-profile-linux-amd64/ubuntu-latest/g" "$file"
-              sed -i '' "s/namespace-profile-macos-arm64/macos-latest/g" "$file"
-            else
-              sed -i "s/myapp/${REPO_NAME}/g" "$file"
-              sed -i "s/cli_starter/${REPO_NAME}/g" "$file"
-              sed -i "s/cli-starter/${REPO_NAME}/g" "$file"
-              sed -i "s/yourusername/${REPO_OWNER}/g" "$file"
-              sed -i "s/yourproject/${REPO_NAME}/g" "$file"
-              sed -i "s/Your Name/${REPO_OWNER}/g" "$file"
-              # Replace self-hosted runner labels with GitHub-hosted defaults
-              sed -i "s/namespace-profile-linux-amd64/ubuntu-latest/g" "$file"
-              sed -i "s/namespace-profile-macos-arm64/macos-latest/g" "$file"
-            fi
-          done
+          # Make the template replacer executable
+          chmod +x .template/template-replacer.sh
+          
+          # Run the template replacer
+          .template/template-replacer.sh
 
           # Move template README to actual README
           if [ -f ".template/TEMPLATE_README.md" ]; then
@@ -58,13 +44,6 @@ jobs:
           rm -f .github/workflows/template-cleanup.yml
           rm -f .github/template.yml
           rm -rf .template
-
-          # Update build.zig.zon with new name
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/\.cli_starter/.${REPO_NAME}/g" build.zig.zon
-          else
-            sed -i "s/\.cli_starter/.${REPO_NAME}/g" build.zig.zon
-          fi
 
       - name: Commit changes
         run: |

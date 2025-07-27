@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial template structure with C/Zig build system
 - GitHub Actions CI workflow for automated testing
 - Comprehensive documentation (README, CONTRIBUTING, etc.)
@@ -22,23 +23,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - VS Code workspace settings
 
 ### Changed
+
 - Nothing yet
 
 ### Deprecated
+
 - Nothing yet
 
 ### Removed
+
 - Nothing yet
 
 ### Fixed
+
 - Nothing yet
 
 ### Security
+
 - Nothing yet
 
 ## [1.0.0] - 2025-01-27
 
 ### Added
+
 - Initial release of the C/Zig project template
 - Basic project structure with src/, test/, docs/ directories
 - Build configuration using Zig build system

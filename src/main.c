@@ -21,7 +21,7 @@
 #include "io/input.h"
 #include "io/output.h"
 #ifdef ENABLE_TUI
-#include "tui/ncurses_wrapper.h"
+#include "tui/tui.h"
 #endif
 #include "utils/colors.h"
 #include "utils/logging.h"
