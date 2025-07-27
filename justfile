@@ -10,13 +10,9 @@ default: build
 release:
     zig build -Doptimize=ReleaseSafe
 
-# Run the application
-run:
-    zig build run
-
-# Run with arguments
+# Run the application (with optional arguments)
 run *args:
-    zig build run -- {{args}}
+    zig build run -- {{ args }}
 
 # Run tests
 test:

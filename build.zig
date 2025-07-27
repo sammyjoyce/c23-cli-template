@@ -7,10 +7,26 @@ pub fn build(b: *std.Build) void {
     const version_str = "1.0.0";
     const app_name = "myapp";
     const binary_name = app_name;
-    const git_commit = "unknown";
+
+    // Attempt to inject current git commit hash, fall back to "unknown"
+    var git_commit_buf: [32]u8 = undefined;
+    const git_commit = blk: {
+        const child_res = std.process.Child.run(.{
+            .allocator = b.allocator,
+            .argv = &.{ "git", "rev-parse", "--short", "HEAD" },
+            .max_output_bytes = 64,
+        }) catch break :blk "unknown";
+        if (child_res.stdout.len == 0) break :blk "unknown";
+        const trimmed = std.mem.trim(u8, child_res.stdout, "\n");
+        if (trimmed.len > git_commit_buf.len) break :blk "unknown";
+        @memcpy(git_commit_buf[0..trimmed.len], trimmed);
+        break :blk git_commit_buf[0..trimmed.len];
+    };
 
     // Build options
-    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: true)") orelse true;
+    // Build options – TUI disabled by default so fresh clones build everywhere
+    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: false)") orelse false;
+    const ncurses_prefix = b.option([]const u8, "ncurses-prefix", "Override ncurses prefix (e.g. /usr/local/opt/ncurses)");
 
     const aro_dep = b.dependency("aro", .{
         .target = target,
@@ -25,6 +41,8 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    // Ensure local headers are discoverable regardless of include style
+    exe.addIncludePath(.{ .cwd_relative = "src" });
 
     // Base source files
     const base_sources = [_][]const u8{
@@ -54,6 +72,7 @@ pub fn build(b: *std.Build) void {
         flags.appendSlice(&base_flags) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch @panic("OOM");
         flags.append(b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
+        flags.append(b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch @panic("OOM");
         flags.append("-DAPP_BUILD_DATE=\"reproducible\"") catch @panic("OOM");
 
         if (enable_tui) {
@@ -64,6 +83,7 @@ pub fn build(b: *std.Build) void {
             .file = b.path(src),
             .flags = flags.items,
         });
+        flags.deinit();
     }
 
     // Add TUI source if enabled
@@ -88,36 +108,24 @@ pub fn build(b: *std.Build) void {
                 .flags = flags.items,
             });
         }
+        flags.deinit();
     }
 
     exe.linkLibC();
 
-    // NCurses configuration (only if TUI is enabled)
+    // NCurses / PDCurses configuration (only if TUI is enabled)
     if (enable_tui) {
-        if (target.result.os.tag == .windows) {
-            // On Windows, use pdcurses
-            exe.linkSystemLibrary("pdcurses");
+        // Allow caller to override ncurses install prefix explicitly.
+        if (ncurses_prefix) |pref| {
+            exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
+            exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
+        }
 
-            // Add vcpkg paths if available
-            if (std.process.getEnvVarOwned(b.allocator, "VCPKG_ROOT")) |vcpkg_root| {
-                defer b.allocator.free(vcpkg_root);
-                const include_path = b.fmt("{s}/installed/x64-windows/include", .{vcpkg_root});
-                const lib_path = b.fmt("{s}/installed/x64-windows/lib", .{vcpkg_root});
-                exe.addIncludePath(.{ .cwd_relative = include_path });
-                exe.addLibraryPath(.{ .cwd_relative = lib_path });
-            } else |_| {
-                // Fallback to common Windows paths
-                exe.addIncludePath(.{ .cwd_relative = "C:/vcpkg/installed/x64-windows/include" });
-                exe.addLibraryPath(.{ .cwd_relative = "C:/vcpkg/installed/x64-windows/lib" });
-            }
+        if (target.result.os.tag == .windows) {
+            // Prefer PDCurses on Windows
+            exe.linkSystemLibrary("pdcurses");
         } else {
             exe.linkSystemLibrary("ncurses");
-
-            // Add common ncurses include paths for macOS
-            if (target.result.os.tag == .macos) {
-                exe.addIncludePath(.{ .cwd_relative = "/usr/local/opt/ncurses/include" });
-                exe.addLibraryPath(.{ .cwd_relative = "/usr/local/opt/ncurses/lib" });
-            }
         }
     }
 
@@ -155,8 +163,11 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run test suite");
     test_step.dependOn(&test_cmd.step);
 
-    // Clean command
-    const clean_cmd = b.addSystemCommand(&.{ "rm", "-rf", "zig-out", ".zig-cache" });
+    // Clean command – cross-platform
+    const clean_cmd = if (target.result.os.tag == .windows)
+        b.addSystemCommand(&.{ "cmd", "/C", "rmdir", "/S", "/Q", "zig-out", "&&", "rmdir", "/S", "/Q", ".zig-cache" })
+    else
+        b.addSystemCommand(&.{ "rm", "-rf", "zig-out", ".zig-cache" });
     const clean_step = b.step("clean", "Clean build artifacts");
     clean_step.dependOn(&clean_cmd.step);
 
