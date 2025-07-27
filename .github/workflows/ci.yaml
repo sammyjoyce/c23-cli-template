@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+
+  pull_request:
+    branches: [main]
+
+  workflow_dispatch:
+
+env:
+  ZIG_VERSION: master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: myapp-linux
+          - os: macos-latest
+            artifact_name: myapp-macos
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libncurses-dev
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            brew install ncurses
+          fi
+
+      - name: Run `install` step
+        run: zig build install
+
+      - name: Run `check` step
+        run: zig build check
+
+      - name: Run `test` step
+        run: zig build test
+
+      - name: Test binary functionality
+        run: |
+          ./zig-out/bin/myapp --help
+          ./zig-out/bin/myapp --version
+          ./zig-out/bin/myapp hello
+          ./zig-out/bin/myapp hello Alice
+          ./zig-out/bin/myapp echo Hello World
+          ./zig-out/bin/myapp info
+
+      - name: Build release binary
+        run: zig build -Doptimize=ReleaseSafe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: zig-out/bin/myapp
+          retention-days: 7
+
+  lint:
+    name: Lint and Format
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Check formatting
+        run: zig fmt --check src/ test/
+
+      - name: Run clang-format check
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+          find src -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          languages: c-cpp
+
+  release:
+    name: Create Release
+    needs: [test, lint, security]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

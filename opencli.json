@@ -1,0 +1,238 @@
+{
+  "opencli": "0.1",
+  "info": {
+    "title": "CLI Application Starter",
+    "description": "A modern C23 CLI application template with Zig build system and comprehensive tooling.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Your Name",
+      "url": "https://github.com/yourusername/yourproject"
+    },
+    "license": {
+      "name": "MIT License",
+      "identifier": "MIT"
+    }
+  },
+  "conventions": {
+    "groupOptions": false,
+    "optionArgumentSeparator": " "
+  },
+  "arguments": [
+    {
+      "name": "command",
+      "required": true,
+      "ordinal": 1,
+      "arity": {
+        "minimum": 1,
+        "maximum": 1
+      },
+      "description": "The command to execute"
+    }
+  ],
+  "options": [
+    {
+      "name": "help",
+      "required": false,
+      "aliases": ["h"],
+      "arguments": [],
+      "description": "Show help message and exit"
+    },
+    {
+      "name": "version",
+      "required": false,
+      "aliases": [],
+      "arguments": [],
+      "description": "Show version information and exit"
+    },
+    {
+      "name": "quiet",
+      "required": false,
+      "aliases": ["q"],
+      "arguments": [],
+      "description": "Suppress non-essential output"
+    },
+    {
+      "name": "debug",
+      "required": false,
+      "aliases": ["d"],
+      "arguments": [],
+      "description": "Enable debug output (DEBUG level logs)"
+    },
+    {
+      "name": "verbose",
+      "required": false,
+      "aliases": ["v"],
+      "arguments": [],
+      "description": "Enable verbose output"
+    },
+    {
+      "name": "json",
+      "required": false,
+      "aliases": [],
+      "arguments": [],
+      "description": "Output in JSON format"
+    },
+    {
+      "name": "plain",
+      "required": false,
+      "aliases": [],
+      "arguments": [],
+      "description": "Output in plain text format"
+    },
+    {
+      "name": "no-color",
+      "required": false,
+      "aliases": [],
+      "arguments": [],
+      "description": "Disable colored output"
+    },
+    {
+      "name": "config",
+      "required": false,
+      "aliases": ["c"],
+      "arguments": [
+        {
+          "name": "path",
+          "required": true,
+          "ordinal": 1,
+          "arity": {
+            "minimum": 1,
+            "maximum": 1
+          },
+          "description": "Path to configuration file"
+        }
+      ],
+      "description": "Specify configuration file path"
+    }
+  ],
+  "commands": [
+    {
+      "name": "hello",
+      "description": "Print a greeting message",
+      "options": [],
+      "arguments": [
+        {
+          "name": "name",
+          "required": false,
+          "ordinal": 1,
+          "arity": {
+            "minimum": 0,
+            "maximum": 1
+          },
+          "description": "Name to greet (default: World)"
+        }
+      ],
+      "examples": [
+        "myapp hello",
+        "myapp hello Alice"
+      ]
+    },
+    {
+      "name": "echo",
+      "description": "Echo the provided text",
+      "options": [],
+      "arguments": [
+        {
+          "name": "text",
+          "required": false,
+          "ordinal": 1,
+          "arity": {
+            "minimum": 0,
+            "maximum": null
+          },
+          "description": "Text to echo"
+        }
+      ],
+      "examples": [
+        "myapp echo Hello World",
+        "myapp echo"
+      ]
+    },
+    {
+      "name": "info",
+      "description": "Display application information",
+      "options": [],
+      "arguments": [],
+      "examples": [
+        "myapp info"
+      ]
+    },
+    {
+      "name": "menu",
+      "description": "Launch interactive TUI menu (requires ncurses)",
+      "options": [],
+      "arguments": [],
+      "examples": [
+        "myapp menu"
+      ],
+      "metadata": {
+        "requires": "ncurses",
+        "interactive": true
+      }
+    }
+  ],
+  "exitCodes": [
+    {
+      "code": 0,
+      "description": "Success"
+    },
+    {
+      "code": 1,
+      "description": "General error"
+    },
+    {
+      "code": 2,
+      "description": "Invalid command or argument"
+    },
+    {
+      "code": 3,
+      "description": "Configuration error"
+    },
+    {
+      "code": 10,
+      "description": "Memory allocation error"
+    },
+    {
+      "code": 11,
+      "description": "I/O error"
+    },
+    {
+      "code": 12,
+      "description": "Permission denied"
+    }
+  ],
+  "examples": [
+    "myapp hello",
+    "myapp hello Alice",
+    "myapp echo Hello World",
+    "myapp info",
+    "myapp --help",
+    "myapp --version"
+  ],
+  "interactive": false,
+  "metadata": [
+    {
+      "name": "environment",
+      "value": {
+        "APP_LOG_LEVEL": "Set logging verbosity: ERROR, WARNING, INFO, DEBUG (default: ERROR)",
+        "NO_COLOR": "Disable colored output when set"
+      }
+    },
+    {
+      "name": "configuration",
+      "value": {
+        "location": "~/.config/myapp/config.json",
+        "format": "JSON",
+        "precedence": "CLI args > Environment > Config file > Defaults"
+      }
+    },
+    {
+      "name": "build",
+      "value": {
+        "system": "Zig build system",
+        "compiler": "Aro (C23 compatible)",
+        "standard": "C23"
+      }
+    }
+  ]
+}

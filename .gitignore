@@ -1,0 +1,31 @@
+# Zig build artifacts
+zig-out/
+.zig-cache/
+zig-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Test artifacts
+*.pid
+*.log
+test_output/
+
+# Configuration
+config.json
+!examples/config.json
