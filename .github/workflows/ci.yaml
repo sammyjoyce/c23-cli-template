@@ -80,16 +80,22 @@ jobs:
             sudo apt-get install -y libncurses-dev
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install ncurses
-          elif [ "${{ runner.os }}" = "Windows" ]; then
-            # Install vcpkg and pdcurses for Windows
-            git clone https://github.com/Microsoft/vcpkg.git
-            cd vcpkg
-            ./bootstrap-vcpkg.bat
-            ./vcpkg integrate install
-            ./vcpkg install pdcurses
-            echo "VCPKG_ROOT=$(pwd)" >> $GITHUB_ENV
-            cd ..
           fi
+        shell: bash
+
+      - name: Install pdcurses (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Install vcpkg
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          ./bootstrap-vcpkg.bat
+          ./vcpkg integrate install
+          
+          # Install pdcurses
+          ./vcpkg install pdcurses:x64-windows
+          echo "VCPKG_ROOT=$(pwd)" >> $GITHUB_ENV
+          cd ..
         shell: bash
 
       - name: Run `install` step
@@ -284,7 +290,7 @@ jobs:
 
       - name: Run tests
         run: |
-          zig test src/main.zig --test-cmd ./test-runner.sh --test-cmd-bin
+          zig build test
         shell: bash
 
       - name: Upload coverage to Codecov
