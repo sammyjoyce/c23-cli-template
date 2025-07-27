@@ -66,11 +66,12 @@ jobs:
             ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-
             ${{ runner.os }}-zig-
 
-      - name: Extract binary name from build.zig.zon
-        id: binary_name
+      - name: Extract binary name
+        id: extract_binary_name
         run: |
-          BINARY_NAME=$(grep -o '\.[a-zA-Z0-9_-]*' build.zig.zon | head -n 1 | sed 's/^\.//')
+          BINARY_NAME=$(grep -E 'name\s*=\s*"' build.zig.zon | sed -E 's/.*name\s*=\s*"([^"]+)".*/\1/' | sed 's/^\.//')
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo "binary_name=$BINARY_NAME" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Install dependencies

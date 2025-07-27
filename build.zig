@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
             exe.linkSystemLibrary("pdcurses");
             // Add vcpkg library path if available
             if (b.sysroot) |sysroot| {
-                exe.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ sysroot, "lib" }) });
+                exe.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ sysroot, "installed", "x64-windows", "lib" }) });
             }
         } else {
             // On Unix-like systems, use ncurses
