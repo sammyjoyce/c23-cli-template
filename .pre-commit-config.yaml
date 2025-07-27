@@ -4,7 +4,7 @@ repos:
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^.template/
+        exclude: ^.template/|^.github/
       - id: end-of-file-fixer
         exclude: ^.template/
       - id: check-yaml
