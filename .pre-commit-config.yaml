@@ -4,9 +4,7 @@ repos:
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
-        args: [--no-markdown-linebreak-ext]
       - id: end-of-file-fixer
-        args: [--dry-run]
       - id: check-yaml
       - id: check-added-large-files
 
@@ -25,7 +23,7 @@ repos:
         entry: markdownlint
         language: node
         types: [markdown]
-        args: [--fix, --dry-run]
+        args: [--fix]
         exclude: ^\.template/
 
   - repo: https://github.com/compilerla/conventional-pre-commit
