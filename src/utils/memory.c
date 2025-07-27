@@ -12,7 +12,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <sys/mman.h>
+#endif
 
 #include "logging.h"
 
@@ -64,10 +66,12 @@ void *app_secure_malloc(size_t size) {
   // indefinitely, even after the program exits. mlock() prevents this by
   // pinning the memory in RAM. This is critical for handling passwords, API
   // keys, and cryptographic material.
+#ifndef _WIN32
   if (mlock(ptr, size) != 0) {
     LOG_WARNING("Failed to mlock() %zu bytes. Check user limits (ulimit -l).",
                 size);
   }
+#endif
 
   // Zero the memory immediately after allocation. Freshly allocated memory
   // often contains data from previously freed allocations, which could include
@@ -82,7 +86,10 @@ void *app_secure_realloc(void *ptr, size_t old_size, size_t new_size) {
   if (new_size == 0) {
     if (ptr != nullptr) {
       app_secure_zero(ptr, old_size);
+#ifndef _WIN32
+#ifndef _WIN32
       munlock(ptr, old_size);
+#endif #endif
       free(ptr);
     }
     return nullptr;
@@ -109,7 +116,9 @@ void app_secure_free(void *ptr, size_t size) {
     return;
 
   app_secure_zero(ptr, size);
+#ifndef _WIN32
   munlock(ptr, size);
+#endif
   free(ptr);
 }
 

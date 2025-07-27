@@ -64,12 +64,6 @@ void app_output_json(const char *json_string, const app_config_t *config,
     return;
   }
 
-  if (pretty && !app_config_is_plain_output(config)) {
-    // In a real implementation, you'd pretty-print the JSON here
-    // For now, just output as-is
-    printf("%s\n", json_string);
-  } else {
-    // Compact JSON output
-    printf("%s\n", json_string);
-  }
+  // Output JSON (pretty-printing would be implemented here if needed)
+  printf("%s\n", json_string);
 }

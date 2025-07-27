@@ -13,8 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/time.h>
+#endif
 
 #include "../core/types.h"
 
@@ -102,15 +106,30 @@ void app_log_with_location(app_log_level level, const char *file, int line,
     return;
   }
 
-  struct timeval tv;
-  gettimeofday(&tv, nullptr);
   char time_buf[32];
   struct tm tm_info_buf;
+  long milliseconds = 0;
+
+#ifdef _WIN32
+  SYSTEMTIME st;
+  GetLocalTime(&st);
+  tm_info_buf.tm_year = st.wYear - 1900;
+  tm_info_buf.tm_mon = st.wMonth - 1;
+  tm_info_buf.tm_mday = st.wDay;
+  tm_info_buf.tm_hour = st.wHour;
+  tm_info_buf.tm_min = st.wMinute;
+  tm_info_buf.tm_sec = st.wSecond;
+  milliseconds = st.wMilliseconds;
+#else
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
   localtime_r(&tv.tv_sec, &tm_info_buf);
+  milliseconds = tv.tv_usec / 1000;
+#endif
   strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_info_buf);
 
-  fprintf(stderr, "[%s.%03ld] [%s] %s:%d: ", time_buf,
-          (long)(tv.tv_usec / 1000), log_level_to_string(level), file, line);
+  fprintf(stderr, "[%s.%03ld] [%s] %s:%d: ", time_buf, milliseconds,
+          log_level_to_string(level), file, line);
 
   va_list args;
   va_start(args, fmt);
