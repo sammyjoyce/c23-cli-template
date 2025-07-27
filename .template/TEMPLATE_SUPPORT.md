@@ -1,26 +1,19 @@
 # Template Support
 
-This is a GitHub template repository. If you're having issues with the template itself (not your generated project), please:
+For issues with the template itself (not your generated project):
 
-1. Check existing issues: https://github.com/yourusername/c23-cli-template/issues
-2. Create a new issue if needed
-3. For questions about your generated project, please use your own repository's issues
+- **Check existing issues**: [c23-cli-template/issues](https://github.com/sammyjoyce/c23-cli-template/issues)
+- **Create new issue**: Use the issue templates provided
+- **Your project issues**: Use your own repository's issue tracker
 
-## Common Issues
+## Quick Fixes
 
-### Template not working after generation
-- Make sure you have GitHub Actions enabled in your repository
-- The template cleanup workflow needs to run once after creation
-- Check the Actions tab to see if it ran successfully
+**Template cleanup didn't run?**
+- Check Actions tab for the workflow status
+- Run manually: `.template/cleanup-template.sh`
 
-### Build errors
-- Ensure you have Zig master branch installed
-- Use `zvm` to manage Zig versions
-- Check that your system has a C compiler
-
-### Placeholders not replaced
-- The template cleanup workflow should replace all placeholders
-- If it didn't run, you can manually replace:
-  - `myapp` → your app name
-  - `yourusername` → your GitHub username
-  - `yourproject` → your repository name
+**Placeholders still visible?**
+The cleanup script replaces:
+- `myapp` → your repository name
+- `yourusername` → your GitHub username
+- `sammyjoyce` → your GitHub username
