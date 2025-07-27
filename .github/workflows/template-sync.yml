@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   sync:
-    runs-on: namespace-profile-linux-amd64
+    runs-on: ubuntu-latest
 
     # Only run in repositories that were created from this template
     if: ${{ !github.event.repository.is_template }}
@@ -39,7 +39,7 @@ jobs:
         uses: AndreasAugustin/actions-template-sync@v2
         with:
           source_gh_token: ${{ secrets.GITHUB_TOKEN }}
-          source_repo_path: ${{ github.repository }}
+          source_repo_path: sammyjoyce/c23-cli-template
           upstream_branch: main
           pr_title: "🔄 Sync with template repository"
           pr_body: |
