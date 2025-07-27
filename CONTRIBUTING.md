@@ -81,6 +81,9 @@ docs(readme): update installation instructions
    # Using zvm (recommended)
    zvm install master
    zvm use master
+   
+   # Or download directly
+   # Visit https://ziglang.org/download/
    ```
 
 2. **Clone your fork**:
@@ -90,18 +93,22 @@ docs(readme): update installation instructions
    cd yourproject
    ```
 
-3. **Install optional dependencies**:
+3. **Install platform dependencies**:
 
    ```bash
-   # For TUI support
    # macOS
    brew install ncurses
-
+   
    # Ubuntu/Debian
-   sudo apt-get install libncurses-dev
-
+   sudo apt-get install libncurses-dev clang-format clang-tidy
+   
    # Fedora/RHEL
-   sudo dnf install ncurses-devel
+   sudo dnf install ncurses-devel clang-tools-extra
+   
+   # Windows (using vcpkg)
+   git clone https://github.com/Microsoft/vcpkg.git
+   cd vcpkg && bootstrap-vcpkg.bat
+   vcpkg install pdcurses:x64-windows
    ```
 
 4. **Set up pre-commit hooks** (recommended):
@@ -109,10 +116,10 @@ docs(readme): update installation instructions
    ```bash
    # Install pre-commit
    pip install pre-commit
-
+   
    # Install Node.js for markdownlint
    # (varies by OS - use your preferred method)
-
+   
    # Install the hooks
    pre-commit install
    ```
@@ -125,20 +132,69 @@ docs(readme): update installation instructions
    - When prompted, choose "Reopen in Container"
    - The container will automatically install all dependencies
 
-6. **Build the project**:
+### Understanding the Build System
 
-   ```bash
-   zig build
+This project uses Zig as its build system. If you're new to Zig, see our [Zig Primer for C Developers](docs/ZIG_PRIMER.md).
 
-   # Or without TUI support
-   zig build -Denable-tui=false
+#### Quick Build Commands
+
+```bash
+# Build the project (debug mode)
+zig build
+
+# Build with optimizations
+zig build -Doptimize=ReleaseSafe
+
+# Run the application
+zig build run -- --help
+
+# Run tests
+zig build test
+
+# Check code without building
+zig build check
+
+# Cross-compile for Windows (from Linux/macOS)
+zig build -Dtarget=x86_64-windows
+
+# Install to a custom prefix
+zig build install --prefix ~/.local
+```
+
+#### Build Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-Doptimize=` | Build mode: `Debug`, `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | `Debug` |
+| `-Dtarget=` | Target triple (e.g., `x86_64-windows`, `aarch64-linux`) | Native |
+| `-Denable-tui=` | Enable TUI support | `true` |
+| `--prefix` | Installation directory | `zig-out` |
+
+#### Adding New Source Files
+
+1. Add your C file to the appropriate directory under `src/`
+2. Update `build.zig` to include the new file:
+   ```zig
+   exe.addCSourceFiles(.{
+       .files = &.{
+           // existing files...
+           "src/your_module/new_file.c",
+       },
+       .flags = &.{ "-std=c23", "-Wall", "-Wextra" },
+   });
    ```
+3. If adding a new module, update the architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-7. **Run tests**:
+#### Build Troubleshooting
 
-   ```bash
-   zig build test
-   ```
+**Common Issues:**
+
+- **"Unable to find ncurses"**: Install the development package for your OS (see step 3 above)
+- **"C header not found"**: Check that all include paths are added in `build.zig`
+- **Cache issues**: Run `rm -rf zig-cache zig-out` and rebuild
+- **Windows DLL issues**: Ensure vcpkg bin directory is in PATH
+
+For more details, see the [Architecture Overview](docs/ARCHITECTURE.md).
 
 ### Testing
 

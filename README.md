@@ -217,8 +217,27 @@ Your app supports config from multiple sources:
 
 ## 📚 Documentation
 
+### Getting Started
 - 📖 [**Using This Template**](USING_THIS_TEMPLATE.md) - Detailed setup guide
-- 🤝 [**Contributing**](CONTRIBUTING.md) - Contribution guidelines
+- 🚀 [**Quick Start Guide**](#-quick-start) - Get up and running quickly
+- 🔧 [**Installation**](#-installation) - Platform-specific instructions
+
+### Developer Resources
+- 🏗️ [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and module structure
+- ⚡ [**Zig Primer for C Developers**](docs/ZIG_PRIMER.md) - Understanding the build system
+- 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute to the project
+- 🧪 [**Advanced Usage Examples**](examples/advanced-usage.md) - Piping, scripting, and integration
+
+### Examples & Demos
+- 📝 [**Adding Commands**](examples/adding-a-command.md) - Extend the CLI
+- 🎨 [**Custom TUI Components**](examples/custom-tui.md) - Build interactive interfaces
+- ⚙️ [**Configuration Guide**](examples/config.json) - Config file examples
+- 🎬 [**Demo Gallery**](docs/demos/README.md) - Animated demonstrations
+
+### Project Information
+- 🛡️ [**Security Policy**](SECURITY.md) - Reporting vulnerabilities
+- 📋 [**Code of Conduct**](CODE_OF_CONDUCT.md) - Community guidelines
+- 📝 [**Changelog**](CHANGELOG.md) - Version history
 - 📜 [**License**](LICENSE) - MIT License
 
 ## 🤔 Why This Stack?
