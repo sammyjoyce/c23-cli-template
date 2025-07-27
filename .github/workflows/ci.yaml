@@ -288,7 +288,7 @@ jobs:
           mkdir -p coverage
           
           # Run tests with coverage
-          zig build test --cover
+          zig test --cover src/main.zig
           
           # Generate lcov info
           lcov --capture --directory . --output-file coverage/lcov.info
@@ -328,6 +328,16 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: c-cpp
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Build project
+        run: |
+          zig build
+        shell: bash
 
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v3

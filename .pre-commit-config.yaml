@@ -9,7 +9,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/ziglang/zig
-    rev: 0.15.0
+    rev: 0.13.0
     hooks:
       - id: zig-fmt
         name: Format Zig code
