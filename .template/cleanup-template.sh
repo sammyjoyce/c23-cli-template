@@ -64,19 +64,15 @@ rm -f build.zig.zon.bak
 echo "📁 Cleaning up template files..."
 
 # Move template README if it exists
-if [ -f "TEMPLATE_README.md" ]; then
-    mv TEMPLATE_README.md README.md
+if [ -f ".template/TEMPLATE_README.md" ]; then
+    mv .template/TEMPLATE_README.md README.md
     echo "  ✓ Moved TEMPLATE_README.md to README.md"
 fi
 
 # Remove template-specific files
 rm -f .github/workflows/template-cleanup.yml
-rm -f .github/TEMPLATE_SUPPORT.md
 rm -f .github/template.yml
-rm -f USING_THIS_TEMPLATE.md
-rm -f TEMPLATE_ENHANCEMENTS.md
-rm -f TEMPLATE_README.md
-rm -f cleanup-template.sh
+rm -rf .template
 
 echo "  ✓ Removed template-specific files"
 
