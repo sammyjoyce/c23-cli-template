@@ -164,7 +164,8 @@ void tui_set_window_title(tui_window_t *window, const char *title) {
   if (window->has_border) {
     const int max_width = window->width - 4;  // Account for borders and spacing
     const size_t title_len = strlen(title);
-    const int display_len = (title_len > (size_t)max_width) ? max_width : (int)title_len;
+    const int display_len =
+        (title_len > (size_t)max_width) ? max_width : (int)title_len;
 
     const int x_pos = (window->width - display_len) / 2;
     tui_set_color(window->win, TUI_COLOR_TITLE);

@@ -1,10 +1,11 @@
 /*
  * Logging implementation for the application.
- * 
- * Provides a lightweight, level-based logging system that integrates with Claude Code's
- * output handling. We avoid heavy logging frameworks to keep the tool fast and minimize
- * dependencies. The design prioritizes clear error reporting for hook developers while
- * maintaining performance for production use.
+ *
+ * Provides a lightweight, level-based logging system that integrates with
+ * Claude Code's output handling. We avoid heavy logging frameworks to keep the
+ * tool fast and minimize dependencies. The design prioritizes clear error
+ * reporting for hook developers while maintaining performance for production
+ * use.
  */
 
 #include "logging.h"
@@ -17,10 +18,11 @@
 
 #include "../core/types.h"
 
-// Global log level defaults to ERROR to minimize output in production environments.
-// Hook developers can increase verbosity via APP_LOG_LEVEL when debugging issues.
-// We track initialization state to ensure environment variables are read exactly once,
-// preventing inconsistent behavior if the environment changes during execution.
+// Global log level defaults to ERROR to minimize output in production
+// environments. Hook developers can increase verbosity via APP_LOG_LEVEL when
+// debugging issues. We track initialization state to ensure environment
+// variables are read exactly once, preventing inconsistent behavior if the
+// environment changes during execution.
 static app_log_level g_log_level = LOG_LEVEL_ERROR;
 static bool g_log_initialized = false;
 
@@ -35,11 +37,11 @@ void app_log_init(void) {
 }
 
 void app_log_update_level(void) {
-  // Read log level from environment to allow runtime configuration without recompilation.
-  // This is essential for hook developers who need to debug issues in production
-  // environments where they can't modify the binary. We use string comparison rather
-  // than numeric levels for clarity in configuration (APP_LOG_LEVEL=DEBUG is clearer
-  // than APP_LOG_LEVEL=3).
+  // Read log level from environment to allow runtime configuration without
+  // recompilation. This is essential for hook developers who need to debug
+  // issues in production environments where they can't modify the binary. We
+  // use string comparison rather than numeric levels for clarity in
+  // configuration (APP_LOG_LEVEL=DEBUG is clearer than APP_LOG_LEVEL=3).
   const char *level = getenv("APP_LOG_LEVEL");
   if (level == nullptr) {
     g_log_level = LOG_LEVEL_ERROR;
@@ -50,9 +52,9 @@ void app_log_update_level(void) {
   } else if (strcmp(level, "DEBUG") == 0) {
     g_log_level = LOG_LEVEL_DEBUG;
   } else {
-    // Default to ERROR for invalid values rather than failing. This ensures hooks
-    // continue to work even with misconfigured environments, following the principle
-    // of graceful degradation.
+    // Default to ERROR for invalid values rather than failing. This ensures
+    // hooks continue to work even with misconfigured environments, following
+    // the principle of graceful degradation.
     g_log_level = LOG_LEVEL_ERROR;
   }
 }
@@ -85,16 +87,17 @@ static const char *log_level_to_string(app_log_level level) {
 }
 
 void app_log_with_location(app_log_level level, const char *file, int line,
-                            const char *fmt, ...) {
-  // Lazy initialization allows logging to work immediately without requiring explicit
-  // setup in main(). This is crucial for error reporting during early startup failures.
+                           const char *fmt, ...) {
+  // Lazy initialization allows logging to work immediately without requiring
+  // explicit setup in main(). This is crucial for error reporting during early
+  // startup failures.
   if (!g_log_initialized) {
     app_log_init();
   }
 
-  // Early return for filtered messages avoids formatting overhead. Since debug logging
-  // can be verbose, skipping disabled messages significantly improves performance in
-  // production where only errors are logged.
+  // Early return for filtered messages avoids formatting overhead. Since debug
+  // logging can be verbose, skipping disabled messages significantly improves
+  // performance in production where only errors are logged.
   if (level > g_log_level) {
     return;
   }
