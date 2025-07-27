@@ -282,39 +282,15 @@ jobs:
         with:
           version: ${{ env.ZIG_VERSION }}
 
-      - name: Install lcov
+      - name: Run tests
         run: |
-          sudo apt-get update
-          sudo apt-get install -y lcov
-        shell: bash
-
-      - name: Run tests with coverage
-        run: |
-          # Create coverage directory
-          mkdir -p coverage
-          
-          # Run tests
           zig test src/main.zig
-          
-          # Generate lcov info
-          lcov --capture --directory zig-cache --output-file coverage/lcov.info
-          
-          # Remove test files and system headers from coverage
-          lcov --remove coverage/lcov.info \
-            'test/*' \
-            '/usr/*' \
-            '*/zig-cache/*' \
-            '*/zig-out/*' \
-            --output-file coverage/lcov.info
-          
-          # Generate HTML report
-          genhtml coverage/lcov.info --output-directory coverage/html
         shell: bash
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: coverage/lcov.info
+          file: lcov.info
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
