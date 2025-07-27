@@ -12,7 +12,7 @@ This guide walks you through using this template to create your own CLI applicat
 
 ### Option B: GitHub CLI
 ```bash
-gh repo create my-awesome-cli --template yourusername/maxprofiles --public
+gh repo create my-awesome-cli --template yourusername/c23-cli-template --public
 ```
 
 ## Step 2: Wait for Automatic Setup

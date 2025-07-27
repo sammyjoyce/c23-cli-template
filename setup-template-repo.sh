@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🚀 MaxProfiles Template Repository Setup"
+echo "🚀 C23 CLI Template Repository Setup"
 echo "========================================"
 echo ""
 

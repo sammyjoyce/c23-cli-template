@@ -10,7 +10,7 @@ jobs:
   template-cleanup:
     name: Template Cleanup
     runs-on: ubuntu-latest
-    if: github.event.repository.name != 'maxprofiles'
+    if: github.event.repository.name != 'c23-cli-template'
     permissions:
       contents: write
     steps:
@@ -67,5 +67,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git diff --staged --quiet || git commit -m "Initial setup from MaxProfiles template"
+          git diff --staged --quiet || git commit -m "Initial setup from C23 CLI template"
           git push

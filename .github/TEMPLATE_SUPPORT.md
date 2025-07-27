@@ -2,7 +2,7 @@
 
 This is a GitHub template repository. If you're having issues with the template itself (not your generated project), please:
 
-1. Check existing issues: https://github.com/yourusername/maxprofiles/issues
+1. Check existing issues: https://github.com/yourusername/c23-cli-template/issues
 2. Create a new issue if needed
 3. For questions about your generated project, please use your own repository's issues
 
