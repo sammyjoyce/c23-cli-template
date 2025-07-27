@@ -4,7 +4,9 @@ repos:
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^.template/
       - id: end-of-file-fixer
+        exclude: ^.template/
       - id: check-yaml
       - id: check-added-large-files
 
@@ -24,7 +26,7 @@ repos:
         language: node
         types: [markdown]
         args: [--fix]
-        exclude: ^\.template/
+        exclude: ^.template/|^.github/
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v2.3.0
