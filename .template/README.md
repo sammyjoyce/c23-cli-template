@@ -1,67 +1,73 @@
 # Template Files
 
-This directory contains the advanced template variable replacement A modern CLI application used when creating new projects from this template repository.
+This directory contains the template variable replacement system used when creating new projects from this template repository.
 
 ## Contents
 
 - `template-vars.json` - Centralized configuration for all template variables
-- `template-replacer.sh` - Core replacement engine A modern CLI application validation A modern CLI application transformations
-- `cleanup-template.sh` - Interactive cleanup script for manual setup
-- `test-replacements.sh` - Test suite for the replacement A modern CLI application
-- `TEMPLA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationTE_REA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationDME.md` - The REA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationDME that replaces the main REA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationDME after setup
-- `TEMPLA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationTE_USA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationGE.md` - Comprehensive guide for using this template
-- `TEMPLA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationTE_SUPPORT.md` - Support information for template issues
+- `replacer.sh` - Core replacement engine for automatic variable replacement and transformations
+- `setup.sh` - Interactive setup script for manual configuration
+- `TEMPLATE_README.md` - The README that replaces the main README after setup
+- `TEMPLATE_USAGE.md` - Comprehensive guide for using this template
+- `TEMPLATE_SUPPORT.md` - Support information for template issues
+- `README.md` - This documentation file
 
 ## Features
 
 ### Smart Variable Detection
-- A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationutomatically detects values from Git, GitHub, A modern CLI application environment
+
+- Automatically detects values from Git, GitHub, and environment
 - Falls back to sensible defaults when detection fails
 - Supports multiple data sources per variable
 
 ### Case Transformations
+
 - `snake_case`: my_project_name
 - `kebab-case`: my-project-name
-- `PascalCase`: MyProjectSam Joyce
-- `camelCase`: myProjectSam Joyce
+- `PascalCase`: MyProjectName
+- `camelCase`: myProjectName
 
 ### Validation & Safety
+
 - Regex-based validation ensures correct formatting
 - Dry run mode to preview changes
 - Excludes sensitive directories (.git, node_modules, etc.)
 
 ### Flexible Usage
-- **A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationutomatic**: Uses detected values
+
+- **Automatic**: Uses detected values
 - **Interactive**: Prompts for each value
-- **Dry Run**: Preview A modern CLI applicationout changes
+- **Dry Run**: Preview changes without making them
 
 ## For New Projects
 
 When you create a new project from this template:
 
-1. GitHub A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationctions automatically runs the cleanup workflow
-2. The workflow executes `template-replacer.sh` to replace all variables
+1. GitHub Actions automatically runs the template cleanup workflow
+2. The workflow executes `replacer.sh` to replace all variables
 3. Template-specific files are removed
 4. Changes are committed automatically
 
 If automatic cleanup fails:
+
 ```bash
 # Run interactively
-./.template/cleanup-template.sh
+./.template/setup.sh
 
-# Or run A modern CLI application automatic detection
-./.template/template-replacer.sh
+# Or run with automatic detection
+./.template/replacer.sh
 ```
 
 ## For Template Maintainers
 
-### A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationdding New Variables
+### Adding New Variables
 
 Edit `template-vars.json`:
+
 ```json
 {
   "variables": {
-    "NEW_VA A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationR": {
+    "NEW_VAR": {
       "placeholders": ["OLD_TEXT"],
       "description": "What this variable represents",
       "source": "repository_name",
@@ -75,11 +81,8 @@ Edit `template-vars.json`:
 ### Testing Changes
 
 ```bash
-# Run the test suite
-./.template/test-replacements.sh
-
 # Test in dry run mode
-./.template/template-replacer.sh --dry-run
+./.template/replacer.sh --dry-run
 ```
 
 ### Variable Sources
@@ -91,4 +94,4 @@ Edit `template-vars.json`:
 - `current_year`: Current year
 - `static`: Fixed value in config
 
-This directory keeps template infrastructure separate from project files, making it easy to maintain A modern CLI application update the template A modern CLI applicationout affecting the actual project structure.
+This directory keeps template infrastructure separate from project files, making it easy to maintain and update the template without affecting the actual project structure.

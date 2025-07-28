@@ -218,7 +218,7 @@ Your app supports config from multiple sources:
 ## 📚 Documentation
 
 ### Getting Started
-- 📖 [**Using This Template**](USING_THIS_TEMPLATE.md) - Detailed setup guide
+- 📖 [**Using This Template**](/.template/TEMPLATE_USAGE.md) - Detailed setup guide
 - 🚀 [**Quick Start Guide**](#-quick-start) - Get up and running quickly
 - 🔧 [**Installation**](#-installation) - Platform-specific instructions
 
@@ -255,7 +255,7 @@ For problems with the template itself:
 
 - Check [existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
 - Create a new issue
-- Read [template support](/.github/TEMPLATE_SUPPORT.md)
+- Read [template support](/.template/TEMPLATE_SUPPORT.md)
 
 ### Your Project Issues
 
