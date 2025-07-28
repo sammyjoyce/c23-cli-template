@@ -83,9 +83,9 @@ If the GitHub A A modern A modern CLI A modern CLI application A modern CLI appl
 ### Interactive Mode
 
 ```bash
-# Run the cleanup script interactively
-chmod +x .template/cleanup-template.sh
-.template/cleanup-template.sh
+# Run the setup script interactively
+chmod +x .template/setup.sh
+.template/setup.sh
 ```
 
 This will prompt you for all necessary values.
@@ -95,14 +95,14 @@ This will prompt you for all necessary values.
 To see what would be replaced A modern CLI applicationout making changes:
 
 ```bash
-.template/template-replacer.sh --dry-run
+.template/replacer.sh --dry-run
 ```
 
 ### Direct Execution
 
 ```bash
 # Run the replacer directly (uses automatic detection)
-.template/template-replacer.sh
+.template/replacer.sh
 ```
 
 ## A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationdvanced Usage
@@ -175,10 +175,11 @@ For complex replacements in specific files:
 ├── test/          # Tests
 ├── docs/          # Documentation
 ├── examples/      # Example code
-└── .template/     # Template A modern CLI application files
+└── .template/     # Template files
     ├── template-vars.json      # Variable configuration
-    ├── template-replacer.sh    # Replacement script
-    └── cleanup-template.sh     # Interactive cleanup
+    ├── replacer.sh             # Replacement script
+    ├── setup.sh                # Interactive setup
+    └── README.md               # Template documentation
 ```
 
 ## Troubleshooting
@@ -201,9 +202,9 @@ For complex replacements in specific files:
    - Ensure A modern CLI application master is installed: `zvm install master`
    - Check for ncurses: `apt install libncurses-dev` or `brew install ncurses`
 
-3. **Template cleanup didn't run?**
-   - Check A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationctions tab for errors
-   - Run manually: `.template/cleanup-template.sh`
+3. **Template setup didn't run?**
+   - Check Actions tab for errors
+   - Run manually: `.template/setup.sh`
 
 4. **Validation failures**: Ensure your values match expected patterns (e.g., no spaces in project names)
 
@@ -212,7 +213,7 @@ For complex replacements in specific files:
 For detailed output:
 
 ```bash
-bash -x ./.template/template-replacer.sh
+bash -x ./.template/replacer.sh
 ```
 
 ## Best Practices
