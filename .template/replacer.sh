@@ -113,24 +113,24 @@ to_words() {
     text=$(printf '%s' "$text" | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g')
     text=$(printf '%s' "$text" | tr '[:upper:]' '[:lower:]')
     text=$(printf '%s' "$text" | tr -cs '[:alnum:]' ' ')
-    printf '%s' "$text" | xargs || true
+    printf '%s' "$text" | xargs
 }
 
 to_snake() {
     local words="$(to_words "$1")"
-    [[ -z $words ]] && { printf '\n'; return; }
+    [[ -z $words ]] && return
     printf '%s\n' "${words// /_}"
 }
 
 to_kebab() {
     local words="$(to_words "$1")"
-    [[ -z $words ]] && { printf '\n'; return; }
+    [[ -z $words ]] && return
     printf '%s\n' "${words// /-}"
 }
 
 to_pascal() {
     local words="$(to_words "$1")"
-    [[ -z $words ]] && { printf '\n'; return; }
+    [[ -z $words ]] && return
     local part result=""
     for part in $words; do
         result+="$(printf '%s' "${part:0:1}" | tr '[:lower:]' '[:upper:]')"
@@ -266,7 +266,6 @@ collect_files() {
     for rel in "${path_list[@]}"; do
         [[ -z $rel ]] && continue
         rel=${rel#./}
-        [[ $rel == .code/* ]] && continue
         [[ -f "$repo_root/$rel" ]] || continue
         if [[ -z ${seen[$rel]+x} ]]; then
             seen[$rel]=1
@@ -298,7 +297,7 @@ apply_replacement() {
 
     if (( dry_run )); then
         (( verbose )) && printf '[dry-run] %s: "%s" -> "%s"\n' "$file" "$pattern" "$replacement"
-        sd --preview -F "$pattern" "$replacement" "$file" >/dev/null
+        sd --preview -F "$pattern" "$replacement" "$file"
     else
         (( verbose )) && printf '%s: "%s" -> "%s"\n' "$file" "$pattern" "$replacement"
         sd -F "$pattern" "$replacement" "$file"

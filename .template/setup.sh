@@ -54,7 +54,22 @@ if [ ! -f "$VARS_JSON" ]; then
 fi
 
 get_default() {
-    jq -r ".$1" "$VARS_JSON"
+    local key="$1"
+    jq -r --arg key "$key" '
+        (.variables[$key] // {}) as $var |
+        ($var.fallback // ($var.placeholders[0] // ""))
+    ' "$VARS_JSON"
+}
+
+get_placeholder() {
+    local key="$1"
+    local description
+    description=$(jq -r --arg key "$key" '.variables[$key].description // empty' "$VARS_JSON")
+    if [[ -n $description ]]; then
+        printf '%s' "$description"
+    else
+        printf 'Enter %s' "$key"
+    fi
 }
 
 # --- User Prompts ---
@@ -62,19 +77,20 @@ get_default() {
 gum style --border normal --padding "1 2" --border-foreground 212 "C23 CLI Template Setup"
 
 export PROJECT_NAME
-PROJECT_NAME=$(gum input --value "$(get_default '__PROJECT_NAME__')" --placeholder "Enter the project name")
+PROJECT_NAME=$(gum input --value "$(get_default 'PROJECT_NAME')" --placeholder "$(get_placeholder 'PROJECT_NAME')")
 export PROJECT_DESCRIPTION
-PROJECT_DESCRIPTION=$(gum input --value "$(get_default '__PROJECT_DESCRIPTION__')" --placeholder "Enter the project description")
-export PROJECT_URL
-PROJECT_URL=$(gum input --value "$(get_default '__PROJECT_URL__')" --placeholder "Enter the project URL")
-export PROJECT_AUTHOR
-PROJECT_AUTHOR=$(gum input --value "$(get_default '__PROJECT_AUTHOR__')" --placeholder "Enter the author's name")
+PROJECT_DESCRIPTION=$(gum input --value "$(get_default 'PROJECT_DESCRIPTION')" --placeholder "$(get_placeholder 'PROJECT_DESCRIPTION')")
+export AUTHOR_NAME
+AUTHOR_NAME=$(gum input --value "$(get_default 'AUTHOR_NAME')" --placeholder "$(get_placeholder 'AUTHOR_NAME')")
 export AUTHOR_EMAIL
-AUTHOR_EMAIL=$(gum input --value "$(get_default '__AUTHOR_EMAIL__')" --placeholder "Enter the author's email")
+AUTHOR_EMAIL=$(gum input --value "$(get_default 'AUTHOR_EMAIL')" --placeholder "$(get_placeholder 'AUTHOR_EMAIL')")
 export GITHUB_USERNAME
-GITHUB_USERNAME=$(gum input --value "$(get_default '__GITHUB_USERNAME__')" --placeholder "Enter the GitHub username")
+GITHUB_USERNAME=$(gum input --value "$(get_default 'GITHUB_USERNAME')" --placeholder "$(get_placeholder 'GITHUB_USERNAME')")
 export PROJECT_LICENSE
-PROJECT_LICENSE=$(gum input --value "$(get_default '__PROJECT_LICENSE__')" --placeholder "Enter the license (e.g., MIT)")
+PROJECT_LICENSE=$(gum input --value "$(get_default 'PROJECT_LICENSE')" --placeholder "$(get_placeholder 'PROJECT_LICENSE')")
+
+export CURRENT_YEAR
+CURRENT_YEAR=$(date +%Y)
 
 # --- Run Replacer Script ---
 info "Collected all values. Running the replacement script..."
