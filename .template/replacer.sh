@@ -1,92 +1,354 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-# ====================================================================================
-#
-#          FILE: setup.sh
-#
-#         USAGE: bash ./.template/setup.sh
-#
-#   DESCRIPTION: An interactive script to set up the project locally. It uses 'gum'
-#                to prompt for values, then calls the non-interactive replacer script.
-#
-#        AUTHOR: Sammy Joyce
-#       CREATED: 2025-07-28
-#
-# ====================================================================================
+usage() {
+    cat <<'EOF'
+Usage: .template/replacer.sh [--dry-run] [-v]
 
-# --- Helper Functions for Styled Output ---
-info() {
-    # Using gum for consistent styling, but checking if it exists first.
-    if command -v gum &> /dev/null; then
-        gum style --foreground 212 "ℹ $1"
-    else
-        echo "INFO: $1"
-    fi
+  --dry-run    Show the edits that would be made without writing files
+  -v           Verbose logging
+  -h, --help   Show this message
+EOF
 }
 
-error() {
-    if command -v gum &> /dev/null; then
-        gum style --foreground 9 "✖ $1" >&2
-    else
-        echo "ERROR: $1" >&2
+dry_run=0
+verbose=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run)
+            dry_run=1
+            ;;
+        -v|--verbose)
+            verbose=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Error: unknown option '$1'" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+for dep in jq sd; do
+    if ! command -v "$dep" >/dev/null 2>&1; then
+        echo "Error: '$dep' is required. Please install it and re-run." >&2
+        exit 1
     fi
+done
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(cd "$script_dir/.." && pwd)
+vars_json="$script_dir/template-vars.json"
+
+if [[ ! -f "$vars_json" ]]; then
+    echo "Error: cannot find template variables at '$vars_json'." >&2
     exit 1
+fi
+
+declare -A VAR_VALUES=()
+declare -A VAR_OVERRIDDEN=()
+declare -A VAR_TRANSFORM=()
+declare -A PLACEHOLDER_MAP=()
+declare -a VAR_KEYS=()
+
+normalize_key() {
+    local key="$1"
+    key=${key//[^A-Za-z0-9_]/_}
+    key=${key^^}
+    key=${key//__/_}
+    key=${key#_}
+    key=${key%_}
+    printf '%s\n' "$key"
 }
 
-# --- Dependency Check ---
-# Ensure all required command-line tools are available.
-check_dependency() {
-    if ! command -v "$1" &> /dev/null; then
-        error "'$1' is not installed. Please install it to continue."
+render_template() {
+    local result="$1"
+    local k
+    for k in "${!VAR_VALUES[@]}"; do
+        local placeholder="\${$k}"
+        result=${result//"$placeholder"/${VAR_VALUES[$k]}}
+    done
+    printf '%s\n' "$result"
+}
+
+while IFS= read -r entry; do
+    raw_key=$(jq -r '.key' <<<"$entry")
+    safe_key=$(normalize_key "$raw_key")
+    [[ -z $safe_key ]] && continue
+
+    VAR_KEYS+=("$safe_key")
+    VAR_TRANSFORM[$safe_key]=$(jq -r '.value.transform // empty' <<<"$entry")
+
+    default_value=$(jq -r '(.value.value // .value.fallback // empty)' <<<"$entry")
+    [[ $default_value == "null" ]] && default_value=""
+    if [[ -z $default_value ]]; then
+        default_value=$(jq -r '(.value.placeholders[0] // empty)' <<<"$entry")
+        [[ $default_value == "null" ]] && default_value=""
     fi
+
+    if [[ -n ${!safe_key+x} ]]; then
+        value="${!safe_key}"
+        VAR_OVERRIDDEN[$safe_key]=1
+    else
+        value="$default_value"
+    fi
+
+    VAR_VALUES[$safe_key]="$value"
+
+    while IFS= read -r placeholder; do
+        [[ -z $placeholder || $placeholder == "null" ]] && continue
+        PLACEHOLDER_MAP[$placeholder]="$safe_key"
+    done < <(jq -r '(.value.placeholders // [])[]?' <<<"$entry")
+done < <(jq -c '(.variables // {}) | to_entries[]' "$vars_json")
+
+to_words() {
+    local text="$1"
+    text=${text//_/ }
+    text=$(printf '%s' "$text" | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g')
+    text=$(printf '%s' "$text" | tr '[:upper:]' '[:lower:]')
+    text=$(printf '%s' "$text" | tr -cs '[:alnum:]' ' ')
+    printf '%s' "$text" | xargs || true
 }
 
-check_dependency "gum"
-check_dependency "sd"
-check_dependency "jq"
-check_dependency "bash"
-
-# --- Get Default Values from JSON ---
-VARS_JSON=".template/template-vars.json"
-if [ ! -f "$VARS_JSON" ]; then
-    error "Could not find template variables file at '$VARS_JSON'"
-fi
-
-get_default() {
-    jq -r ".$1" "$VARS_JSON"
+to_snake() {
+    local words="$(to_words "$1")"
+    [[ -z $words ]] && { printf '\n'; return; }
+    printf '%s\n' "${words// /_}"
 }
 
-# --- User Prompts ---
-# Use 'gum' to create a visually appealing and interactive setup process.
-gum style --border normal --padding "1 2" --border-foreground 212 "C23 CLI Template Setup"
+to_kebab() {
+    local words="$(to_words "$1")"
+    [[ -z $words ]] && { printf '\n'; return; }
+    printf '%s\n' "${words// /-}"
+}
 
-export PROJECT_NAME
-PROJECT_NAME=$(gum input --value "$(get_default '__PROJECT_NAME__')" --placeholder "Enter the project name")
-export PROJECT_DESCRIPTION
-PROJECT_DESCRIPTION=$(gum input --value "$(get_default '__PROJECT_DESCRIPTION__')" --placeholder "Enter the project description")
-export PROJECT_URL
-PROJECT_URL=$(gum input --value "$(get_default '__PROJECT_URL__')" --placeholder "Enter the project URL")
-export PROJECT_AUTHOR
-PROJECT_AUTHOR=$(gum input --value "$(get_default '__PROJECT_AUTHOR__')" --placeholder "Enter the author's name")
-export AUTHOR_EMAIL
-AUTHOR_EMAIL=$(gum input --value "$(get_default '__AUTHOR_EMAIL__')" --placeholder "Enter the author's email")
-export GITHUB_USERNAME
-GITHUB_USERNAME=$(gum input --value "$(get_default '__GITHUB_USERNAME__')" --placeholder "Enter the GitHub username")
-export PROJECT_LICENSE
-PROJECT_LICENSE=$(gum input --value "$(get_default '__PROJECT_LICENSE__')" --placeholder "Enter the license (e.g., MIT)")
+to_pascal() {
+    local words="$(to_words "$1")"
+    [[ -z $words ]] && { printf '\n'; return; }
+    local part result=""
+    for part in $words; do
+        result+="$(printf '%s' "${part:0:1}" | tr '[:lower:]' '[:upper:]')"
+        if [[ ${#part} -gt 1 ]]; then
+            result+="$(printf '%s' "${part:1}" | tr '[:upper:]' '[:lower:]')"
+        fi
+    done
+    printf '%s\n' "$result"
+}
 
-# --- Run Replacer Script ---
-info "Collected all values. Running the replacement script..."
-# Calls the non-interactive script with the exported variables.
-bash ./.template/replacer.sh
+apply_transform() {
+    local transform="$1"
+    local value="$2"
+    case "$transform" in
+        snake_case) to_snake "$value" ;;
+        kebab_case) to_kebab "$value" ;;
+        pascal_case) to_pascal "$value" ;;
+        lower_case) printf '%s\n' "${value,,}" ;;
+        upper_case) printf '%s\n' "${value^^}" ;;
+        *) printf '%s\n' "$value" ;;
+    esac
+}
 
-# --- Cleanup ---
-info "Replacement complete."
-if gum confirm "Do you want to clean up the template files now? (This will delete this setup script)"; then
-    info "Cleaning up template files..."
-    bash ./.template/setup.sh
-    info "Cleanup complete. You are ready to go!"
-else
-    info "Cleanup skipped. You can run 'bash ./.template/setup.sh' later."
+for key in "${VAR_KEYS[@]}"; do
+    [[ -n ${VAR_OVERRIDDEN[$key]:-} ]] && continue
+    transform=${VAR_TRANSFORM[$key]:-}
+    [[ -z $transform ]] && continue
+    source="${VAR_VALUES[$key]}"
+    if [[ $key == PROJECT_NAME_* && $key != PROJECT_NAME ]]; then
+        source="${VAR_VALUES[PROJECT_NAME]:-$source}"
+    elif [[ $key == AUTHOR_NAME_* && $key != AUTHOR_NAME ]]; then
+        source="${VAR_VALUES[AUTHOR_NAME]:-$source}"
+    fi
+    VAR_VALUES[$key]="$(apply_transform "$transform" "$source")"
+done
+
+if (( verbose )); then
+    for key in "${VAR_KEYS[@]}"; do
+        printf '[replacer] %s=%s\n' "$key" "${VAR_VALUES[$key]:-}" >&2
+    done
 fi
+
+declare -A SPECIAL_MAP=()
+
+while IFS=$'\t' read -r file_key find_value replace_value; do
+    [[ -z $file_key ]] && continue
+    file_key=${file_key#./}
+    file_key=$(render_template "$file_key")
+    find_value=$(render_template "$find_value")
+    replace_value=$(render_template "$replace_value")
+    SPECIAL_MAP[$file_key]+="$find_value"$'\t'"$replace_value"$'\n'
+done < <(jq -r '(.special_replacements // {})
+    | to_entries[]
+    | .key as $file
+    | .value
+    | to_entries[]
+    | [$file, .key, .value] | @tsv' "$vars_json")
+
+declare -A GENERIC_MAP=()
+GENERIC_ORDER=()
+
+add_generic() {
+    local pattern="$1"
+    local replacement="$2"
+    [[ -z $pattern || -z $replacement ]] && return
+    [[ $pattern == "$replacement" ]] && return
+    if [[ -z ${GENERIC_MAP[$pattern]+x} ]]; then
+        GENERIC_ORDER+=("$pattern")
+    fi
+    GENERIC_MAP[$pattern]="$replacement"
+}
+
+for pattern in "${!PLACEHOLDER_MAP[@]}"; do
+    key=${PLACEHOLDER_MAP[$pattern]}
+    add_generic "$pattern" "${VAR_VALUES[$key]:-}"
+done
+
+project_kebab="${VAR_VALUES[PROJECT_NAME_KEBAB]:-}"
+project_snake="${VAR_VALUES[PROJECT_NAME_SNAKE]:-}"
+author_name="${VAR_VALUES[AUTHOR_NAME]:-}"
+author_email="${VAR_VALUES[AUTHOR_EMAIL]:-}"
+github_user="${VAR_VALUES[GITHUB_USERNAME]:-}"
+
+[[ -n $project_kebab ]] && add_generic "myapp" "$project_kebab"
+if [[ -n $author_name ]]; then
+    add_generic '"Your Name"' "$author_name"
+    add_generic 'Your Name' "$author_name"
+fi
+[[ -n $author_email ]] && add_generic "you@example.com" "$author_email"
+if [[ -n $github_user && -n $project_kebab ]]; then
+    add_generic "https://github.com/yourusername/yourproject" \
+        "https://github.com/$github_user/$project_kebab"
+fi
+[[ -n $project_snake ]] && add_generic "~/.config/myapp" "~/.config/$project_snake"
+
+readarray -t FILE_PATTERNS < <(jq -r '(.file_patterns // [])[]?' "$vars_json")
+readarray -t EXCLUDE_PATTERNS < <(jq -r '(.exclude_patterns // [])[]?' "$vars_json")
+
+FILES=()
+
+collect_files() {
+    local path_list=()
+    pushd "$repo_root" >/dev/null
+
+    local find_cmd=(find . -type f)
+    if ((${#FILE_PATTERNS[@]})); then
+        find_cmd+=('(')
+        for i in "${!FILE_PATTERNS[@]}"; do
+            [[ $i -gt 0 ]] && find_cmd+=('-o')
+            find_cmd+=('-name' "${FILE_PATTERNS[$i]}")
+        done
+        find_cmd+=(')')
+    fi
+
+    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+        [[ -z $pattern ]] && continue
+        if [[ $pattern == */* ]]; then
+            find_cmd+=("-not" "-path" "./$pattern")
+        else
+            find_cmd+=("-not" "-name" "$pattern")
+        fi
+    done
+
+    find_cmd+=("-print")
+
+    mapfile -t path_list < <("${find_cmd[@]}")
+    popd >/dev/null
+
+    declare -A seen=()
+    FILES=()
+
+    local rel
+    for rel in "${path_list[@]}"; do
+        [[ -z $rel ]] && continue
+        rel=${rel#./}
+        [[ $rel == .code/* ]] && continue
+        [[ -f "$repo_root/$rel" ]] || continue
+        if [[ -z ${seen[$rel]+x} ]]; then
+            seen[$rel]=1
+            FILES+=("$rel")
+        fi
+    done
+
+    for rel in "${!SPECIAL_MAP[@]}"; do
+        [[ -z $rel ]] && continue
+        if [[ -f "$repo_root/$rel" && -z ${seen[$rel]+x} ]]; then
+            seen[$rel]=1
+            FILES+=("$rel")
+        fi
+    done
+}
+
+collect_files
+
+apply_replacement() {
+    local file="$1"
+    local pattern="$2"
+    local replacement="$3"
+
+    [[ -z $pattern ]] && return 1
+    [[ $pattern == "$replacement" ]] && return 1
+    if ! grep -qF -- "$pattern" "$file"; then
+        return 1
+    fi
+
+    if (( dry_run )); then
+        (( verbose )) && printf '[dry-run] %s: "%s" -> "%s"\n' "$file" "$pattern" "$replacement"
+        sd --preview -F "$pattern" "$replacement" "$file" >/dev/null
+    else
+        (( verbose )) && printf '%s: "%s" -> "%s"\n' "$file" "$pattern" "$replacement"
+        sd -F "$pattern" "$replacement" "$file"
+    fi
+    return 0
+}
+
+changed=()
+unchanged=()
+
+for rel in "${FILES[@]}"; do
+    file_path="$repo_root/$rel"
+    [[ -f $file_path ]] || continue
+    if ! LC_ALL=C grep -Iq . "$file_path" 2>/dev/null; then
+        (( verbose )) && printf 'Skipping binary file %s\n' "$rel" >&2
+        continue
+    fi
+    file_changed=0
+
+    if [[ -n ${SPECIAL_MAP[$rel]+x} ]]; then
+        while IFS=$'\t' read -r pattern replacement; do
+            [[ -z $pattern ]] && continue
+            if apply_replacement "$file_path" "$pattern" "$replacement"; then
+                file_changed=1
+            fi
+        done <<<"${SPECIAL_MAP[$rel]}"
+    fi
+
+    for pattern in "${GENERIC_ORDER[@]}"; do
+        replacement="${GENERIC_MAP[$pattern]}"
+        if apply_replacement "$file_path" "$pattern" "$replacement"; then
+            file_changed=1
+        fi
+    done
+
+    if (( file_changed )); then
+        changed+=("$rel")
+    else
+        unchanged+=("$rel")
+    fi
+done
+
+run_label="Replacement run complete"
+(( dry_run )) && run_label+=" (dry run only)"
+printf '%s\n' "$run_label"
+printf 'Files changed: %d\n' "${#changed[@]}"
+if ((${#changed[@]})); then
+    printf '  %s\n' "${changed[@]}"
+fi
+printf 'Files unchanged: %d\n' "${#unchanged[@]}"
+(( verbose )) && ((${#unchanged[@]})) && printf '  %s\n' "${unchanged[@]}"
+
+exit 0
