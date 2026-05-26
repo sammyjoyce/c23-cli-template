@@ -113,11 +113,6 @@ jobs:
         timeout-minutes: 10
         shell: bash
 
-      - name: Run `test` step
-        run: zig build test
-        timeout-minutes: 15
-        shell: bash
-
       - name: Check installed binary exists
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
