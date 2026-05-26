@@ -12,7 +12,7 @@ Run the default Zig suite:
 zig build test
 ```
 
-Run the Python terminal scenarios against the built binary:
+Run the terminal scenarios against the built binary:
 
 ```bash
 zig build terminal-test
@@ -24,8 +24,15 @@ Run the same scenarios against a TUI-enabled build:
 zig build -Denable-tui=true terminal-test
 ```
 
-The non-interactive CLI scenarios use only Python's standard library.
+The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
+when `libghostty-vt` is available through `pkg-config`, otherwise it falls back
+to the Python harness.
 
-TUI scenarios use `pexpect` plus `pyte` to run the app in a pseudo-terminal and
-assert on a headless VT screen. The Nix dev shell provides these dependencies;
-outside Nix, install them with your preferred Python package manager.
+The Ghostty VT runner lives in `terminal_vt_runner.c`. It runs the app in a
+pseudo-terminal, feeds output through libghostty-vt, snapshots the screen with
+Ghostty's formatter API, and drives deterministic input plus resize actions.
+
+The Python fallback uses `pexpect` plus `pyte` for TUI scenarios. The Nix dev
+shell provides the Python fallback dependencies. For the Ghostty backend, install
+a libghostty-vt build with the development Terminal and Formatter APIs and make
+it visible through `pkg-config` or `-Dghostty-vt-prefix=/path/to/ghostty`.

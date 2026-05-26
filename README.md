@@ -192,14 +192,15 @@ const c_sources = [_][]const u8{
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
-- **Python `pexpect` + `pyte`** - Optional; required only for PTY-backed TUI scenario tests outside the Nix dev shell
+- **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional; enables the C Ghostty VT backend for PTY-backed terminal tests
+- **Python `pexpect` + `pyte`** - Optional fallback for PTY-backed TUI scenario tests outside the Nix dev shell
 
 ### Development Environment
 
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **Nix Dev Shell** - Includes Zig, C tooling, and Python PTY test dependencies (`pexpect`, `pyte`)
+- **Nix Dev Shell** - Includes Zig, C tooling, and Python PTY fallback dependencies (`pexpect`, `pyte`)
 - **Pre-commit Hooks** - Automated code quality checks before commits
 
 ### Commands
@@ -213,7 +214,8 @@ zig build -Denable-tui=true  # Build with the TUI showcase
 # Test
 zig build test              # Run fast Zig smoke tests
 zig build terminal-test     # Run end-to-end CLI terminal scenarios
-zig build -Denable-tui=true terminal-test  # Run TUI scenarios in a PTY
+zig build -Denable-tui=true terminal-test  # Run TUI scenarios through Ghostty VT when available
+zig build -Dterminal-backend=ghostty terminal-test  # Require the C Ghostty VT test backend
 
 # Clean
 zig build clean             # Remove build artifacts

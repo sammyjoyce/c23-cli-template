@@ -1,5 +1,56 @@
 const std = @import("std");
 
+const TerminalTestBackend = enum {
+    auto,
+    python,
+    ghostty,
+};
+
+fn commandSucceeds(b: *std.Build, argv: []const []const u8) bool {
+    const child_res = std.process.run(b.allocator, b.graph.io, .{ .argv = argv }) catch return false;
+    defer b.allocator.free(child_res.stdout);
+    defer b.allocator.free(child_res.stderr);
+
+    return switch (child_res.term) {
+        .exited => |code| code == 0,
+        else => false,
+    };
+}
+
+fn commandOutputTrimmed(b: *std.Build, argv: []const []const u8) ?[]const u8 {
+    const child_res = std.process.run(b.allocator, b.graph.io, .{ .argv = argv }) catch return null;
+    defer b.allocator.free(child_res.stdout);
+    defer b.allocator.free(child_res.stderr);
+
+    switch (child_res.term) {
+        .exited => |code| if (code != 0) return null,
+        else => return null,
+    }
+
+    const trimmed = std.mem.trim(u8, child_res.stdout, "\r\n\t ");
+    if (trimmed.len == 0) return null;
+    return b.dupe(trimmed);
+}
+
+fn pathExists(b: *std.Build, path: []const u8) bool {
+    return commandSucceeds(b, &.{ "test", "-f", path });
+}
+
+fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
+    if (prefix) |pref| {
+        return pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{pref})) and
+            pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{pref}));
+    }
+
+    return commandSucceeds(b, &.{
+        "sh",
+        "-c",
+        "inc=$(pkg-config --variable=includedir libghostty-vt) && " ++
+            "test -f \"$inc/ghostty/vt/terminal.h\" && " ++
+            "test -f \"$inc/ghostty/vt/formatter.h\"",
+    });
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -29,6 +80,8 @@ pub fn build(b: *std.Build) void {
 
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
+    const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto, ghostty, or python") orelse .auto;
+    const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
 
     const exe = b.addExecutable(.{
         .name = binary_name,
@@ -145,14 +198,80 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run test suite");
     test_step.dependOn(&test_cmd.step);
 
-    const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
-    const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
-    terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
-    terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (enable_tui) "1" else "0");
-    terminal_test_cmd.step.dependOn(b.getInstallStep());
+    const have_ghostty_vt = hasGhosttyTerminalApi(b, ghostty_vt_prefix);
+    if (terminal_backend == .ghostty and !have_ghostty_vt) {
+        @panic("-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API via pkg-config or -Dghostty-vt-prefix=/path");
+    }
+    const ghostty_pkg_lib_dir = if (have_ghostty_vt and ghostty_vt_prefix == null)
+        commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" })
+    else
+        null;
+    const use_ghostty_terminal_tests = target.result.os.tag != .windows and
+        (terminal_backend == .ghostty or (terminal_backend == .auto and have_ghostty_vt));
 
     const terminal_test_step = b.step("terminal-test", "Run end-to-end CLI/TUI terminal scenario tests");
-    terminal_test_step.dependOn(&terminal_test_cmd.step);
+    if (use_ghostty_terminal_tests) {
+        const vt_test_mod = b.createModule(.{
+            .root_source_file = null,
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        vt_test_mod.addCSourceFiles(.{
+            .files = &.{"test/terminal_vt_runner.c"},
+            .flags = &.{
+                "-Wall",
+                "-Wextra",
+                "-std=c23",
+                "-D_DEFAULT_SOURCE",
+                "-D_XOPEN_SOURCE=700",
+                "-D_GNU_SOURCE",
+                b.fmt("-DAPP_NAME=\"{s}\"", .{app_name}),
+            },
+        });
+
+        if (ghostty_vt_prefix) |pref| {
+            vt_test_mod.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
+            vt_test_mod.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
+            vt_test_mod.addRPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
+            vt_test_mod.linkSystemLibrary("ghostty-vt", .{ .use_pkg_config = .no });
+        } else {
+            if (ghostty_pkg_lib_dir) |lib_dir| {
+                vt_test_mod.addRPath(.{ .cwd_relative = lib_dir });
+            }
+            vt_test_mod.linkSystemLibrary("libghostty-vt", .{});
+        }
+
+        const vt_test_exe = b.addExecutable(.{
+            .name = "terminal-vt-tests",
+            .root_module = vt_test_mod,
+        });
+
+        const vt_test_cmd = b.addRunArtifact(vt_test_exe);
+        vt_test_cmd.addArgs(&.{
+            "--binary",
+            installed_binary_path,
+            "--tui-enabled",
+            if (enable_tui) "1" else "0",
+        });
+        if (ghostty_vt_prefix) |pref| {
+            const lib_path = b.fmt("{s}/lib", .{pref});
+            vt_test_cmd.setEnvironmentVariable("LD_LIBRARY_PATH", lib_path);
+            vt_test_cmd.setEnvironmentVariable("DYLD_FALLBACK_LIBRARY_PATH", lib_path);
+        } else if (ghostty_pkg_lib_dir) |lib_dir| {
+            vt_test_cmd.setEnvironmentVariable("LD_LIBRARY_PATH", lib_dir);
+            vt_test_cmd.setEnvironmentVariable("DYLD_FALLBACK_LIBRARY_PATH", lib_dir);
+        }
+        vt_test_cmd.step.dependOn(b.getInstallStep());
+        terminal_test_step.dependOn(&vt_test_cmd.step);
+    } else {
+        const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
+        const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
+        terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
+        terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (enable_tui) "1" else "0");
+        terminal_test_cmd.step.dependOn(b.getInstallStep());
+        terminal_test_step.dependOn(&terminal_test_cmd.step);
+    }
 
     // Clean command – cross-platform
     const clean_cmd = if (target.result.os.tag == .windows)
