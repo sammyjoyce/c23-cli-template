@@ -121,7 +121,7 @@ const test_step = b.step("test", "Run tests");
 test_step.dependOn(&exe.step);
 
 // Custom build options
-const enable_tui = b.option(bool, "enable-tui", "Enable TUI support") orelse true;
+const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: true)") orelse true;
 if (enable_tui) {
     exe.defineCMacro("ENABLE_TUI", null);
 }
@@ -264,7 +264,7 @@ b.installArtifact(exe);
    ```bash
    # Install Zig from https://ziglang.org/download/
    # Or use the setup script:
-   curl -sSf https://ziglang.org/download/index.json | jq -r '.master."x86_64-linux".tarball'
+   curl -sSf https://ziglang.org/download/index.json | jq -r '.["0.16.0"]."x86_64-linux".tarball'
    ```
 
 2. **"C header not found"**
@@ -315,6 +315,7 @@ zig build --verbose-link
 **Linux**
 - Install development packages: `apt install libncurses-dev`
 - Check pkg-config: `pkg-config --libs ncurses`
+- Use `zig build -Denable-tui=false` only for non-interactive builds that do not ship the TUI.
 
 ## Advanced Topics
 
@@ -369,7 +370,7 @@ test_step.dependOn(&test_cmd.step);
 
 ## Resources
 
-- [Zig Language Reference](https://ziglang.org/documentation/master/)
+- [Zig Language Reference](https://ziglang.org/documentation/0.16.0/)
 - [Zig Build System Guide](https://ziglang.org/learn/build-system/)
 - [Zig Discord](https://discord.gg/zig) - Active community for questions
 - [This Project's build.zig](../build.zig) - Real example to study

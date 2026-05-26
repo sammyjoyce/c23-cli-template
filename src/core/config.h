@@ -14,11 +14,7 @@
 #include "error.h"
 #include "types.h"
 
-// Opaque configuration structure hides implementation details from callers.
-// This allows us to change the internal representation without breaking API
-// compatibility, and prevents direct manipulation that could leave config in
-// an inconsistent state.
-typedef struct app_config app_config_t;
+// The opaque app_config_t type is declared in types.h.
 
 // Create and destroy configuration objects with proper lifecycle management.
 // The create function allocates and initializes with defaults, while destroy

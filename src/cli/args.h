@@ -12,9 +12,7 @@
 #include "../core/error.h"
 #include "../core/types.h"
 
-// Forward declaration avoids circular dependency with config.h.
 // The parser updates config based on parsed arguments.
-typedef struct app_config app_config_t;
 
 // Parse command line arguments and update configuration accordingly.
 // Returns APP_SUCCESS on success, or appropriate error code for invalid

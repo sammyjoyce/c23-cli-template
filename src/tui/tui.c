@@ -4,6 +4,7 @@
 
 #include "tui.h"
 
+#include <limits.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,51 @@
 #include "../utils/memory.h"
 
 static bool tui_initialized = false;
+static bool tui_default_colors = false;
+
+static int tui_clamped_strlen(const char *text, int max_len) {
+  if (text == nullptr || max_len <= 0) {
+    return 0;
+  }
+
+  int len = 0;
+  while (len < max_len && text[len] != '\0') {
+    len++;
+  }
+  return len;
+}
+
+static void tui_write_clamped(WINDOW *win, int y, int x, int width,
+                              const char *text) {
+  if (!win || !text || width <= 0) {
+    return;
+  }
+
+  const int max_y = getmaxy(win);
+  const int max_x = getmaxx(win);
+  if (y < 0 || y >= max_y || x >= max_x) {
+    return;
+  }
+  if (x < 0) {
+    x = 0;
+  }
+  if (width > max_x - x) {
+    width = max_x - x;
+  }
+  if (width <= 0) {
+    return;
+  }
+
+  mvwaddnstr(win, y, x, text, width);
+}
+
+static short tui_default_fg(void) {
+  return tui_default_colors ? -1 : COLOR_WHITE;
+}
+
+static short tui_default_bg(void) {
+  return tui_default_colors ? -1 : COLOR_BLACK;
+}
 
 app_error tui_init(void) {
   if (tui_initialized) {
@@ -35,9 +81,10 @@ app_error tui_init(void) {
 
   // Initialize colors if supported
   if (has_colors()) {
-    start_color();
-    use_default_colors();  // Use terminal's default colors
-    tui_init_colors();
+    if (start_color() != ERR) {
+      tui_default_colors = use_default_colors() != ERR;
+      (void)tui_init_colors();
+    }
   }
 
   // Clear and refresh
@@ -60,6 +107,7 @@ void tui_cleanup(void) {
   endwin();
 
   tui_initialized = false;
+  tui_default_colors = false;
   LOG_DEBUG("TUI cleaned up");
 }
 
@@ -73,28 +121,62 @@ app_error tui_init_colors(void) {
     return APP_SUCCESS;  // Not an error, just no colors
   }
 
-  // Define color pairs
-  init_pair(TUI_COLOR_DEFAULT, -1, -1);
+  const short default_fg = tui_default_fg();
+  const short default_bg = tui_default_bg();
+
+  // Pair 0 is the terminal default and cannot be redefined portably.
   init_pair(TUI_COLOR_HIGHLIGHT, COLOR_BLACK, COLOR_WHITE);
-  init_pair(TUI_COLOR_ERROR, COLOR_RED, -1);
-  init_pair(TUI_COLOR_SUCCESS, COLOR_GREEN, -1);
-  init_pair(TUI_COLOR_WARNING, COLOR_YELLOW, -1);
-  init_pair(TUI_COLOR_INFO, COLOR_CYAN, -1);
+  init_pair(TUI_COLOR_ERROR, COLOR_RED, default_bg);
+  init_pair(TUI_COLOR_SUCCESS, COLOR_GREEN, default_bg);
+  init_pair(TUI_COLOR_WARNING, COLOR_YELLOW, default_bg);
+  init_pair(TUI_COLOR_INFO, COLOR_CYAN, default_bg);
   init_pair(TUI_COLOR_MENU_SELECTED, COLOR_BLACK, COLOR_CYAN);
-  init_pair(TUI_COLOR_MENU_NORMAL, -1, -1);
-  init_pair(TUI_COLOR_BORDER, COLOR_BLUE, -1);
-  init_pair(TUI_COLOR_TITLE, COLOR_MAGENTA, -1);
+  init_pair(TUI_COLOR_MENU_NORMAL, default_fg, default_bg);
+  init_pair(TUI_COLOR_BORDER, COLOR_BLUE, default_bg);
+  init_pair(TUI_COLOR_TITLE, COLOR_MAGENTA, default_bg);
 
   return APP_SUCCESS;
 }
 
 void tui_set_color(WINDOW *win, tui_color_pair_t color) {
-  if (has_colors() && color < TUI_COLOR_MAX) {
+  if (win && has_colors() && color > TUI_COLOR_DEFAULT &&
+      color < TUI_COLOR_MAX) {
     wattron(win, COLOR_PAIR(color));
   }
 }
 
+void tui_unset_color(WINDOW *win, tui_color_pair_t color) {
+  if (win && has_colors() && color > TUI_COLOR_DEFAULT &&
+      color < TUI_COLOR_MAX) {
+    wattroff(win, COLOR_PAIR(color));
+  }
+}
+
 tui_window_t *tui_create_window(int height, int width, int y, int x) {
+  if (height <= 0 || width <= 0) {
+    return NULL;
+  }
+
+  if (y < 0) {
+    y = 0;
+  }
+  if (x < 0) {
+    x = 0;
+  }
+  if (tui_initialized) {
+    const int max_y = getmaxy(stdscr);
+    const int max_x = getmaxx(stdscr);
+    if (y >= max_y || x >= max_x) {
+      return NULL;
+    }
+    if (height > max_y - y) {
+      height = max_y - y;
+    }
+    if (width > max_x - x) {
+      width = max_x - x;
+    }
+  }
+
   tui_window_t *window = app_secure_malloc(sizeof(tui_window_t));
   if (!window) {
     return NULL;
@@ -115,6 +197,48 @@ tui_window_t *tui_create_window(int height, int width, int y, int x) {
 
   keypad(window->win, TRUE);  // Enable special keys for this window
   return window;
+}
+
+static void tui_draw_window_title(tui_window_t *window, const char *title) {
+  if (!window || !window->win || !title || !window->has_border) {
+    return;
+  }
+
+  const int max_width = window->width - 4;
+  if (max_width <= 0) {
+    return;
+  }
+  const int display_len = tui_clamped_strlen(title, max_width);
+  const int x_pos = (window->width - display_len) / 2;
+  tui_set_color(window->win, TUI_COLOR_TITLE);
+  mvwprintw(window->win, 0, x_pos, " %.*s ", max_width, title);
+  tui_unset_color(window->win, TUI_COLOR_TITLE);
+}
+
+tui_window_t *tui_create_centered_window(int height, int width) {
+  if (!tui_initialized) {
+    return NULL;
+  }
+
+  const int max_y = getmaxy(stdscr);
+  const int max_x = getmaxx(stdscr);
+  if (max_y < 3 || max_x < 8) {
+    return NULL;
+  }
+
+  if (height > max_y - 2) {
+    height = max_y - 2;
+  }
+  if (width > max_x - 2) {
+    width = max_x - 2;
+  }
+  if (height <= 0 || width <= 0) {
+    return NULL;
+  }
+
+  const int y = (max_y - height) / 2;
+  const int x = (max_x - width) / 2;
+  return tui_create_window(height, width, y, x);
 }
 
 void tui_destroy_window(tui_window_t *window) {
@@ -140,12 +264,11 @@ void tui_draw_border(tui_window_t *window) {
 
   tui_set_color(window->win, TUI_COLOR_BORDER);
   box(window->win, 0, 0);
-  wattroff(window->win, COLOR_PAIR(TUI_COLOR_BORDER));
+  tui_unset_color(window->win, TUI_COLOR_BORDER);
   window->has_border = true;
 
-  // Draw title if set
   if (window->title) {
-    tui_set_window_title(window, window->title);
+    tui_draw_window_title(window, window->title);
   }
 }
 
@@ -154,24 +277,17 @@ void tui_set_window_title(tui_window_t *window, const char *title) {
     return;
   }
 
-  // Store title
+  char *title_copy = app_secure_strdup(title);
+  if (!title_copy) {
+    return;
+  }
+
   if (window->title) {
     app_secure_free(window->title, strlen(window->title) + 1);
   }
-  window->title = app_secure_strdup(title);
+  window->title = title_copy;
 
-  // Draw title if window has border
-  if (window->has_border) {
-    const int max_width = window->width - 4;  // Account for borders and spacing
-    const size_t title_len = strlen(title);
-    const int display_len =
-        (title_len > (size_t)max_width) ? max_width : (int)title_len;
-
-    const int x_pos = (window->width - display_len) / 2;
-    tui_set_color(window->win, TUI_COLOR_TITLE);
-    mvwprintw(window->win, 0, x_pos, " %.*s ", max_width, title);
-    wattroff(window->win, COLOR_PAIR(TUI_COLOR_TITLE));
-  }
+  tui_draw_window_title(window, window->title);
 }
 
 void tui_refresh_window(tui_window_t *window) {
@@ -189,13 +305,45 @@ void tui_clear_window(tui_window_t *window) {
   }
 }
 
+void tui_draw_status_line(WINDOW *win, const char *left, const char *right) {
+  if (!win) {
+    return;
+  }
+
+  const int max_y = getmaxy(win);
+  const int max_x = getmaxx(win);
+  if (max_y <= 0 || max_x <= 0) {
+    return;
+  }
+
+  const int y = max_y - 1;
+  tui_set_color(win, TUI_COLOR_INFO);
+  mvwhline(win, y, 0, ' ', max_x);
+
+  if (left) {
+    tui_write_clamped(win, y, 1, max_x - 2, left);
+  }
+  if (right) {
+    const int right_len = tui_clamped_strlen(right, max_x - 2);
+    const int x = max_x - right_len - 1;
+    if (x > 1) {
+      tui_write_clamped(win, y, x, right_len, right);
+    }
+  }
+
+  tui_unset_color(win, TUI_COLOR_INFO);
+}
+
 void tui_print_centered(WINDOW *win, int y, const char *text) {
   if (!win || !text) {
     return;
   }
 
   int max_x = getmaxx(win);
-  int len = strlen(text);
+  if (max_x <= 0) {
+    return;
+  }
+  int len = tui_clamped_strlen(text, max_x);
   int x = (max_x - len) / 2;
   if (x < 0)
     x = 0;
@@ -204,7 +352,7 @@ void tui_print_centered(WINDOW *win, int y, const char *text) {
 }
 
 void tui_print_wrapped(WINDOW *win, int y, int x, int width, const char *text) {
-  if (!win || !text) {
+  if (!win || !text || width <= 0) {
     return;
   }
 
@@ -219,21 +367,25 @@ void tui_print_wrapped(WINDOW *win, int y, int x, int width, const char *text) {
       p++;
     }
 
-    int word_len = p - word_start;
+    ptrdiff_t word_delta = p - word_start;
+    int word_len = word_delta > INT_MAX ? INT_MAX : (int)word_delta;
 
-    // Check if word fits on current line
-    if (current_x + word_len > x + width) {
+    // Check if word fits on current line without signed overflow.
+    if ((long)current_x + (long)word_len > (long)x + (long)width) {
       current_y++;
       current_x = x;
     }
 
     // Print word
     mvwaddnstr(win, current_y, current_x, word_start, word_len);
-    current_x += word_len;
+    const long advanced_x = (long)current_x + (long)word_len;
+    current_x = advanced_x > INT_MAX ? INT_MAX : (int)advanced_x;
 
     // Handle space or newline
     if (*p == ' ') {
-      current_x++;
+      if (current_x < INT_MAX) {
+        current_x++;
+      }
       p++;
     } else if (*p == '\n') {
       current_y++;
@@ -265,7 +417,10 @@ app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
   echo();
 
   // Get string
-  int result = wgetnstr(win, buffer, size - 1);
+  const size_t requested_len = size - 1;
+  const int max_chars =
+      requested_len > (size_t)INT_MAX ? INT_MAX : (int)requested_len;
+  int result = wgetnstr(win, buffer, max_chars);
 
   // Restore settings
   noecho();
@@ -279,22 +434,26 @@ app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
 }
 
 int tui_show_menu(tui_window_t *window, const char *title,
-                  tui_menu_item_t *items, int item_count,
+                  const tui_menu_item_t *items, int item_count,
                   int default_selection) {
   if (!window || !items || item_count <= 0) {
     return -1;
   }
 
-  int selected = default_selection;
-  if (selected < 0 || selected >= item_count) {
-    selected = 0;
+  int selected = -1;
+  if (default_selection >= 0 && default_selection < item_count &&
+      items[default_selection].enabled) {
+    selected = default_selection;
+  } else {
+    for (int i = 0; i < item_count; i++) {
+      if (items[i].enabled) {
+        selected = i;
+        break;
+      }
+    }
   }
 
-  // Find first enabled item if default is disabled
-  while (selected < item_count && !items[selected].enabled) {
-    selected++;
-  }
-  if (selected >= item_count) {
+  if (selected < 0) {
     return -1;  // No enabled items
   }
 
@@ -380,13 +539,18 @@ void tui_show_message(const char *title, const char *message) {
 
   int max_y = getmaxy(stdscr);
   int max_x = getmaxx(stdscr);
+  if (max_y < 4 || max_x < 8) {
+    return;
+  }
 
   int width = 60;
   int height = 10;
-  if (width > max_x - 4)
-    width = max_x - 4;
-  if (height > max_y - 4)
-    height = max_y - 4;
+  if (width > max_x - 2) {
+    width = max_x - 2;
+  }
+  if (height > max_y - 2) {
+    height = max_y - 2;
+  }
 
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
@@ -426,11 +590,18 @@ bool tui_confirm(const char *title, const char *question) {
 
   int max_y = getmaxy(stdscr);
   int max_x = getmaxx(stdscr);
+  if (max_y < 4 || max_x < 8) {
+    return false;
+  }
 
   int width = 50;
   int height = 8;
-  if (width > max_x - 4)
-    width = max_x - 4;
+  if (width > max_x - 2) {
+    width = max_x - 2;
+  }
+  if (height > max_y - 2) {
+    height = max_y - 2;
+  }
 
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
@@ -483,11 +654,18 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
 
   int max_y = getmaxy(stdscr);
   int max_x = getmaxx(stdscr);
+  if (max_y < 4 || max_x < 8) {
+    return APP_ERROR_INTERNAL;
+  }
 
   int width = 60;
   int height = 8;
-  if (width > max_x - 4)
-    width = max_x - 4;
+  if (width > max_x - 2) {
+    width = max_x - 2;
+  }
+  if (height > max_y - 2) {
+    height = max_y - 2;
+  }
 
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;

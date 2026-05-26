@@ -14,9 +14,8 @@
 
 #include "../core/types.h"
 
-// Forward declaration prevents circular dependency with config.h.
-// Allows output module to respect config settings without tight coupling.
-typedef struct app_config app_config_t;
+// The app_config_t type comes from core/types.h so this header can respect
+// config settings without including config.h.
 
 // Output text with appropriate formatting based on configuration.
 // Handles JSON output mode, plain text, or colored output as configured.

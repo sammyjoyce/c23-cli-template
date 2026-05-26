@@ -69,6 +69,11 @@ typedef struct {
 #define APP_BUILD_DATE "unknown"
 #endif
 
+// Git commit - should be provided by build system
+#ifndef APP_GIT_COMMIT
+#define APP_GIT_COMMIT "unknown"
+#endif
+
 // Buffer and limit constants
 #define INPUT_BUFFER_INITIAL_SIZE (128 * 1024)
 #define INPUT_BUFFER_READ_CHUNK_SIZE 8192

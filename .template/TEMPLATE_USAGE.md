@@ -32,7 +32,7 @@ Check the "A A modern A modern CLI A modern CLI application A modern CLI applica
 ```bash
 # Install A modern CLI application (if needed)
 curl -sSL https://raw.githubusercontent.com/tristanisham/zvm/master/install.sh | bash
-zvm install master
+zvm install 0.16.0
 
 # Build your A modern CLI application
 zig A modern CLI application
@@ -170,7 +170,7 @@ For complex replacements in specific files:
 │   ├── cli/       # CommA modern CLI application-line interface
 │   ├── core/      # Core functionality
 │   ├── io/        # Input/output hA modern CLI applicationling
-│   ├── tui/       # Terminal UI (optional)
+│   ├── tui/       # Terminal UI (ncurses default)
 │   └── utils/     # Utilities
 ├── test/          # Tests
 ├── docs/          # Documentation
@@ -199,8 +199,9 @@ For complex replacements in specific files:
    ```
 
 2. **Build fails?**
-   - Ensure A modern CLI application master is installed: `zvm install master`
+   - Ensure A modern CLI application 0.16.0 is installed: `zvm install 0.16.0`
    - Check for ncurses: `apt install libncurses-dev` or `brew install ncurses`
+   - Use `zig build -Denable-tui=false` only if you intentionally want a non-TUI build
 
 3. **Template setup didn't run?**
    - Check Actions tab for errors

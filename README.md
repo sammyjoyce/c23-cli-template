@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/github/license/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template/blob/main/LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![Codecov](https://img.shields.io/codecov/c/github/sammyjoyce/c23-cli-template?style=for-the-badge&logo=codecov)](https://codecov.io/gh/sammyjoyce/c23-cli-template)
-[![Zig](https://img.shields.io/badge/Zig-master-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
+[![Zig](https://img.shields.io/badge/Zig-0.16.0-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
 [![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CodeQL)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
@@ -67,7 +67,7 @@ gh repo create my-cli \
 git clone https://github.com/YOU/YOUR-REPO
 cd YOUR-REPO
 
-# Build (with TUI support)
+# Build (ncurses TUI support is enabled by default)
 zig build -Doptimize=ReleaseSafe
 
 # Build without TUI (if ncurses is not available)
@@ -172,9 +172,9 @@ const c_sources = [_][]const u8{
 
 ### Prerequisites
 
-- **Zig** (master branch) - Install via [zvm](https://github.com/tristanisham/zvm)
+- **Zig 0.16.0** (current stable release) - Install via [zvm](https://github.com/tristanisham/zvm)
 - **C compiler** - For system libraries
-- **NCurses** - For TUI support
+- **NCurses** - Required for the default TUI build
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`

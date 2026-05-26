@@ -75,12 +75,12 @@ docs(readme): update installation instructions
 
 ### Development Setup
 
-1. **Install Zig** (master branch recommended):
+1. **Install Zig 0.16.0** (current stable release):
 
    ```bash
    # Using zvm (recommended)
-   zvm install master
-   zvm use master
+   zvm install 0.16.0
+   zvm use 0.16.0
    
    # Or download directly
    # Visit https://ziglang.org/download/

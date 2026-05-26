@@ -36,6 +36,17 @@ struct app_config {
   bool no_color;
 };
 
+static void app_config_set_string(char **slot, const char *value) {
+  if (!slot || !value) {
+    return;
+  }
+
+  if (*slot) {
+    free(*slot);
+  }
+  *slot = strdup(value);
+}
+
 app_error app_config_create(app_config_t **config) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
 
@@ -290,20 +301,14 @@ void app_config_set_no_color(app_config_t *config, bool no_color) {
 }
 
 void app_config_set_program_name(app_config_t *config, const char *name) {
-  if (config && name) {
-    if (config->program_name) {
-      free(config->program_name);
-    }
-    config->program_name = strdup(name);
+  if (config) {
+    app_config_set_string(&config->program_name, name);
   }
 }
 
 void app_config_set_command(app_config_t *config, const char *command) {
-  if (config && command) {
-    if (config->command) {
-      free(config->command);
-    }
-    config->command = strdup(command);
+  if (config) {
+    app_config_set_string(&config->command, command);
   }
 }
 
@@ -314,10 +319,7 @@ void app_config_add_command_arg(app_config_t *config, const char *arg) {
 }
 
 void app_config_set_config_file(app_config_t *config, const char *path) {
-  if (config && path) {
-    if (config->config_file) {
-      free(config->config_file);
-    }
-    config->config_file = strdup(path);
+  if (config) {
+    app_config_set_string(&config->config_file, path);
   }
 }

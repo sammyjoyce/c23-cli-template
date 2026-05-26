@@ -19,8 +19,9 @@ A A modern A modern CLI A modern CLI application A modern CLI application A mode
 
 ### Prerequisites
 
-- A modern CLI application (master branch recommended): Install via [zvm](https://github.com/tristanisham/zvm)
+- A modern CLI application (0.16.0 stable recommended): Install via [zvm](https://github.com/tristanisham/zvm)
 - C A modern CLI application(for A modern CLI application libraries)
+- NCurses development package for the default TUI build
 
 ### Build
 

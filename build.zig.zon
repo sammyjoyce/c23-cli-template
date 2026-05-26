@@ -4,8 +4,8 @@
     .fingerprint = 0x8798022a387365d7,
     .dependencies = .{
         .aro = .{
-            .url = "git+https://github.com/Vexu/aro/#5204da998cb6d966bbb39d3ccf687b6b008cebc6",
-            .hash = "aro-0.0.0-JSD1Qoo5JwCkk_CCd5vC-cz9sVxAXJylRZWnJABV36TC",
+            .url = "git+https://github.com/Vexu/aro#477bd1ef3eab244ddc62c1971cfd3e18097a7d65",
+            .hash = "aro-0.0.0-JSD1QmnYOAA_dj1yH_C6JNY_gezA6213lEkIXMjyrnBe",
         },
     },
     .paths = .{

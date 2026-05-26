@@ -116,7 +116,7 @@ if (strcmp(command, "viewer") == 0) {
     return show_data_viewer();
 #else
     fprintf(stderr, "Error: TUI support not compiled in\n");
-    fprintf(stderr, "Rebuild with: zig build -Denable-tui=true\n");
+    fprintf(stderr, "The default build enables TUI support; remove -Denable-tui=false and rebuild.\n");
     return APP_ERROR_UNSUPPORTED;
 #endif
 }

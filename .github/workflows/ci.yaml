@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ZIG_VERSION: master
+  ZIG_VERSION: 0.16.0
 
 permissions:
   contents: read

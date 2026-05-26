@@ -17,15 +17,14 @@ struct tui_progress {
   char *title;
 };
 
-static void tui_progress_draw(const tui_progress_t *progress,
-                              const char *status) {
+static void tui_progress_draw(tui_progress_t *progress, const char *status) {
   if (!progress || !progress->window) {
     return;
   }
 
-  const tui_window_t *window = progress->window;
+  tui_window_t *window = progress->window;
   WINDOW *win = window->win;
-  tui_clear_window((tui_window_t *)window);  // Cast away const for ncurses API
+  tui_clear_window(window);
 
   // Draw title
   if (progress->title) {
@@ -61,7 +60,7 @@ static void tui_progress_draw(const tui_progress_t *progress,
     tui_print_centered(win, bar_y + 2, status);
   }
 
-  tui_refresh_window((tui_window_t *)window);
+  tui_refresh_window(window);
 }
 
 // Public API
@@ -75,8 +74,12 @@ APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   int max_x = tui_get_max_x();
   int width = 60;
   int height = 7;
-  if (width > max_x - 4)
+  if (max_y < height || max_x < 10) {
+    return NULL;
+  }
+  if (width > max_x - 4) {
     width = max_x - 4;
+  }
   int y = (max_y - height) / 2;
   int x = (max_x - width) / 2;
 

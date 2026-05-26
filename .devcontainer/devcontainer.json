@@ -25,7 +25,7 @@
       "installTools": true
     },
     "ghcr.io/devcontainers/features/zig:1": {
-      "version": "0.13.0"
+      "version": "0.16.0"
     }
   },
 
@@ -86,7 +86,7 @@
   "remoteUser": "vscode",
 
   // Additional features
-  "updateContentCommand": "sudo apt-get update && sudo apt-get install -y build-essential clang clang-format lldb gdb cmake ninja-build valgrind codelldb lldb-mi",
+  "updateContentCommand": "sudo apt-get update && sudo apt-get install -y build-essential clang clang-format lldb gdb cmake ninja-build valgrind codelldb lldb-mi pkg-config libncurses-dev",
 
   // Workspace settings
   "workspaceFolder": "/workspace",
