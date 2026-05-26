@@ -53,6 +53,23 @@ static bool app_has_interactive_terminal(void) {
   return isatty(fileno(stdin)) && isatty(fileno(stdout));
 }
 
+static app_error app_doctor_tui_runtime_smoke(bool terminal_ready) {
+#ifdef ENABLE_TUI
+  if (!terminal_ready) {
+    return APP_ERROR_IO;
+  }
+
+  const app_error err = tui_init();
+  if (err == APP_SUCCESS) {
+    tui_cleanup();
+  }
+  return err;
+#else
+  (void)terminal_ready;
+  return APP_ERROR_FEATURE_BASE;
+#endif
+}
+
 static int64_t app_now_millis(void) {
   struct timespec now;
   if (timespec_get(&now, TIME_UTC) != TIME_UTC) {
@@ -129,11 +146,20 @@ static void print_doctor(const app_config_t *config) {
   const bool terminal_ready = app_has_interactive_terminal();
   const char *config_file = app_config_get_config_file(config);
   const bool config_loaded = config_file && config_file[0] != '\0';
+  const app_error tui_runtime_err =
+      tui_enabled && terminal_ready
+          ? app_doctor_tui_runtime_smoke(terminal_ready)
+          : APP_ERROR_IO;
+  const bool tui_runtime_ok =
+      tui_enabled && terminal_ready && tui_runtime_err == APP_SUCCESS;
+  const char *tui_runtime_status =
+      tui_runtime_ok ? "ok" : (tui_enabled && terminal_ready ? "warn" : "skip");
 
   char binary_detail[128];
   char git_detail[128];
   char tui_compiled_detail[96];
   char tui_terminal_detail[96];
+  char tui_runtime_detail[128];
   char color_detail[96];
   char config_detail[PATH_MAX];
   char quiet_detail[32];
@@ -148,6 +174,19 @@ static void print_doctor(const app_config_t *config) {
                        : "rebuild with -Denable-tui=true");
   snprintf(tui_terminal_detail, sizeof(tui_terminal_detail), "%s",
            terminal_ready ? "stdin/stdout are TTYs" : "stdin/stdout not TTYs");
+  if (!tui_enabled) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "TUI support not compiled");
+  } else if (!terminal_ready) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "runtime smoke skipped without a TTY");
+  } else if (tui_runtime_ok) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "ncurses initialized successfully");
+  } else {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             app_strerror(tui_runtime_err));
+  }
   snprintf(color_detail, sizeof(color_detail), "%s",
            color_enabled ? "enabled" : "disabled for this output");
   snprintf(config_detail, sizeof(config_detail), "%s",
@@ -164,6 +203,8 @@ static void print_doctor(const app_config_t *config) {
        tui_enabled, true},
       {"tui_terminal", terminal_ready ? "ok" : "warn", tui_terminal_detail,
        terminal_ready, true},
+      {"tui_runtime", tui_runtime_status, tui_runtime_detail, tui_runtime_ok,
+       true},
       {"color_output", color_enabled ? "ok" : "warn", color_detail,
        color_enabled, true},
       {"config_file", config_loaded ? "ok" : "skip", config_detail,

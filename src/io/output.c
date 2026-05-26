@@ -118,8 +118,10 @@ void app_output(const char *text, const app_config_t *config, bool is_error) {
   FILE *stream = is_error ? stderr : stdout;
 
   if (app_config_is_json_output(config)) {
-    fputs("{\"format_version\":\"1.0\",\"message\":", stream);
-    app_json_write_string(stream, text);
+    bool needs_comma = false;
+    fputc('{', stream);
+    app_json_write_string_field(stream, "format_version", "1.0", &needs_comma);
+    app_json_write_string_field(stream, "message", text, &needs_comma);
     fputs("}\n", stream);
   } else {
     // Plain text output
