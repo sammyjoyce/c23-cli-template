@@ -55,7 +55,9 @@ Outside Nix, install the optional PTY dependencies with your usual Python toolin
 python3 -m pip install pexpect pyte
 ```
 
-The non-interactive CLI scenarios and harness unit tests still run without those packages. PTY-backed TUI scenarios skip with a clear message when the optional packages are missing or when the binary was not built with `-Denable-tui=true`.
+The non-interactive CLI scenarios and harness unit tests still run without those
+packages. PTY-backed TUI scenarios skip with a clear message when the optional
+packages are missing or when the binary was not built with `-Denable-tui=true`.
 
 ## Writing CLI Scenario Tests
 
