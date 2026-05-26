@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Simple test runner script
-exit 0
+zig build test
+zig build terminal-test

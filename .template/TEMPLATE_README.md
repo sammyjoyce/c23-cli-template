@@ -9,7 +9,8 @@ A ready-to-use C23 TUI + CLI starter.
 - Layered configuration from config files, environment, and CLI flags.
 - Optional ncurses/PDCurses TUI build with windows, menus, dialogs, and progress bars.
 - Small module layout that keeps CLI routing, core state, I/O, TUI, and utilities separate.
-- Zig build steps for build, run, test, check, format, and cleanup.
+- Zig build steps for build, run, test, terminal-test, check, format, and cleanup.
+- End-to-end terminal scenario harness for non-interactive CLI tests and optional PTY-backed TUI tests.
 
 ## Requirements
 
@@ -17,6 +18,7 @@ A ready-to-use C23 TUI + CLI starter.
 - A system C toolchain for libc and optional platform libraries.
 - ncurses development headers on Linux/macOS when building with `-Denable-tui=true`.
 - PDCurses on Windows when building with `-Denable-tui=true`.
+- Python `pexpect` and `pyte` for PTY-backed TUI scenario tests outside the Nix dev shell.
 
 ## Build
 
@@ -55,11 +57,15 @@ zig build -Denable-tui=true
 
 ```bash
 zig build test
+zig build terminal-test
+zig build -Denable-tui=true terminal-test
 zig build check
 zig build fmt-check
 ```
 
-The Zig tests exercise the non-interactive CLI surface. The TUI requires a real terminal pass for keyboard, color, resize, and cleanup behavior.
+The Zig tests keep fast build-integrated smoke coverage. The terminal scenario tests exercise non-interactive CLI contracts and, when built with `-Denable-tui=true`, drive the ncurses menu through a pseudo-terminal.
+
+PTY-backed tests skip cleanly if `pexpect`/`pyte` are not installed.
 
 ## Project Layout
 
@@ -76,6 +82,10 @@ The Zig tests exercise the non-interactive CLI surface. The TUI requires a real 
 |   |-- tui/
 |   `-- utils/
 |-- test/
+|   |-- main.zig
+|   |-- terminal_harness.py
+|   |-- test_cli_scenarios.py
+|   `-- test_tui_scenarios.py
 |-- docs/
 `-- examples/
 ```
@@ -95,7 +105,8 @@ Then update:
 
 - `src/cli/help.c` for user-facing help.
 - `opencli.json` for machine-readable CLI metadata.
-- `test/main.zig` for non-interactive behavior.
+- `test/main.zig` for fast build-integrated smoke coverage.
+- `test/test_cli_scenarios.py` or `test/test_tui_scenarios.py` for end-to-end terminal behavior.
 
 ## Customize The TUI
 

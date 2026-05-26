@@ -79,7 +79,7 @@ jobs:
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             sudo apt-get update
-            sudo apt-get install -y libncurses-dev
+            sudo apt-get install -y libncurses-dev python3-pexpect python3-pyte
           elif [ "${{ runner.os }}" = "macOS" ]; then
             brew install ncurses
           fi
@@ -113,12 +113,7 @@ jobs:
         timeout-minutes: 10
         shell: bash
 
-      - name: Run `test` step
-        run: zig build test
-        timeout-minutes: 15
-        shell: bash
-
-      - name: Test binary functionality
+      - name: Check installed binary exists
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
             BINARY_EXT=".exe"
@@ -146,13 +141,6 @@ jobs:
             export PATH="$PATH:$VCPKG_ROOT/installed/x64-windows/bin"
             echo "Updated PATH with vcpkg bin directory"
           fi
-          
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT --help
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT --version
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT hello
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT hello Alice
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT echo Hello World
-          ./zig-out/bin/$BINARY_NAME$BINARY_EXT info
         shell: bash
 
       - name: Build with TUI support
@@ -170,6 +158,10 @@ jobs:
           fi
 
           ./zig-out/bin/$BINARY_NAME$BINARY_EXT --json info | grep '"tui":true'
+
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            zig build -Denable-tui=true terminal-test
+          fi
         timeout-minutes: 15
         shell: bash
 

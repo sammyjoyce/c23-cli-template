@@ -18,7 +18,7 @@
 - 🚀 **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - ⚡ **Zig Build System** - Fast, reliable builds with cross-compilation
 - 🏗️ **Well-Structured** - Organized project layout ready for growth
-- 🧪 **Testing Included** - Test framework with examples
+- 🧪 **Testing Included** - Zig smoke tests plus PTY terminal scenario tests for CLI/TUI flows
 - 🎨 **Smart CLI** - Colored output, help text, argument parsing
 - 🖼️ **TUI Support** - ncurses/PDCurses integration for interactive terminal UIs
 - 🔧 **Configuration** - Layered config system (file → env → args)
@@ -92,7 +92,11 @@ your-cli/
 │   ├── io/                 # Input/Output
 │   ├── tui/                # ncurses windows, menus, dialogs, progress bars
 │   └── utils/              # Utilities
-├── test/                   # Test suite
+├── test/                   # Zig tests + terminal scenario harness
+│   ├── main.zig            # Fast build-integrated smoke tests
+│   ├── terminal_harness.py # CLI/PTY test helpers for end users
+│   ├── test_cli_scenarios.py
+│   └── test_tui_scenarios.py
 ├── build.zig               # Build config
 └── opencli.json            # CLI specification
 ```
@@ -183,12 +187,14 @@ const c_sources = [_][]const u8{
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
+- **Python `pexpect` + `pyte`** - Optional; required only for PTY-backed TUI scenario tests outside the Nix dev shell
 
 ### Development Environment
 
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
+- **Nix Dev Shell** - Includes Zig, C tooling, and Python PTY test dependencies (`pexpect`, `pyte`)
 - **Pre-commit Hooks** - Automated code quality checks before commits
 
 ### Commands
@@ -200,7 +206,9 @@ zig build -Doptimize=ReleaseSafe  # Release build
 zig build -Denable-tui=true  # Build with the TUI showcase
 
 # Test
-zig build test              # Run all tests
+zig build test              # Run fast Zig smoke tests
+zig build terminal-test     # Run end-to-end CLI terminal scenarios
+zig build -Denable-tui=true terminal-test  # Run TUI scenarios in a PTY
 
 # Clean
 zig build clean             # Remove build artifacts
@@ -233,6 +241,7 @@ Config files are flat JSON objects with boolean keys for `debug`, `quiet`,
 
 - 🏗️ [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and module structure
 - ⚡ [**Zig Primer for C Developers**](docs/ZIG_PRIMER.md) - Understanding the build system
+- 🧪 [**Testing CLI And TUI Behavior**](docs/TESTING.md) - End-to-end terminal scenario tests
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute to the project
 - 🧪 [**Advanced Usage Examples**](examples/advanced-usage.md) - Piping, scripting, and integration
 
