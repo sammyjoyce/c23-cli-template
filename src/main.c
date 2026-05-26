@@ -311,10 +311,15 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     return err;
   }
 
-  // Set up debug logging if requested
-  if (app_config_is_debug(*config)) {
+  // Command-line/config verbosity overrides APP_LOG_LEVEL after all layers
+  // load.
+  if (app_config_is_quiet(*config)) {
+    app_log_set_level(LOG_LEVEL_ERROR);
+  } else if (app_config_is_debug(*config)) {
     app_log_set_level(LOG_LEVEL_DEBUG);
     LOG_DEBUG("Debug mode enabled");
+  } else if (app_config_is_verbose(*config)) {
+    app_log_set_level(LOG_LEVEL_INFO);
   }
 
   return APP_SUCCESS;

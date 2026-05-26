@@ -173,6 +173,17 @@ fn testCommands(allocator: std.mem.Allocator) !void {
         try testing.expect(std.mem.indexOf(u8, result.stdout, "-c /definitely/not/a/config.json") != null);
     }
 
+    // Test verbose mode enables informational diagnostics on stderr
+    {
+        const result = try runCommand(allocator, &.{ "./zig-out/bin/myapp", "--verbose", "hello" });
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "Hello, World!") != null);
+        try testing.expect(std.mem.indexOf(u8, result.stderr, "[INFO]") != null);
+    }
+
     std.debug.print("✓ All commands work correctly\n", .{});
 }
 
