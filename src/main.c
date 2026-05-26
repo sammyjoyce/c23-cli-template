@@ -297,6 +297,8 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   err = app_config_load_file(*config, explicit_config_path);
   if (err != APP_SUCCESS) {
     if (explicit_config_path) {
+      fprintf(stderr, "Error: failed to load config '%s': %s\n",
+              explicit_config_path, app_strerror(err));
       app_config_destroy(*config);
       return err;
     }

@@ -15,6 +15,5 @@ typedef struct {
   bool no_color;
 } app_config_json_state_t;
 
-APP_NODISCARD app_error
-app_config_parse_json_state(app_config_json_state_t *staged,
-                            const char *content);
+APP_NODISCARD app_error app_config_parse_json_state(
+    app_config_json_state_t *staged, const char *content);

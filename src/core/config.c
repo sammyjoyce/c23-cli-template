@@ -3,9 +3,10 @@
  */
 
 #include "config.h"
-#include "config_json.h"
 
 #include <limits.h>
+
+#include "config_json.h"
 #ifndef _WIN32
 #include <pwd.h>
 #include <unistd.h>
