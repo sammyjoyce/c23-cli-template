@@ -355,10 +355,32 @@ static bool app_config_apply_json_bool_key(app_config_t *config,
   return true;
 }
 
+static void app_config_commit_json_bool_state(app_config_t *config,
+                                              const app_config_t *staged) {
+  config->quiet = staged->quiet;
+  config->debug = staged->debug;
+  config->verbose = staged->verbose;
+  config->json_output = staged->json_output;
+  config->plain_output = staged->plain_output;
+  config->no_color = staged->no_color;
+}
+
 static bool app_config_is_known_bool_key(const char *key) {
   return strcmp(key, "debug") == 0 || strcmp(key, "quiet") == 0 ||
          strcmp(key, "verbose") == 0 || strcmp(key, "no_color") == 0 ||
          strcmp(key, "json_output") == 0 || strcmp(key, "plain_output") == 0;
+}
+
+static app_error app_config_finish_json_parse(app_config_t *config,
+                                              const app_config_t *staged,
+                                              const char *cursor) {
+  cursor = app_config_skip_json_ws(cursor);
+  if (!cursor || *cursor != '\0') {
+    return APP_ERROR_CONFIG_PARSE;
+  }
+
+  app_config_commit_json_bool_state(config, staged);
+  return APP_SUCCESS;
 }
 
 static app_error app_config_parse_json(app_config_t *config,
@@ -366,6 +388,7 @@ static app_error app_config_parse_json(app_config_t *config,
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
   CHECK_NULL(content, APP_ERROR_INVALID_ARG);
 
+  app_config_t staged = *config;
   const char *cursor = app_config_skip_json_ws(content);
   if (!cursor || *cursor == '\0') {
     return APP_SUCCESS;
@@ -377,8 +400,7 @@ static app_error app_config_parse_json(app_config_t *config,
   cursor++;
   cursor = app_config_skip_json_ws(cursor);
   if (*cursor == '}') {
-    cursor = app_config_skip_json_ws(cursor + 1);
-    return *cursor == '\0' ? APP_SUCCESS : APP_ERROR_CONFIG_PARSE;
+    return app_config_finish_json_parse(config, &staged, cursor + 1);
   }
 
   while (*cursor != '\0') {
@@ -401,7 +423,7 @@ static app_error app_config_parse_json(app_config_t *config,
         LOG_WARNING("Invalid boolean value for config key '%s'", key);
         return err;
       }
-      (void)app_config_apply_json_bool_key(config, key, value);
+      (void)app_config_apply_json_bool_key(&staged, key, value);
     } else {
       err = app_config_skip_json_value(&cursor);
       if (err != APP_SUCCESS) {
@@ -415,8 +437,7 @@ static app_error app_config_parse_json(app_config_t *config,
       continue;
     }
     if (*cursor == '}') {
-      cursor = app_config_skip_json_ws(cursor + 1);
-      return *cursor == '\0' ? APP_SUCCESS : APP_ERROR_CONFIG_PARSE;
+      return app_config_finish_json_parse(config, &staged, cursor + 1);
     }
     return APP_ERROR_CONFIG_PARSE;
   }

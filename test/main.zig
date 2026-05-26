@@ -43,6 +43,14 @@ fn runCommand(allocator: std.mem.Allocator, argv: []const []const u8) !std.proce
     return try std.process.run(allocator, testing.io, .{ .argv = argv });
 }
 
+fn runCommandWithEnv(
+    allocator: std.mem.Allocator,
+    argv: []const []const u8,
+    environ_map: *const std.process.Environ.Map,
+) !std.process.RunResult {
+    return try std.process.run(allocator, testing.io, .{ .argv = argv, .environ_map = environ_map });
+}
+
 fn exitedWith(result: std.process.RunResult, code: u8) bool {
     return switch (result.term) {
         .exited => |status| status == code,
@@ -182,6 +190,35 @@ fn testCommands(allocator: std.mem.Allocator) !void {
         try testing.expect(exitedWith(result, 0));
         try testing.expect(std.mem.indexOf(u8, result.stdout, "Hello, World!") != null);
         try testing.expect(std.mem.indexOf(u8, result.stderr, "[INFO]") != null);
+    }
+
+    // Test invalid default config files do not leak partial settings
+    {
+        var tmp = testing.tmpDir(.{});
+        defer tmp.cleanup();
+
+        try tmp.dir.writeFile(testing.io, .{
+            .sub_path = "config.json",
+            .data = "{\"quiet\":true,",
+        });
+
+        const config_path = try std.fmt.allocPrint(
+            allocator,
+            ".zig-cache/tmp/{s}/config.json",
+            .{&tmp.sub_path},
+        );
+        defer allocator.free(config_path);
+
+        var env = std.process.Environ.Map.init(allocator);
+        defer env.deinit();
+        try env.put("APP_CONFIG_PATH", config_path);
+
+        const result = try runCommandWithEnv(allocator, &.{ "./zig-out/bin/myapp", "hello" }, &env);
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "Hello, World!") != null);
     }
 
     std.debug.print("✓ All commands work correctly\n", .{});
