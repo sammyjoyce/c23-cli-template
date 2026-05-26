@@ -121,7 +121,7 @@ char *app_read_input_from_file(const char *filename) {
     return nullptr;
   }
 
-  FILE *file = fopen(filename, "r");
+  FILE *file = fopen(filename, "rb");
   if (file == NULL) {
     LOG_ERROR("Failed to open file %s: %s", filename, strerror(errno));
     return nullptr;

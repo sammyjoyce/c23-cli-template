@@ -156,7 +156,7 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
     return APP_SUCCESS;  // Not an error if no config file exists
   }
 
-  FILE *f = fopen(config_path, "r");
+  FILE *f = fopen(config_path, "rb");
   if (!f) {
     LOG_WARNING("Failed to open config file: %s", config_path);
     free(config_path);
