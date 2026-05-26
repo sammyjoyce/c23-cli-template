@@ -69,7 +69,11 @@ bool vt_session_start(vt_session_t *session, const char *binary,
 
   session->pid = pid;
   free(argv);
-  set_nonblocking(session->master_fd);
+  if (!set_nonblocking(session->master_fd)) {
+    perror("fcntl O_NONBLOCK");
+    vt_session_close(session);
+    return false;
+  }
   return true;
 }
 
