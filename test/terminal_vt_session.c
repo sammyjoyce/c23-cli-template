@@ -266,6 +266,12 @@ bool vt_resize(vt_session_t *session, uint16_t cols, uint16_t rows) {
     return false;
   }
   if (ioctl(session->master_fd, TIOCSWINSZ, &ws) != 0) {
+    const int saved_errno = errno;
+    if (ghostty_terminal_resize(session->terminal, session->cols, session->rows,
+                                8, 16) != GHOSTTY_SUCCESS) {
+      session->pty_write_failed = true;
+    }
+    errno = saved_errno;
     return false;
   }
   kill(session->pid, SIGWINCH);
