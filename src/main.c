@@ -296,7 +296,11 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
       app_config_destroy(*config);
       return err;
     }
-    LOG_WARNING("Ignoring invalid default configuration");
+    if (err == APP_ERROR_MEMORY) {
+      app_config_destroy(*config);
+      return err;
+    }
+    LOG_WARNING("Ignoring default configuration: %s", app_strerror(err));
   }
   err = app_config_load_env(*config);
   if (err != APP_SUCCESS) {
@@ -360,7 +364,13 @@ static app_error handle_command(const app_config_t *config, const char *command,
 #ifdef ENABLE_TUI
     const app_error tui_err = tui_run_demo();
     if (tui_err != APP_SUCCESS) {
-      app_output_format(config, true, "TUI failed: %s", app_strerror(tui_err));
+      if (tui_err == APP_ERROR_OUT_OF_RANGE) {
+        app_output("TUI failed: terminal is too small (minimum 48x12).", config,
+                   true);
+      } else {
+        app_output_format(config, true, "TUI failed: %s",
+                          app_strerror(tui_err));
+      }
     }
     return tui_err;
 #else

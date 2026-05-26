@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include "../core/config.h"
-#include "../utils/colors.h"
 #include "../utils/logging.h"
 
 static void app_json_write_separator(FILE *stream, bool *needs_comma) {
@@ -147,20 +146,4 @@ void app_output_format(const app_config_t *config, bool is_error,
   va_end(args);
 
   app_output(buffer, config, is_error);
-}
-
-void app_output_json(const char *json_string, const app_config_t *config,
-                     bool pretty) {
-  (void)pretty;
-
-  if (json_string == nullptr || config == nullptr) {
-    LOG_ERROR("Invalid parameters in app_output_json");
-    return;
-  }
-
-  if (app_config_is_quiet(config)) {
-    return;
-  }
-
-  printf("%s\n", json_string);
 }

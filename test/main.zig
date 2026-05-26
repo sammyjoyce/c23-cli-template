@@ -171,6 +171,21 @@ fn testCommands(allocator: std.mem.Allocator) !void {
         try testing.expectEqual(@as(usize, 0), result.stdout.len);
     }
 
+    // Test plain mode disables color even when color is forced
+    {
+        var env = std.process.Environ.Map.init(allocator);
+        defer env.deinit();
+        try env.put("FORCE_COLOR", "1");
+
+        const result = try runCommandWithEnv(allocator, &.{ "./zig-out/bin/myapp", "--plain", "doctor" }, &env);
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "color_output") != null);
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "disabled for this output") != null);
+    }
+
     // Test command arguments do not get parsed as global config options
     {
         const result = try runCommand(allocator, &.{ "./zig-out/bin/myapp", "echo", "-c", "/definitely/not/a/config.json" });
@@ -199,7 +214,7 @@ fn testCommands(allocator: std.mem.Allocator) !void {
 
         try tmp.dir.writeFile(testing.io, .{
             .sub_path = "config.json",
-            .data = "{\"quiet\":true,",
+            .data = "{\"quiet\":true,\"ignored\":{\"nested\":true}}",
         });
 
         const config_path = try std.fmt.allocPrint(
@@ -219,6 +234,31 @@ fn testCommands(allocator: std.mem.Allocator) !void {
 
         try testing.expect(exitedWith(result, 0));
         try testing.expect(std.mem.indexOf(u8, result.stdout, "Hello, World!") != null);
+    }
+
+    // Test valid flat config files can skip unknown scalar keys
+    {
+        var tmp = testing.tmpDir(.{});
+        defer tmp.cleanup();
+
+        try tmp.dir.writeFile(testing.io, .{
+            .sub_path = "config.json",
+            .data = "{\"ignored\":\"debug\",\"quiet\":true}",
+        });
+
+        const config_path = try std.fmt.allocPrint(
+            allocator,
+            ".zig-cache/tmp/{s}/config.json",
+            .{&tmp.sub_path},
+        );
+        defer allocator.free(config_path);
+
+        const result = try runCommand(allocator, &.{ "./zig-out/bin/myapp", "--config", config_path, "hello" });
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expectEqual(@as(usize, 0), result.stdout.len);
     }
 
     std.debug.print("✓ All commands work correctly\n", .{});

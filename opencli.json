@@ -77,7 +77,7 @@
       "required": false,
       "aliases": [],
       "arguments": [],
-      "description": "Output in plain text format"
+      "description": "Output plain text without colors"
     },
     {
       "name": "no-color",
@@ -235,7 +235,7 @@
       "name": "configuration",
       "value": {
         "location": "~/.config/myapp/config.json",
-        "format": "JSON",
+        "format": "Flat JSON object with boolean debug, quiet, verbose, no_color, json_output, and plain_output keys",
         "precedence": "CLI args > Environment > Config file > Defaults"
       }
     },

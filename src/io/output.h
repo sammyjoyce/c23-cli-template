@@ -28,11 +28,6 @@ void app_output(const char *text, const app_config_t *config, bool is_error);
 void app_output_format(const app_config_t *config, bool is_error,
                        const char *fmt, ...);
 
-// Output JSON data with proper formatting.
-// Ensures valid JSON output when in JSON mode, with pretty printing option.
-void app_output_json(const char *json_string, const app_config_t *config,
-                     bool pretty);
-
 // JSON helpers for command-specific structured output.
 void app_json_write_string(FILE *stream, const char *text);
 void app_json_write_string_field(FILE *stream, const char *key,

@@ -152,82 +152,6 @@ static app_error app_config_parse_json_string(const char **cursor, char *out,
   return APP_ERROR_CONFIG_PARSE;
 }
 
-static app_error app_config_skip_json_value(const char **cursor);
-
-static app_error app_config_skip_json_object(const char **cursor) {
-  const char *p = app_config_skip_json_ws(*cursor);
-  if (!p || *p != '{') {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  p++;
-  p = app_config_skip_json_ws(p);
-  if (*p == '}') {
-    *cursor = p + 1;
-    return APP_SUCCESS;
-  }
-
-  while (*p != '\0') {
-    char key[64];
-    app_error err = app_config_parse_json_string(&p, key, sizeof(key));
-    if (err != APP_SUCCESS) {
-      return err;
-    }
-    p = app_config_skip_json_ws(p);
-    if (*p != ':') {
-      return APP_ERROR_CONFIG_PARSE;
-    }
-    p++;
-    err = app_config_skip_json_value(&p);
-    if (err != APP_SUCCESS) {
-      return err;
-    }
-    p = app_config_skip_json_ws(p);
-    if (*p == ',') {
-      p++;
-      continue;
-    }
-    if (*p == '}') {
-      *cursor = p + 1;
-      return APP_SUCCESS;
-    }
-    return APP_ERROR_CONFIG_PARSE;
-  }
-
-  return APP_ERROR_CONFIG_PARSE;
-}
-
-static app_error app_config_skip_json_array(const char **cursor) {
-  const char *p = app_config_skip_json_ws(*cursor);
-  if (!p || *p != '[') {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  p++;
-  p = app_config_skip_json_ws(p);
-  if (*p == ']') {
-    *cursor = p + 1;
-    return APP_SUCCESS;
-  }
-
-  while (*p != '\0') {
-    app_error err = app_config_skip_json_value(&p);
-    if (err != APP_SUCCESS) {
-      return err;
-    }
-    p = app_config_skip_json_ws(p);
-    if (*p == ',') {
-      p++;
-      continue;
-    }
-    if (*p == ']') {
-      *cursor = p + 1;
-      return APP_SUCCESS;
-    }
-    return APP_ERROR_CONFIG_PARSE;
-  }
-
-  return APP_ERROR_CONFIG_PARSE;
-}
-
 static app_error app_config_skip_json_number(const char **cursor) {
   const char *p = app_config_skip_json_ws(*cursor);
   if (*p == '-') {
@@ -283,7 +207,7 @@ static app_error app_config_skip_json_literal(const char **cursor,
   return APP_SUCCESS;
 }
 
-static app_error app_config_skip_json_value(const char **cursor) {
+static app_error app_config_skip_json_scalar(const char **cursor) {
   const char *p = app_config_skip_json_ws(*cursor);
   if (!p) {
     return APP_ERROR_CONFIG_PARSE;
@@ -292,12 +216,6 @@ static app_error app_config_skip_json_value(const char **cursor) {
   if (*p == '"') {
     char ignored[1];
     return app_config_parse_json_string(cursor, ignored, sizeof(ignored));
-  }
-  if (*p == '{') {
-    return app_config_skip_json_object(cursor);
-  }
-  if (*p == '[') {
-    return app_config_skip_json_array(cursor);
   }
   if (*p == 't') {
     return app_config_skip_json_literal(cursor, "true");
@@ -333,20 +251,47 @@ static app_error app_config_read_json_bool_value(const char **cursor,
   return APP_ERROR_CONFIG_PARSE;
 }
 
-static bool app_config_apply_json_bool_key(app_config_t *config,
+typedef struct {
+  bool quiet;
+  bool debug;
+  bool verbose;
+  bool json_output;
+  bool plain_output;
+  bool no_color;
+} app_config_bool_state_t;
+
+static app_config_bool_state_t app_config_bool_state_from_config(
+    const app_config_t *config) {
+  return (app_config_bool_state_t){
+      .quiet = config->quiet,
+      .debug = config->debug,
+      .verbose = config->verbose,
+      .json_output = config->json_output,
+      .plain_output = config->plain_output,
+      .no_color = config->no_color,
+  };
+}
+
+static bool app_config_apply_json_bool_key(app_config_bool_state_t *state,
                                            const char *key, bool value) {
   if (strcmp(key, "debug") == 0) {
-    app_config_set_debug(config, value);
+    state->debug = value;
   } else if (strcmp(key, "quiet") == 0) {
-    app_config_set_quiet(config, value);
+    state->quiet = value;
   } else if (strcmp(key, "verbose") == 0) {
-    app_config_set_verbose(config, value);
+    state->verbose = value;
   } else if (strcmp(key, "no_color") == 0) {
-    app_config_set_no_color(config, value);
+    state->no_color = value;
   } else if (strcmp(key, "json_output") == 0) {
-    app_config_set_json_output(config, value);
+    state->json_output = value;
+    if (value) {
+      state->plain_output = false;
+    }
   } else if (strcmp(key, "plain_output") == 0) {
-    app_config_set_plain_output(config, value);
+    state->plain_output = value;
+    if (value) {
+      state->json_output = false;
+    }
   } else {
     return false;
   }
@@ -355,8 +300,8 @@ static bool app_config_apply_json_bool_key(app_config_t *config,
   return true;
 }
 
-static void app_config_commit_json_bool_state(app_config_t *config,
-                                              const app_config_t *staged) {
+static void app_config_commit_json_bool_state(
+    app_config_t *config, const app_config_bool_state_t *staged) {
   config->quiet = staged->quiet;
   config->debug = staged->debug;
   config->verbose = staged->verbose;
@@ -371,24 +316,20 @@ static bool app_config_is_known_bool_key(const char *key) {
          strcmp(key, "json_output") == 0 || strcmp(key, "plain_output") == 0;
 }
 
-static app_error app_config_finish_json_parse(app_config_t *config,
-                                              const app_config_t *staged,
-                                              const char *cursor) {
+static app_error app_config_finish_json_parse(const char *cursor) {
   cursor = app_config_skip_json_ws(cursor);
   if (!cursor || *cursor != '\0') {
     return APP_ERROR_CONFIG_PARSE;
   }
 
-  app_config_commit_json_bool_state(config, staged);
   return APP_SUCCESS;
 }
 
-static app_error app_config_parse_json(app_config_t *config,
+static app_error app_config_parse_json(app_config_bool_state_t *staged,
                                        const char *content) {
-  CHECK_NULL(config, APP_ERROR_INVALID_ARG);
+  CHECK_NULL(staged, APP_ERROR_INVALID_ARG);
   CHECK_NULL(content, APP_ERROR_INVALID_ARG);
 
-  app_config_t staged = *config;
   const char *cursor = app_config_skip_json_ws(content);
   if (!cursor || *cursor == '\0') {
     return APP_SUCCESS;
@@ -400,7 +341,7 @@ static app_error app_config_parse_json(app_config_t *config,
   cursor++;
   cursor = app_config_skip_json_ws(cursor);
   if (*cursor == '}') {
-    return app_config_finish_json_parse(config, &staged, cursor + 1);
+    return app_config_finish_json_parse(cursor + 1);
   }
 
   while (*cursor != '\0') {
@@ -423,9 +364,9 @@ static app_error app_config_parse_json(app_config_t *config,
         LOG_WARNING("Invalid boolean value for config key '%s'", key);
         return err;
       }
-      (void)app_config_apply_json_bool_key(&staged, key, value);
+      (void)app_config_apply_json_bool_key(staged, key, value);
     } else {
-      err = app_config_skip_json_value(&cursor);
+      err = app_config_skip_json_scalar(&cursor);
       if (err != APP_SUCCESS) {
         return err;
       }
@@ -437,7 +378,7 @@ static app_error app_config_parse_json(app_config_t *config,
       continue;
     }
     if (*cursor == '}') {
-      return app_config_finish_json_parse(config, &staged, cursor + 1);
+      return app_config_finish_json_parse(cursor + 1);
     }
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -591,19 +532,27 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
   content[content_size] = '\0';
   fclose(f);
 
-  app_error err = app_config_parse_json(config, content);
+  app_config_bool_state_t staged = app_config_bool_state_from_config(config);
+  app_error err = app_config_parse_json(&staged, content);
   if (err != APP_SUCCESS) {
     app_secure_free(content, content_size + 1);
     free(config_path);
     return err;
   }
 
-  LOG_INFO("Loaded configuration from %s", config_path);
-  if (!app_config_set_string(&config->config_file, config_path)) {
+  char *loaded_path = strdup(config_path);
+  if (!loaded_path) {
     app_secure_free(content, content_size + 1);
     free(config_path);
     return APP_ERROR_MEMORY;
   }
+
+  app_config_commit_json_bool_state(config, &staged);
+  if (config->config_file) {
+    free(config->config_file);
+  }
+  config->config_file = loaded_path;
+  LOG_INFO("Loaded configuration from %s", config_path);
 
   app_secure_free(content, content_size + 1);
   free(config_path);

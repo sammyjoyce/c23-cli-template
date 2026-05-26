@@ -102,7 +102,7 @@ void app_print_verbose_usage(const char *program_name) {
   printf("  -q, --quiet        Suppress non-essential output\n");
   printf("  -v, --verbose      Enable verbose output\n");
   printf("  --json             Output in JSON format\n");
-  printf("  --plain            Output in plain text format\n");
+  printf("  --plain            Output plain text without colors\n");
   printf("  --no-color         Disable colored output\n");
   printf("  -c, --config PATH  Specify configuration file path\n\n");
 

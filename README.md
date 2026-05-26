@@ -218,6 +218,9 @@ Your app supports config from multiple sources:
 3. **Config file** (`~/.config/yourapp/config.json`)
 4. **Defaults**
 
+Config files are flat JSON objects with boolean keys for `debug`, `quiet`,
+`verbose`, `no_color`, `json_output`, and `plain_output`.
+
 ## 📚 Documentation
 
 ### Getting Started
