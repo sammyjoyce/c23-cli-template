@@ -149,7 +149,12 @@ After creating your repository, run the template cleanup workflow or local setup
 
 Check the **Actions** tab to see progress.
 
-### 2. Add Your Commands
+### 2. CI Runner Selection
+
+Generated repositories default to GitHub-hosted runners so the cleanup workflow and first CI run work without extra infrastructure.
+To opt into Namespace or another self-hosted fleet, configure `CI_LINUX_RUNNER`, `CI_MACOS_RUNNER`, and `CI_WINDOWS_RUNNER` as described in [Using This Template](.template/TEMPLATE_USAGE.md#ci-runner-selection).
+
+### 3. Add Your Commands
 
 Edit `src/main.c`:
 
@@ -161,11 +166,11 @@ if (strcmp(command, "deploy") == 0) {
 }
 ```
 
-### 3. Update Help Text
+### 4. Update Help Text
 
 Edit `src/cli/help.c` to describe your commands.
 
-### 4. Add Source Files
+### 5. Add Source Files
 
 1. Create your `.c` file in `src/`
 2. Add to `build.zig`:

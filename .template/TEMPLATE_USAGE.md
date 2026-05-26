@@ -29,6 +29,21 @@ Generated repositories have their own history. Use a fork instead if you need to
 
 Run the `Template Cleanup` workflow from the generated repository's Actions tab. It asks for the project name, description, author, GitHub owner, and license, then commits the resulting starter files.
 
+## CI Runner Selection
+
+Generated repositories default to GitHub-hosted runners so the cleanup workflow and first CI run work without self-hosted infrastructure.
+
+To use Namespace or another self-hosted fleet, set these repository or organization variables:
+
+| Variable | Default | Namespace example |
+| --- | --- | --- |
+| `CI_LINUX_RUNNER` | `ubuntu-latest` | `nscloud-ubuntu-24.04-amd64-4x8` |
+| `CI_MACOS_RUNNER` | `macos-latest` | `nscloud-macos-sequoia-arm64-6x14` |
+| `CI_WINDOWS_RUNNER` | `windows-latest` | `nscloud-windows-2022-amd64-4x8` |
+
+The workflows use variable expressions instead of literal custom runner labels, so local `actionlint` can validate the default template workflows without a custom allowlist.
+The Namespace macOS example is ARM64; use the default `macos-latest` runner or add a universal/x64 release job if you need Intel macOS artifacts.
+
 ### Local Interactive Setup
 
 ```bash
