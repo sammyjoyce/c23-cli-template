@@ -6,10 +6,18 @@
  * with proper error handling, configuration management, and testing support.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
 
 #include "cli/args.h"
 #include "cli/help.h"
@@ -29,12 +37,20 @@
 static _Thread_local int app_thread_id = 0;
 #endif
 
-static const char *app_bool_text(bool value) {
-  return value ? "true" : "false";
-}
-
 static const char *app_yes_no(bool value) {
   return value ? "yes" : "no";
+}
+
+typedef struct {
+  const char *name;
+  const char *status;
+  const char *detail;
+  bool enabled;
+  bool has_enabled;
+} app_doctor_check_t;
+
+static bool app_has_interactive_terminal(void) {
+  return isatty(fileno(stdin)) && isatty(fileno(stdout));
 }
 
 static int64_t app_now_millis(void) {
@@ -55,12 +71,20 @@ static void print_info(const app_config_t *config) {
 #endif
 
   if (app_config_is_json_output(config)) {
-    printf(
-        "{\"format_version\":\"1.0\",\"app\":\"%s\",\"version\":\"%s\","
-        "\"git_commit\":\"%s\",\"build_date\":\"%s\",\"features\":{\"tui\":%s}}"
-        "\n",
-        APP_NAME, APP_VERSION, APP_GIT_COMMIT, APP_BUILD_DATE,
-        app_bool_text(tui_enabled));
+    bool root_comma = false;
+    bool feature_comma = false;
+
+    fputc('{', stdout);
+    app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
+    app_json_write_string_field(stdout, "app", APP_NAME, &root_comma);
+    app_json_write_string_field(stdout, "version", APP_VERSION, &root_comma);
+    app_json_write_string_field(stdout, "git_commit", APP_GIT_COMMIT,
+                                &root_comma);
+    app_json_write_string_field(stdout, "build_date", APP_BUILD_DATE,
+                                &root_comma);
+    app_json_write_raw_field(stdout, "features", "{", &root_comma);
+    app_json_write_bool_field(stdout, "tui", tui_enabled, &feature_comma);
+    fputs("}}\n", stdout);
     return;
   }
 
@@ -71,6 +95,28 @@ static void print_info(const app_config_t *config) {
   app_output_format(config, false, "TUI Support: %s", app_yes_no(tui_enabled));
 }
 
+static void print_doctor_json_check(const app_doctor_check_t *check,
+                                    bool *needs_comma) {
+  if (!check || !needs_comma) {
+    return;
+  }
+
+  if (*needs_comma) {
+    fputc(',', stdout);
+  }
+  *needs_comma = true;
+
+  bool field_comma = false;
+  fputc('{', stdout);
+  app_json_write_string_field(stdout, "name", check->name, &field_comma);
+  app_json_write_string_field(stdout, "status", check->status, &field_comma);
+  app_json_write_string_field(stdout, "detail", check->detail, &field_comma);
+  if (check->has_enabled) {
+    app_json_write_bool_field(stdout, "enabled", check->enabled, &field_comma);
+  }
+  fputc('}', stdout);
+}
+
 static void print_doctor(const app_config_t *config) {
   const bool tui_enabled =
 #ifdef ENABLE_TUI
@@ -79,33 +125,73 @@ static void print_doctor(const app_config_t *config) {
       false;
 #endif
   const bool color_enabled = app_use_colors(config);
+  const bool git_known = strcmp(APP_GIT_COMMIT, "unknown") != 0;
+  const bool terminal_ready = app_has_interactive_terminal();
+  const char *config_file = app_config_get_config_file(config);
+  const bool config_loaded = config_file && config_file[0] != '\0';
+
+  char binary_detail[128];
+  char git_detail[128];
+  char tui_compiled_detail[96];
+  char tui_terminal_detail[96];
+  char color_detail[96];
+  char config_detail[PATH_MAX];
+  char quiet_detail[32];
+  char json_detail[32];
+
+  snprintf(binary_detail, sizeof(binary_detail), "%s %s", APP_NAME,
+           APP_VERSION);
+  snprintf(git_detail, sizeof(git_detail), "%s",
+           git_known ? APP_GIT_COMMIT : "commit metadata unavailable");
+  snprintf(tui_compiled_detail, sizeof(tui_compiled_detail), "%s",
+           tui_enabled ? "compiled with TUI support"
+                       : "rebuild with -Denable-tui=true");
+  snprintf(tui_terminal_detail, sizeof(tui_terminal_detail), "%s",
+           terminal_ready ? "stdin/stdout are TTYs" : "stdin/stdout not TTYs");
+  snprintf(color_detail, sizeof(color_detail), "%s",
+           color_enabled ? "enabled" : "disabled for this output");
+  snprintf(config_detail, sizeof(config_detail), "%s",
+           config_loaded ? config_file : "no config file loaded");
+  snprintf(quiet_detail, sizeof(quiet_detail), "%s",
+           app_yes_no(app_config_is_quiet(config)));
+  snprintf(json_detail, sizeof(json_detail), "%s",
+           app_yes_no(app_config_is_json_output(config)));
+
+  const app_doctor_check_t checks[] = {
+      {"binary", "ok", binary_detail, false, false},
+      {"git", git_known ? "ok" : "warn", git_detail, false, false},
+      {"tui_compiled", tui_enabled ? "ok" : "warn", tui_compiled_detail,
+       tui_enabled, true},
+      {"tui_terminal", terminal_ready ? "ok" : "warn", tui_terminal_detail,
+       terminal_ready, true},
+      {"color_output", color_enabled ? "ok" : "warn", color_detail,
+       color_enabled, true},
+      {"config_file", config_loaded ? "ok" : "skip", config_detail,
+       config_loaded, true},
+      {"quiet_mode", "ok", quiet_detail, app_config_is_quiet(config), true},
+      {"json_output", "ok", json_detail, app_config_is_json_output(config),
+       true},
+  };
 
   if (app_config_is_json_output(config)) {
-    printf(
-        "{\"format_version\":\"1.0\",\"checks\":["
-        "{\"name\":\"binary\",\"status\":\"ok\",\"detail\":\"%s %s\"},"
-        "{\"name\":\"tui_compiled\",\"status\":\"ok\",\"enabled\":%s},"
-        "{\"name\":\"color_output\",\"status\":\"ok\",\"enabled\":%s},"
-        "{\"name\":\"quiet_mode\",\"status\":\"ok\",\"enabled\":%s}"
-        "]}\n",
-        APP_NAME, APP_VERSION, app_bool_text(tui_enabled),
-        app_bool_text(color_enabled),
-        app_bool_text(app_config_is_quiet(config)));
+    bool root_comma = false;
+    bool check_comma = false;
+
+    fputc('{', stdout);
+    app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
+    app_json_write_raw_field(stdout, "checks", "[", &root_comma);
+    for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
+      print_doctor_json_check(&checks[i], &check_comma);
+    }
+    fputs("]}\n", stdout);
     return;
   }
 
   app_output_format(config, false, "%s doctor", APP_NAME);
-  app_output_format(config, false, "  binary        ok (%s %s)", APP_NAME,
-                    APP_VERSION);
-  app_output_format(config, false, "  git           %s", APP_GIT_COMMIT);
-  app_output_format(config, false, "  tui           %s",
-                    tui_enabled ? "compiled" : "not compiled");
-  app_output_format(config, false, "  color         %s",
-                    color_enabled ? "enabled" : "disabled");
-  app_output_format(config, false, "  quiet         %s",
-                    app_yes_no(app_config_is_quiet(config)));
-  app_output_format(config, false, "  json          %s",
-                    app_yes_no(app_config_is_json_output(config)));
+  for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
+    app_output_format(config, false, "  %-13s %-4s (%s)", checks[i].name,
+                      checks[i].status, checks[i].detail);
+  }
 }
 
 static void output_joined_args(const app_config_t *config, int argc,
@@ -129,6 +215,19 @@ static void output_joined_args(const app_config_t *config, int argc,
   app_output(buffer, config, false);
 }
 
+static const char *find_config_path_arg(int argc, char *argv[]) {
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
+      if (i + 1 < argc) {
+        return argv[i + 1];
+      }
+      return NULL;
+    }
+  }
+
+  return NULL;
+}
+
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   // Show help if no arguments
   if (argc == 1) {
@@ -142,9 +241,17 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     return err;
   }
 
-  // Load configuration from various sources
-  (void)app_config_load_file(*config, NULL);  // Load from default locations
-  (void)app_config_load_env(*config);
+  // Load configuration from lower-precedence sources before parsing args.
+  err = app_config_load_file(*config, find_config_path_arg(argc, argv));
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
+    return err;
+  }
+  err = app_config_load_env(*config);
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
+    return err;
+  }
 
   // Parse command line arguments (may exit for --help or --version)
   err = app_parse_args(argc, argv, *config);

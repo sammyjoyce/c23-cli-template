@@ -356,6 +356,32 @@ jobs:
         run: pre-commit run --all-files
         shell: bash
 
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Run tests
+        run: zig build test
+        shell: bash
+
+      - name: Upload coverage to Codecov
+        if: hashFiles('lcov.info') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          file: lcov.info
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   secrets-scan:
     name: Secrets Scan
     runs-on: ubuntu-latest

@@ -4,6 +4,7 @@
 
 #include "config.h"
 
+#include <ctype.h>
 #include <limits.h>
 #ifndef _WIN32
 #include <pwd.h>
@@ -37,20 +38,135 @@ struct app_config {
   bool no_color;
 };
 
-static void app_config_set_string(char **slot, const char *value) {
+static bool app_config_set_string(char **slot, const char *value) {
   if (!slot || !value) {
-    return;
+    return false;
   }
 
   char *copy = strdup(value);
   if (!copy) {
-    return;
+    return false;
   }
 
   if (*slot) {
     free(*slot);
   }
   *slot = copy;
+  return true;
+}
+
+static const char *app_config_skip_json_ws(const char *cursor) {
+  while (cursor && *cursor != '\0' && isspace((unsigned char)*cursor) != 0) {
+    cursor++;
+  }
+  return cursor;
+}
+
+static bool app_config_json_value_ended(const char *cursor) {
+  cursor = app_config_skip_json_ws(cursor);
+  return cursor && (*cursor == '\0' || *cursor == ',' || *cursor == '}');
+}
+
+static app_error app_config_read_json_bool(const char *content, const char *key,
+                                           bool *value, bool *found) {
+  if (!content || !key || !value || !found) {
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  *found = false;
+
+  char pattern[64];
+  const int pattern_len = snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+  if (pattern_len <= 0 || (size_t)pattern_len >= sizeof(pattern)) {
+    return APP_ERROR_CONFIG_INVALID;
+  }
+
+  const char *cursor = content;
+  while ((cursor = strstr(cursor, pattern)) != NULL) {
+    cursor += pattern_len;
+    cursor = app_config_skip_json_ws(cursor);
+    if (!cursor || *cursor != ':') {
+      continue;
+    }
+
+    cursor = app_config_skip_json_ws(cursor + 1);
+    if (!cursor) {
+      return APP_ERROR_CONFIG_PARSE;
+    }
+
+    if (strncmp(cursor, "true", 4) == 0 &&
+        app_config_json_value_ended(cursor + 4)) {
+      *value = true;
+      *found = true;
+      return APP_SUCCESS;
+    }
+    if (strncmp(cursor, "false", 5) == 0 &&
+        app_config_json_value_ended(cursor + 5)) {
+      *value = false;
+      *found = true;
+      return APP_SUCCESS;
+    }
+
+    return APP_ERROR_CONFIG_PARSE;
+  }
+
+  return APP_SUCCESS;
+}
+
+static app_error app_config_apply_json_bool(const char *content,
+                                            const char *key, bool *target) {
+  bool value = false;
+  bool found = false;
+  const app_error err = app_config_read_json_bool(content, key, &value, &found);
+  if (err != APP_SUCCESS) {
+    LOG_WARNING("Invalid boolean value for config key '%s'", key);
+    return err;
+  }
+
+  if (found) {
+    *target = value;
+    LOG_DEBUG("Loaded config key '%s' from file", key);
+  }
+  return APP_SUCCESS;
+}
+
+static app_error app_config_parse_json(app_config_t *config,
+                                       const char *content) {
+  CHECK_NULL(config, APP_ERROR_INVALID_ARG);
+  CHECK_NULL(content, APP_ERROR_INVALID_ARG);
+
+  const char *cursor = app_config_skip_json_ws(content);
+  if (!cursor || (*cursor != '\0' && *cursor != '{')) {
+    return APP_ERROR_CONFIG_PARSE;
+  }
+
+  app_error err = APP_SUCCESS;
+  if ((err = app_config_apply_json_bool(content, "debug", &config->debug)) !=
+      APP_SUCCESS) {
+    return err;
+  }
+  if ((err = app_config_apply_json_bool(content, "quiet", &config->quiet)) !=
+      APP_SUCCESS) {
+    return err;
+  }
+  if ((err = app_config_apply_json_bool(content, "verbose",
+                                        &config->verbose)) != APP_SUCCESS) {
+    return err;
+  }
+  if ((err = app_config_apply_json_bool(content, "no_color",
+                                        &config->no_color)) != APP_SUCCESS) {
+    return err;
+  }
+  if ((err = app_config_apply_json_bool(content, "json_output",
+                                        &config->json_output)) != APP_SUCCESS) {
+    return err;
+  }
+  if ((err = app_config_apply_json_bool(
+           content, "plain_output", &config->plain_output)) != APP_SUCCESS) {
+    return err;
+  }
+
+  return APP_SUCCESS;
 }
 
 app_error app_config_create(app_config_t **config) {
@@ -199,11 +315,19 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
   content[content_size] = '\0';
   fclose(f);
 
-  // Parse JSON
-  // Note: In a real implementation, you'd parse JSON here
-  // For now, we'll just log that we loaded the file
+  app_error err = app_config_parse_json(config, content);
+  if (err != APP_SUCCESS) {
+    app_secure_free(content, content_size + 1);
+    free(config_path);
+    return err;
+  }
+
   LOG_INFO("Loaded configuration from %s", config_path);
-  app_config_set_string(&config->config_file, config_path);
+  if (!app_config_set_string(&config->config_file, config_path)) {
+    app_secure_free(content, content_size + 1);
+    free(config_path);
+    return APP_ERROR_MEMORY;
+  }
 
   app_secure_free(content, content_size + 1);
   free(config_path);

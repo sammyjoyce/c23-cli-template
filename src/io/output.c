@@ -12,7 +12,27 @@
 #include "../utils/colors.h"
 #include "../utils/logging.h"
 
-static void app_write_json_string(FILE *stream, const char *text) {
+static void app_json_write_separator(FILE *stream, bool *needs_comma) {
+  if (!stream || !needs_comma) {
+    return;
+  }
+
+  if (*needs_comma) {
+    fputc(',', stream);
+  }
+  *needs_comma = true;
+}
+
+void app_json_write_string(FILE *stream, const char *text) {
+  if (!stream) {
+    return;
+  }
+
+  if (!text) {
+    fputs("null", stream);
+    return;
+  }
+
   fputc('"', stream);
   for (const unsigned char *p = (const unsigned char *)text; *p != '\0'; p++) {
     switch (*p) {
@@ -49,6 +69,42 @@ static void app_write_json_string(FILE *stream, const char *text) {
   fputc('"', stream);
 }
 
+void app_json_write_string_field(FILE *stream, const char *key,
+                                 const char *value, bool *needs_comma) {
+  if (!stream || !key || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  app_json_write_string(stream, value);
+}
+
+void app_json_write_bool_field(FILE *stream, const char *key, bool value,
+                               bool *needs_comma) {
+  if (!stream || !key || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  fputs(value ? "true" : "false", stream);
+}
+
+void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
+                              bool *needs_comma) {
+  if (!stream || !key || !value || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  fputs(value, stream);
+}
+
 void app_output(const char *text, const app_config_t *config, bool is_error) {
   if (text == nullptr || config == nullptr) {
     LOG_ERROR("Invalid parameters in app_output");
@@ -63,7 +119,7 @@ void app_output(const char *text, const app_config_t *config, bool is_error) {
 
   if (app_config_is_json_output(config)) {
     fputs("{\"format_version\":\"1.0\",\"message\":", stream);
-    app_write_json_string(stream, text);
+    app_json_write_string(stream, text);
     fputs("}\n", stream);
   } else {
     // Plain text output

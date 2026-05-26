@@ -11,6 +11,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "../core/types.h"
 
@@ -31,3 +32,12 @@ void app_output_format(const app_config_t *config, bool is_error,
 // Ensures valid JSON output when in JSON mode, with pretty printing option.
 void app_output_json(const char *json_string, const app_config_t *config,
                      bool pretty);
+
+// JSON helpers for command-specific structured output.
+void app_json_write_string(FILE *stream, const char *text);
+void app_json_write_string_field(FILE *stream, const char *key,
+                                 const char *value, bool *needs_comma);
+void app_json_write_bool_field(FILE *stream, const char *key, bool value,
+                               bool *needs_comma);
+void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
+                              bool *needs_comma);

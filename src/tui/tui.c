@@ -648,18 +648,53 @@ int tui_show_menu(tui_window_t *window, const char *title,
   }
 }
 
-void tui_show_message(const char *title, const char *message) {
+static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
+                                    const char *title) {
   if (!tui_initialized) {
-    return;
+    return NULL;
   }
 
   const int max_y = getmaxy(stdscr);
   const int max_x = getmaxx(stdscr);
   if (max_y < 4 || max_x < 8) {
-    return;
+    return NULL;
   }
 
-  int width = 60;
+  int width = preferred_width;
+  int height = preferred_height;
+  if (width < 8) {
+    width = 8;
+  }
+  if (height < 4) {
+    height = 4;
+  }
+  if (width > max_x - 2) {
+    width = max_x - 2;
+  }
+  if (height > max_y - 2) {
+    height = max_y - 2;
+  }
+
+  tui_window_t *window = tui_create_centered_window(height, width);
+  if (!window) {
+    return NULL;
+  }
+
+  tui_draw_border(window);
+  if (title) {
+    tui_set_window_title(window, title);
+  }
+
+  return window;
+}
+
+static void tui_modal_close(tui_window_t *window) {
+  tui_destroy_window(window);
+  touchwin(stdscr);
+  refresh();
+}
+
+void tui_show_message(const char *title, const char *message) {
   int height = 8;
   if (message) {
     height = 6;
@@ -669,79 +704,42 @@ void tui_show_message(const char *title, const char *message) {
       }
     }
   }
-  if (width > max_x - 2) {
-    width = max_x - 2;
-  }
-  if (height > max_y - 2) {
-    height = max_y - 2;
-  }
 
-  tui_window_t *window = tui_create_centered_window(height, width);
+  tui_window_t *window = tui_modal_open(height, 60, title);
   if (!window) {
     return;
   }
 
-  tui_draw_border(window);
-  if (title) {
-    tui_set_window_title(window, title);
-  }
-
   // Print message
   if (message) {
-    tui_print_wrapped(window->win, 2, 2, width - 4, message);
+    tui_print_wrapped(window->win, 2, 2, window->width - 4, message);
   }
 
   // Instructions
   tui_set_color(window->win, TUI_COLOR_INFO);
-  tui_print_centered(window->win, height - 2, "Press any key");
+  tui_print_centered(window->win, window->height - 2, "Press any key");
   tui_unset_color(window->win, TUI_COLOR_INFO);
 
   tui_refresh_window(window);
   (void)wgetch(window->win);
 
-  tui_destroy_window(window);
-  touchwin(stdscr);
-  refresh();
+  tui_modal_close(window);
 }
 
 bool tui_confirm(const char *title, const char *question) {
-  if (!tui_initialized) {
-    return false;
-  }
-
-  const int max_y = getmaxy(stdscr);
-  const int max_x = getmaxx(stdscr);
-  if (max_y < 4 || max_x < 8) {
-    return false;
-  }
-
-  int width = 50;
-  int height = 8;
-  if (width > max_x - 2) {
-    width = max_x - 2;
-  }
-  if (height > max_y - 2) {
-    height = max_y - 2;
-  }
-
-  tui_window_t *window = tui_create_centered_window(height, width);
+  tui_window_t *window = tui_modal_open(8, 50, title);
   if (!window) {
     return false;
   }
 
-  tui_draw_border(window);
-  if (title) {
-    tui_set_window_title(window, title);
-  }
-
   // Print question
   if (question) {
-    tui_print_wrapped(window->win, 2, 2, width - 4, question);
+    tui_print_wrapped(window->win, 2, 2, window->width - 4, question);
   }
 
   // Instructions
   tui_set_color(window->win, TUI_COLOR_INFO);
-  tui_print_centered(window->win, height - 2, "y/n, Esc cancels");
+  tui_print_centered(window->win, window->height - 2, "y/n, Esc cancels");
   tui_unset_color(window->win, TUI_COLOR_INFO);
 
   tui_refresh_window(window);
@@ -761,9 +759,7 @@ bool tui_confirm(const char *title, const char *question) {
     }
   }
 
-  tui_destroy_window(window);
-  touchwin(stdscr);
-  refresh();
+  tui_modal_close(window);
   return result;
 }
 
@@ -773,34 +769,14 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
     return APP_ERROR_INVALID_ARG;
   }
 
-  const int max_y = getmaxy(stdscr);
-  const int max_x = getmaxx(stdscr);
-  if (max_y < 4 || max_x < 8) {
-    return APP_ERROR_INTERNAL;
-  }
-
-  int width = 60;
-  int height = 8;
-  if (width > max_x - 2) {
-    width = max_x - 2;
-  }
-  if (height > max_y - 2) {
-    height = max_y - 2;
-  }
-
-  tui_window_t *window = tui_create_centered_window(height, width);
+  tui_window_t *window = tui_modal_open(8, 60, title);
   if (!window) {
     return APP_ERROR_INTERNAL;
   }
 
-  tui_draw_border(window);
-  if (title) {
-    tui_set_window_title(window, title);
-  }
-
   // Print prompt
   if (prompt) {
-    tui_write_clamped(window->win, 2, 2, width - 4, prompt);
+    tui_write_clamped(window->win, 2, 2, window->width - 4, prompt);
   }
 
   // Input field
@@ -809,9 +785,7 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
 
   app_error result = tui_get_string(window->win, buffer, size, NULL);
 
-  tui_destroy_window(window);
-  touchwin(stdscr);
-  refresh();
+  tui_modal_close(window);
   return result;
 }
 
