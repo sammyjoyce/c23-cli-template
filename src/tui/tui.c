@@ -804,3 +804,7 @@ int tui_get_max_x(void) {
 int tui_get_max_y(void) {
   return getmaxy(stdscr);
 }
+
+bool tui_terminal_meets_minimum(void) {
+  return tui_get_max_x() >= TUI_MIN_COLS && tui_get_max_y() >= TUI_MIN_ROWS;
+}

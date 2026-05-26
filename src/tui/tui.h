@@ -15,6 +15,9 @@
 #include "../core/error.h"
 #include "../core/types.h"
 
+#define TUI_MIN_COLS 48
+#define TUI_MIN_ROWS 12
+
 // TUI color pairs
 typedef enum {
   TUI_COLOR_DEFAULT = 0,
@@ -96,6 +99,7 @@ void tui_beep(void);
 void tui_flash(void);
 int tui_get_max_x(void);
 int tui_get_max_y(void);
+bool tui_terminal_meets_minimum(void);
 
 // Progress API is declared in a dedicated header to keep tui.h lean.
 #include "tui_progress.h"

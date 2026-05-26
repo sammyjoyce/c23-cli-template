@@ -60,10 +60,16 @@ static app_error app_doctor_tui_runtime_smoke(bool terminal_ready) {
   }
 
   const app_error err = tui_init();
-  if (err == APP_SUCCESS) {
-    tui_cleanup();
+  if (err != APP_SUCCESS) {
+    return err;
   }
-  return err;
+  if (!tui_terminal_meets_minimum()) {
+    tui_cleanup();
+    return APP_ERROR_OUT_OF_RANGE;
+  }
+
+  tui_cleanup();
+  return APP_SUCCESS;
 #else
   (void)terminal_ready;
   return APP_ERROR_FEATURE_BASE;
@@ -193,6 +199,12 @@ static void print_doctor(const app_config_t *config) {
   } else if (tui_runtime_ok) {
     snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
              "ncurses initialized successfully");
+#ifdef ENABLE_TUI
+  } else if (tui_runtime_err == APP_ERROR_OUT_OF_RANGE) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail),
+             "terminal is too small (minimum %dx%d)", TUI_MIN_COLS,
+             TUI_MIN_ROWS);
+#endif
   } else {
     snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
              app_strerror(tui_runtime_err));
@@ -371,8 +383,9 @@ static app_error handle_command(const app_config_t *config, const char *command,
     const app_error tui_err = tui_run_demo();
     if (tui_err != APP_SUCCESS) {
       if (tui_err == APP_ERROR_OUT_OF_RANGE) {
-        app_output("TUI failed: terminal is too small (minimum 48x12).", config,
-                   true);
+        app_output_format(config, true,
+                          "TUI failed: terminal is too small (minimum %dx%d).",
+                          TUI_MIN_COLS, TUI_MIN_ROWS);
       } else {
         app_output_format(config, true, "TUI failed: %s",
                           app_strerror(tui_err));

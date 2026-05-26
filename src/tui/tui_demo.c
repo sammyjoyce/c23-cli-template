@@ -114,7 +114,7 @@ app_error tui_run_demo(void) {
   app_error result = APP_SUCCESS;
   tui_window_t *menu_window = NULL;
 
-  if (tui_get_max_y() < 12 || tui_get_max_x() < 48) {
+  if (!tui_terminal_meets_minimum()) {
     result = APP_ERROR_OUT_OF_RANGE;
     goto cleanup;
   }
