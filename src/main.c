@@ -264,23 +264,6 @@ static void output_joined_args(const app_config_t *config, int argc,
   app_output(buffer, config, false);
 }
 
-static const char *find_config_path_arg(int argc, char *argv[]) {
-  for (int i = 1; i < argc; i++) {
-    if (!argv[i] || argv[i][0] != '-') {
-      return NULL;
-    }
-
-    if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
-      if (i + 1 < argc) {
-        return argv[i + 1];
-      }
-      return NULL;
-    }
-  }
-
-  return NULL;
-}
-
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   // Show help if no arguments
   if (argc == 1) {
@@ -288,14 +271,25 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     exit(0);
   }
 
+  app_error err = app_args_handle_immediate_exit(argc, argv);
+  if (err != APP_SUCCESS) {
+    return err;
+  }
+
   // Create configuration
-  app_error err = app_config_create(config);
+  err = app_config_create(config);
   if (err != APP_SUCCESS) {
     return err;
   }
 
   // Load configuration from lower-precedence sources before parsing args.
-  const char *explicit_config_path = find_config_path_arg(argc, argv);
+  const char *explicit_config_path = NULL;
+  err = app_args_find_config_path(argc, argv, &explicit_config_path);
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
+    return err;
+  }
+
   err = app_config_load_file(*config, explicit_config_path);
   if (err != APP_SUCCESS) {
     if (explicit_config_path) {
