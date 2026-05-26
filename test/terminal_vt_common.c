@@ -63,7 +63,12 @@ int64_t monotonic_ms(void) {
   }
 
   const time_t now = time(NULL);
-  return now > 0 ? (int64_t)now * 1000 : 0;
+  if (now > 0) {
+    return (int64_t)now * 1000;
+  }
+
+  static int64_t fallback_ms = 1;
+  return fallback_ms++;
 }
 
 void print_tail(FILE *stream, const char *label, const char *text, size_t len,
