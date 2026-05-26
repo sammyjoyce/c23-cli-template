@@ -1,9 +1,13 @@
 const std = @import("std");
 const testing = std.testing;
+const builtin = @import("builtin");
 
 test "installed binary starts" {
     const allocator = testing.allocator;
-    const binary_path = "./zig-out/bin/myapp";
+    const binary_path = if (builtin.os.tag == .windows)
+        "./zig-out/bin/myapp.exe"
+    else
+        "./zig-out/bin/myapp";
 
     const file = try std.Io.Dir.cwd().openFile(testing.io, binary_path, .{});
     file.close(testing.io);
