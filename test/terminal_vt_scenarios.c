@@ -43,27 +43,33 @@ int run_builtin_test(test_stats_t *stats, const char *binary) {
            expect_stdout(stats, name, &hello, "Hello, World!");
   command_result_free(&hello);
 
-  const char *named_args[] = {"hello", "Alice"};
-  command_result_t named =
-      run_cli_command(binary, named_args, 2, NULL, 0, TEST_TIMEOUT_MS);
-  failed = failed || expect_success(stats, name, &named) ||
-           expect_stdout(stats, name, &named, "Hello, Alice!");
-  command_result_free(&named);
+  if (!failed) {
+    const char *named_args[] = {"hello", "Alice"};
+    command_result_t named =
+        run_cli_command(binary, named_args, 2, NULL, 0, TEST_TIMEOUT_MS);
+    failed = expect_success(stats, name, &named) ||
+             expect_stdout(stats, name, &named, "Hello, Alice!");
+    command_result_free(&named);
+  }
 
-  const char *echo_args[] = {"echo", "test", "message"};
-  command_result_t echo =
-      run_cli_command(binary, echo_args, 3, NULL, 0, TEST_TIMEOUT_MS);
-  failed = failed || expect_success(stats, name, &echo) ||
-           expect_stdout(stats, name, &echo, "test message");
-  command_result_free(&echo);
+  if (!failed) {
+    const char *echo_args[] = {"echo", "test", "message"};
+    command_result_t echo =
+        run_cli_command(binary, echo_args, 3, NULL, 0, TEST_TIMEOUT_MS);
+    failed = expect_success(stats, name, &echo) ||
+             expect_stdout(stats, name, &echo, "test message");
+    command_result_free(&echo);
+  }
 
-  const char *info_args[] = {"info"};
-  command_result_t info =
-      run_cli_command(binary, info_args, 1, NULL, 0, TEST_TIMEOUT_MS);
-  failed = failed || expect_success(stats, name, &info) ||
-           expect_stdout(stats, name, &info, "Application:") ||
-           expect_stdout(stats, name, &info, "Version:");
-  command_result_free(&info);
+  if (!failed) {
+    const char *info_args[] = {"info"};
+    command_result_t info =
+        run_cli_command(binary, info_args, 1, NULL, 0, TEST_TIMEOUT_MS);
+    failed = expect_success(stats, name, &info) ||
+             expect_stdout(stats, name, &info, "Application:") ||
+             expect_stdout(stats, name, &info, "Version:");
+    command_result_free(&info);
+  }
 
   if (!failed) {
     test_pass(stats, name);
@@ -100,15 +106,17 @@ int run_quiet_json_test(test_stats_t *stats, const char *binary) {
   }
   command_result_free(&info);
 
-  const char *doctor_args[] = {"--quiet", "--json", "doctor"};
-  command_result_t doctor =
-      run_cli_command(binary, doctor_args, 3, NULL, 0, TEST_TIMEOUT_MS);
-  failed = failed || expect_success(stats, name, &doctor);
-  if (!failed && doctor.stdout_buf.len != 0) {
-    failed = test_fail(stats, name, "quiet doctor wrote stdout: %s",
-                       buffer_cstr(&doctor.stdout_buf));
+  if (!failed) {
+    const char *doctor_args[] = {"--quiet", "--json", "doctor"};
+    command_result_t doctor =
+        run_cli_command(binary, doctor_args, 3, NULL, 0, TEST_TIMEOUT_MS);
+    failed = expect_success(stats, name, &doctor);
+    if (!failed && doctor.stdout_buf.len != 0) {
+      failed = test_fail(stats, name, "quiet doctor wrote stdout: %s",
+                         buffer_cstr(&doctor.stdout_buf));
+    }
+    command_result_free(&doctor);
   }
-  command_result_free(&doctor);
 
   if (!failed) {
     test_pass(stats, name);
@@ -132,17 +140,19 @@ int run_error_tests(test_stats_t *stats, const char *binary) {
            expect_stderr(stats, name, &config, "/definitely/not/a/config.json");
   command_result_free(&config);
 
-  const char *unknown_args[] = {"not-a-command"};
-  command_result_t unknown =
-      run_cli_command(binary, unknown_args, 1, NULL, 0, TEST_TIMEOUT_MS);
-  if (!failed && unknown.exit_code == 0) {
-    failed = test_fail(stats, name, "unknown command unexpectedly succeeded");
+  if (!failed) {
+    const char *unknown_args[] = {"not-a-command"};
+    command_result_t unknown =
+        run_cli_command(binary, unknown_args, 1, NULL, 0, TEST_TIMEOUT_MS);
+    if (unknown.exit_code == 0) {
+      failed = test_fail(stats, name, "unknown command unexpectedly succeeded");
+    }
+    failed = failed ||
+             expect_stderr(stats, name, &unknown,
+                           "Unknown command: not-a-command") ||
+             expect_stderr(stats, name, &unknown, "--help");
+    command_result_free(&unknown);
   }
-  failed =
-      failed ||
-      expect_stderr(stats, name, &unknown, "Unknown command: not-a-command") ||
-      expect_stderr(stats, name, &unknown, "--help");
-  command_result_free(&unknown);
 
   if (!failed) {
     test_pass(stats, name);
@@ -210,54 +220,60 @@ int run_cli_flag_precedence_test(test_stats_t *stats, const char *binary) {
            expect_stdout(stats, name, &plain, "disabled for this output");
   command_result_free(&plain);
 
-  const char *echo_args[] = {"echo", "-c", "/definitely/not/a/config.json"};
-  command_result_t echo =
-      run_cli_command(binary, echo_args, 3, NULL, 0, TEST_TIMEOUT_MS);
-  failed =
-      failed || expect_success(stats, name, &echo) ||
-      expect_stdout(stats, name, &echo, "-c /definitely/not/a/config.json");
-  command_result_free(&echo);
-
-  const char *verbose_args[] = {"--verbose", "hello"};
-  command_result_t verbose =
-      run_cli_command(binary, verbose_args, 2, NULL, 0, TEST_TIMEOUT_MS);
-  failed = failed || expect_success(stats, name, &verbose) ||
-           expect_stdout(stats, name, &verbose, "Hello, World!") ||
-           expect_stderr(stats, name, &verbose, "[INFO]");
-  command_result_free(&verbose);
-
-  char template_path[256];
-  if (!make_temp_config_path(template_path, sizeof(template_path),
-                             "default-config")) {
-    failed = failed || test_fail(stats, name, "config temp path is too long");
-  }
-  const int fd = failed ? -1 : mkstemp(template_path);
-  if (fd < 0) {
+  if (!failed) {
+    const char *echo_args[] = {"echo", "-c", "/definitely/not/a/config.json"};
+    command_result_t echo =
+        run_cli_command(binary, echo_args, 3, NULL, 0, TEST_TIMEOUT_MS);
     failed =
-        failed || test_fail(stats, name, "mkstemp failed: %s", strerror(errno));
-  } else {
-    const char *json = "{\"quiet\":true,\"ignored\":{\"nested\":true}}";
-    if (!write_config_json(fd, json)) {
-      const int saved_errno = errno;
-      close(fd);
-      unlink(template_path);
-      failed = failed || test_fail(stats, name, "failed to write config: %s",
-                                   strerror(saved_errno));
-    } else {
-      close(fd);
-    }
+        expect_success(stats, name, &echo) ||
+        expect_stdout(stats, name, &echo, "-c /definitely/not/a/config.json");
+    command_result_free(&echo);
+  }
 
-    if (!failed) {
-      const char *hello_args[] = {"hello"};
-      const env_var_t config_env[] = {{"APP_CONFIG_PATH", template_path}};
-      command_result_t hello = run_cli_command(
-          binary, hello_args, 1, config_env,
-          sizeof(config_env) / sizeof(config_env[0]), TEST_TIMEOUT_MS);
-      failed = expect_success(stats, name, &hello) ||
-               expect_stdout(stats, name, &hello, "Hello, World!");
-      command_result_free(&hello);
+  if (!failed) {
+    const char *verbose_args[] = {"--verbose", "hello"};
+    command_result_t verbose =
+        run_cli_command(binary, verbose_args, 2, NULL, 0, TEST_TIMEOUT_MS);
+    failed = expect_success(stats, name, &verbose) ||
+             expect_stdout(stats, name, &verbose, "Hello, World!") ||
+             expect_stderr(stats, name, &verbose, "[INFO]");
+    command_result_free(&verbose);
+  }
+
+  if (!failed) {
+    char template_path[256];
+    if (!make_temp_config_path(template_path, sizeof(template_path),
+                               "default-config")) {
+      failed = test_fail(stats, name, "config temp path is too long");
     }
-    unlink(template_path);
+    const int fd = failed ? -1 : mkstemp(template_path);
+    if (fd < 0) {
+      failed = failed ||
+               test_fail(stats, name, "mkstemp failed: %s", strerror(errno));
+    } else {
+      const char *json = "{\"quiet\":true,\"ignored\":{\"nested\":true}}";
+      if (!write_config_json(fd, json)) {
+        const int saved_errno = errno;
+        close(fd);
+        unlink(template_path);
+        failed = failed || test_fail(stats, name, "failed to write config: %s",
+                                     strerror(saved_errno));
+      } else {
+        close(fd);
+      }
+
+      if (!failed) {
+        const char *hello_args[] = {"hello"};
+        const env_var_t config_env[] = {{"APP_CONFIG_PATH", template_path}};
+        command_result_t hello = run_cli_command(
+            binary, hello_args, 1, config_env,
+            sizeof(config_env) / sizeof(config_env[0]), TEST_TIMEOUT_MS);
+        failed = expect_success(stats, name, &hello) ||
+                 expect_stdout(stats, name, &hello, "Hello, World!");
+        command_result_free(&hello);
+      }
+      unlink(template_path);
+    }
   }
 
   if (!failed) {

@@ -36,18 +36,30 @@ fn pathExists(b: *std.Build, path: []const u8) bool {
     return commandSucceeds(b, &.{ "test", "-f", path });
 }
 
+fn ghosttyLibraryExists(b: *std.Build, lib_dir: []const u8) bool {
+    return pathExists(b, b.fmt("{s}/libghostty-vt.so", .{lib_dir})) or
+        pathExists(b, b.fmt("{s}/libghostty-vt.dylib", .{lib_dir})) or
+        pathExists(b, b.fmt("{s}/libghostty-vt.a", .{lib_dir}));
+}
+
 fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
     if (prefix) |pref| {
         return pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{pref})) and
-            pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{pref}));
+            pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{pref})) and
+            ghosttyLibraryExists(b, b.fmt("{s}/lib", .{pref}));
     }
 
     return commandSucceeds(b, &.{
         "sh",
         "-c",
-        "inc=$(pkg-config --variable=includedir libghostty-vt) && " ++
+        "pkg-config --exists libghostty-vt && " ++
+            "inc=$(pkg-config --variable=includedir libghostty-vt) && " ++
+            "lib=$(pkg-config --variable=libdir libghostty-vt) && " ++
             "test -f \"$inc/ghostty/vt/terminal.h\" && " ++
-            "test -f \"$inc/ghostty/vt/formatter.h\"",
+            "test -f \"$inc/ghostty/vt/formatter.h\" && " ++
+            "{ test -f \"$lib/libghostty-vt.so\" || " ++
+            "test -f \"$lib/libghostty-vt.dylib\" || " ++
+            "test -f \"$lib/libghostty-vt.a\"; }",
     });
 }
 

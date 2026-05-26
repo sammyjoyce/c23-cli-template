@@ -261,14 +261,17 @@ bool vt_resize(vt_session_t *session, uint16_t cols, uint16_t rows) {
       .ws_xpixel = (unsigned short)(cols * 8),
       .ws_ypixel = (unsigned short)(rows * 16),
   };
+  if (ghostty_terminal_resize(session->terminal, cols, rows, 8, 16) !=
+      GHOSTTY_SUCCESS) {
+    return false;
+  }
   if (ioctl(session->master_fd, TIOCSWINSZ, &ws) != 0) {
     return false;
   }
   kill(session->pid, SIGWINCH);
   session->cols = cols;
   session->rows = rows;
-  return ghostty_terminal_resize(session->terminal, cols, rows, 8, 16) ==
-         GHOSTTY_SUCCESS;
+  return true;
 }
 
 int vt_wait_for_exit(vt_session_t *session, int timeout_ms) {
