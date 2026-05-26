@@ -242,10 +242,14 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   }
 
   // Load configuration from lower-precedence sources before parsing args.
-  err = app_config_load_file(*config, find_config_path_arg(argc, argv));
+  const char *explicit_config_path = find_config_path_arg(argc, argv);
+  err = app_config_load_file(*config, explicit_config_path);
   if (err != APP_SUCCESS) {
-    app_config_destroy(*config);
-    return err;
+    if (explicit_config_path) {
+      app_config_destroy(*config);
+      return err;
+    }
+    LOG_WARNING("Ignoring invalid default configuration");
   }
   err = app_config_load_env(*config);
   if (err != APP_SUCCESS) {
