@@ -30,8 +30,9 @@ The template now has two terminal-test backends:
 `zig build terminal-test` uses `-Dterminal-backend=auto` by default: auto selects
 Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
 Terminal and Formatter APIs; otherwise it falls back to Python. Use
-`-Dterminal-backend=ghostty` to require Ghostty VT, or `-Dterminal-backend=python`
-to force the fallback. The Ghostty path does not invoke Python.
+`-Dterminal-backend=ghostty` to require Ghostty VT on POSIX hosts, or
+`-Dterminal-backend=python` to force the fallback. Windows always uses the Python
+backend. The Ghostty path does not invoke Python.
 
 ## Commands
 

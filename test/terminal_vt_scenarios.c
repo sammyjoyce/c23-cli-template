@@ -241,11 +241,11 @@ int run_cli_flag_precedence_test(test_stats_t *stats, const char *binary) {
       command_result_t hello = run_cli_command(
           binary, hello_args, 1, config_env,
           sizeof(config_env) / sizeof(config_env[0]), TEST_TIMEOUT_MS);
-      unlink(template_path);
       failed = expect_success(stats, name, &hello) ||
                expect_stdout(stats, name, &hello, "Hello, World!");
       command_result_free(&hello);
     }
+    unlink(template_path);
   }
 
   if (!failed) {

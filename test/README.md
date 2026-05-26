@@ -25,8 +25,9 @@ zig build -Denable-tui=true terminal-test
 ```
 
 The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
-when `libghostty-vt` is available through `pkg-config`, otherwise it falls back
-to the Python harness. The Ghostty path does not invoke Python.
+when `libghostty-vt` is available through `pkg-config` on POSIX hosts, otherwise
+it falls back to the Python harness. Windows always uses the Python backend. The
+Ghostty path does not invoke Python.
 
 The Ghostty VT runner is split across `terminal_vt_*.c` files. It runs CLI
 checks directly, runs TUI checks in a pseudo-terminal, feeds output through

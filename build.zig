@@ -227,6 +227,9 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run test suite");
     test_step.dependOn(&test_cmd.step);
 
+    if (terminal_backend == .ghostty and target.result.os.tag == .windows) {
+        @panic("-Dterminal-backend=ghostty is not supported on Windows; use -Dterminal-backend=python");
+    }
     const have_ghostty_vt = hasGhosttyTerminalApi(b, ghostty_vt_prefix);
     if (terminal_backend == .ghostty and !have_ghostty_vt) {
         @panic("-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API via pkg-config or -Dghostty-vt-prefix=/path");
