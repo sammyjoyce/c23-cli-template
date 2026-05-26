@@ -149,7 +149,22 @@ After creating your repository, run the template cleanup workflow or local setup
 
 Check the **Actions** tab to see progress.
 
-### 2. Add Your Commands
+### 2. CI Runner Selection
+
+Generated repositories default to GitHub-hosted runners (`ubuntu-latest`, `macos-latest`, `windows-latest`) so the cleanup workflow and first CI run work without extra infrastructure.
+
+To use Namespace or another self-hosted fleet, set these repository or organization variables:
+
+| Variable | Default | Namespace example |
+| --- | --- | --- |
+| `CI_LINUX_RUNNER` | `ubuntu-latest` | `nscloud-ubuntu-24.04-amd64-4x8` |
+| `CI_MACOS_RUNNER` | `macos-latest` | `nscloud-macos-sequoia-arm64-6x14` |
+| `CI_WINDOWS_RUNNER` | `windows-latest` | `nscloud-windows-2022-amd64-4x8` |
+
+The workflows route runner labels through variables, so local `actionlint` can validate the template defaults without a custom runner-label allowlist.
+The Namespace macOS example is ARM64; if you need Intel macOS release artifacts, keep the default GitHub-hosted runner or add an explicit universal/x64 release job.
+
+### 3. Add Your Commands
 
 Edit `src/main.c`:
 
@@ -161,11 +176,11 @@ if (strcmp(command, "deploy") == 0) {
 }
 ```
 
-### 3. Update Help Text
+### 4. Update Help Text
 
 Edit `src/cli/help.c` to describe your commands.
 
-### 4. Add Source Files
+### 5. Add Source Files
 
 1. Create your `.c` file in `src/`
 2. Add to `build.zig`:
