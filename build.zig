@@ -4,8 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const version_str = "1.0.0";
-    const app_name = "myapp";
+    const version_str = b.option([]const u8, "version", "Application version string") orelse "0.1.0";
+    const app_name = b.option([]const u8, "app-name", "Application and binary name") orelse "myapp";
     const binary_name = app_name;
 
     // Attempt to inject current git commit hash, fall back to "unknown".
@@ -27,14 +27,8 @@ pub fn build(b: *std.Build) void {
         break :blk b.dupe(trimmed);
     };
 
-    // Build options
-    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: false)") orelse false;
-    const ncurses_prefix = b.option([]const u8, "ncurses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
-
-    const aro_dep = b.dependency("aro", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
+    const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
 
     const exe = b.addExecutable(.{
         .name = binary_name,
@@ -67,6 +61,8 @@ pub fn build(b: *std.Build) void {
         "-Wall",
         "-Wextra",
         "-std=c23",
+        "-D_DEFAULT_SOURCE",
+        "-D_XOPEN_SOURCE=700",
         "-D_GNU_SOURCE",
     };
 
@@ -103,30 +99,21 @@ pub fn build(b: *std.Build) void {
         });
     }
 
-    // NCurses / PDCurses configuration (only if TUI is enabled)
     if (enable_tui) {
         // Allow caller to override ncurses install prefix explicitly.
-        if (ncurses_prefix) |pref| {
+        if (curses_prefix) |pref| {
             exe.root_module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
             exe.root_module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
         }
 
         if (target.result.os.tag == .windows) {
-            // Prefer PDCurses on Windows
             exe.root_module.linkSystemLibrary("pdcurses", .{});
         } else {
-            exe.root_module.linkSystemLibrary("ncurses", .{});
+            exe.root_module.linkSystemLibrary("ncursesw", .{});
         }
     }
 
     b.installArtifact(exe);
-
-    // Install Aro headers
-    b.installDirectory(.{
-        .source_dir = aro_dep.path("include"),
-        .install_dir = .prefix,
-        .install_subdir = "include",
-    });
 
     // Run command
     const run_cmd = b.addRunArtifact(exe);

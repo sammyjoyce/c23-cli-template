@@ -13,9 +13,9 @@
 This project was made possible by the open source community and the following projects:
 
 - [Zig](https://ziglang.org/) - The Zig programming language
-- [Aro](https://github.com/Vexu/arocc) - The Aro C compiler
+- [ncurses](https://invisible-island.net/ncurses/) - Terminal UI library
+- [PDCurses](https://pdcurses.org/) - Curses implementation for Windows
 - [GitHub Actions](https://github.com/features/actions) - CI/CD platform
-- [Codecov](https://codecov.io/) - Code coverage reporting
 - [Pre-commit](https://pre-commit.com/) - Git pre-commit hooks
 - [Devcontainers](https://containers.dev/) - Development containers
 

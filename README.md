@@ -1,15 +1,13 @@
-# CLI Starter Template - C23 + Zig 🚀
+# C23 TUI + CLI Starter Template - Zig + ncurses
 
 [![GitHub Release](https://img.shields.io/github/v/release/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template)
 [![License](https://img.shields.io/github/license/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template/blob/main/LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
-[![Codecov](https://img.shields.io/codecov/c/github/sammyjoyce/c23-cli-template?style=for-the-badge&logo=codecov)](https://codecov.io/gh/sammyjoyce/c23-cli-template)
 [![Zig](https://img.shields.io/badge/Zig-0.16.0-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
 [![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CodeQL)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
 
-## A modern C23 CLI application starter template with Zig build system
+## A ready-to-use C23 starter for command-line tools and terminal UIs
 
 [Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
 
@@ -17,24 +15,23 @@
 
 ## ✨ Features
 
-- 🚀 **Modern C23** - Latest C standard with Aro compiler
+- 🚀 **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - ⚡ **Zig Build System** - Fast, reliable builds with cross-compilation
 - 🏗️ **Well-Structured** - Organized project layout ready for growth
 - 🧪 **Testing Included** - Test framework with examples
 - 🎨 **Smart CLI** - Colored output, help text, argument parsing
-- 🖼️ **TUI Support** - NCurses integration for interactive terminal UIs
+- 🖼️ **TUI Support** - ncurses/PDCurses integration for interactive terminal UIs
 - 🔧 **Configuration** - Layered config system (file → env → args)
-- 📦 **Minimal Dependencies** - Only Zig, libc, and ncurses
+- 📦 **Minimal Dependencies** - Zig and libc by default; curses only for TUI builds
 - 🤖 **CI/CD Ready** - GitHub Actions workflow included
-- 🔄 **Conditional Runners** - Uses self-hosted runners for template repo, GitHub-hosted for derived repos
 - ⚡ **Caching** - Speeds up builds by caching Zig dependencies and build artifacts
 - 🔒 **Release Gating** - Ensures releases only happen on tags in main branch
-- 🛡️ **Security Scanning** - CodeQL integration for vulnerability detection
+- 🛡️ **Security Scanning** - Gitleaks, OpenSSF Scorecard, and SBOM generation
 - 📦 **Artifact Management** - Unique artifact naming to avoid collisions
 - 🏷️ **Version Pinning** - Pinned GitHub Actions versions for reproducibility
 - 🚫 **Concurrency Control** - Cancels redundant CI runs on same branch
 - 📊 **Dynamic Binary Naming** - Extracts binary name from build.zig.zon
-- 🧹 **Template Cleanup** - Automated cleanup of template-specific files and placeholders
+- 🧹 **Template Cleanup** - Scripted cleanup of template-specific files and placeholders
 - 📚 **OpenCLI Compliant** - Standardized CLI behavior
 - 🔄 **Dependency Updates** - Automated updates with Dependabot/Renovate
 - 📝 **Pre-commit Hooks** - Code quality enforcement before commits
@@ -67,11 +64,11 @@ gh repo create my-cli \
 git clone https://github.com/YOU/YOUR-REPO
 cd YOUR-REPO
 
-# Build (ncurses TUI support is enabled by default)
+# Build the default CLI starter
 zig build -Doptimize=ReleaseSafe
 
-# Build without TUI (if ncurses is not available)
-zig build -Doptimize=ReleaseSafe -Denable-tui=false
+# Build with the optional ncurses/PDCurses TUI
+zig build -Doptimize=ReleaseSafe -Denable-tui=true
 
 # Run
 ./zig-out/bin/YOUR-REPO --help
@@ -93,6 +90,7 @@ your-cli/
 │   │   ├── args.c/h        # Argument parsing
 │   │   └── help.c/h        # Help text
 │   ├── io/                 # Input/Output
+│   ├── tui/                # ncurses windows, menus, dialogs, progress bars
 │   └── utils/              # Utilities
 ├── test/                   # Test suite
 ├── build.zig               # Build config
@@ -118,25 +116,32 @@ Hello from CLI
 # Info command
 $ myapp info
 Application: myapp
-Version: 1.0.0
-Build: Jul 27 2025 13:16:11
+Version: 0.1.0
+Build: reproducible
 
-# Interactive TUI menu
-$ myapp menu
-# Opens an ncurses-based interactive menu
+$ myapp --json info
+{"format_version":"1.0", ...}
+
+$ myapp doctor
+myapp doctor
+  binary        ok (myapp 0.1.0)
+
+# Interactive TUI showcase
+$ zig build -Denable-tui=true run -- menu
+# Opens ncurses menus, dialogs, panels, and progress bars
 ```
 
 ## 🛠️ Customization Guide
 
 ### 1. After Creating Your Repo
 
-The template automatically:
+After creating your repository, run the template cleanup workflow or local setup script to:
 
 - ✅ Replaces `myapp` with your project name
 - ✅ Updates all references and metadata
 - ✅ Preserves template structure
 - ✅ Removes template-specific files
-- ✅ Commits the changes
+- ✅ Commit the changes
 
 Check the **Actions** tab to see progress.
 
@@ -174,7 +179,7 @@ const c_sources = [_][]const u8{
 
 - **Zig 0.16.0** (current stable release) - Install via [zvm](https://github.com/tristanisham/zvm)
 - **C compiler** - For system libraries
-- **NCurses** - Required for the default TUI build
+- **NCurses** - Optional; required only for `-Denable-tui=true`
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
@@ -184,10 +189,7 @@ const c_sources = [_][]const u8{
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **VS Code Settings** - Opinionated settings for C/Zig development
 - **Pre-commit Hooks** - Automated code quality checks before commits
-- **Tasks Configuration** - Predefined build and test tasks for VS Code
-- **Debug Configuration** - Ready-to-use debugging setup for VS Code
 
 ### Commands
 
@@ -195,6 +197,7 @@ This template provides several tools to enhance your development experience:
 # Build
 zig build                    # Debug build
 zig build -Doptimize=ReleaseSafe  # Release build
+zig build -Denable-tui=true  # Build with the TUI showcase
 
 # Test
 zig build test              # Run all tests
@@ -218,23 +221,28 @@ Your app supports config from multiple sources:
 ## 📚 Documentation
 
 ### Getting Started
+
 - 📖 [**Using This Template**](/.template/TEMPLATE_USAGE.md) - Detailed setup guide
 - 🚀 [**Quick Start Guide**](#-quick-start) - Get up and running quickly
-- 🔧 [**Installation**](#-installation) - Platform-specific instructions
+- 🔧 [**Prerequisites**](#prerequisites) - Platform-specific requirements
 
 ### Developer Resources
+
 - 🏗️ [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and module structure
 - ⚡ [**Zig Primer for C Developers**](docs/ZIG_PRIMER.md) - Understanding the build system
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute to the project
 - 🧪 [**Advanced Usage Examples**](examples/advanced-usage.md) - Piping, scripting, and integration
 
 ### Examples & Demos
+
 - 📝 [**Adding Commands**](examples/adding-a-command.md) - Extend the CLI
 - 🎨 [**Custom TUI Components**](examples/custom-tui.md) - Build interactive interfaces
 - ⚙️ [**Configuration Guide**](examples/config.json) - Config file examples
+
 - 🎬 [**Demo Gallery**](docs/demos/README.md) - Animated demonstrations
 
 ### Project Information
+
 - 🛡️ [**Security Policy**](SECURITY.md) - Reporting vulnerabilities
 - 📋 [**Code of Conduct**](CODE_OF_CONDUCT.md) - Community guidelines
 - 📝 [**Changelog**](CHANGELOG.md) - Version history
@@ -244,8 +252,8 @@ Your app supports config from multiple sources:
 
 - **C23** - Latest features: `typeof`, `_BitInt`, better type safety
 - **Zig Build** - Superior to Make/CMake, built-in cross-compilation
-- **Aro Compiler** - Better C23 support than most system compilers
-- **Minimal Dependencies** - Just Zig and libc, no complex toolchains
+- **ncurses/PDCurses** - Proven terminal UI primitives with a small wrapper API
+- **Minimal Dependencies** - Zig and libc by default, with curses behind `-Denable-tui=true`
 
 ## 🆘 Getting Help
 

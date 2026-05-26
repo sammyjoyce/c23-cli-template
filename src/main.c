@@ -1,7 +1,7 @@
 /*
  * Generic CLI Application Template
  *
- * A modern C23 CLI application starter using Zig build system and Aro compiler.
+ * A modern C23 TUI + CLI starter using Zig as the build system and C toolchain.
  * This template provides a solid foundation for building command-line tools
  * with proper error handling, configuration management, and testing support.
  */
@@ -10,11 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#ifndef _WIN32
-#include <signal.h>
-#include <unistd.h>
-#endif
 
 #include "cli/args.h"
 #include "cli/help.h"
@@ -42,6 +37,15 @@ static const char *app_yes_no(bool value) {
   return value ? "yes" : "no";
 }
 
+static int64_t app_now_millis(void) {
+  struct timespec now;
+  if (timespec_get(&now, TIME_UTC) != TIME_UTC) {
+    return 0;
+  }
+
+  return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
 static void print_info(const app_config_t *config) {
   const bool tui_enabled =
 #ifdef ENABLE_TUI
@@ -51,10 +55,12 @@ static void print_info(const app_config_t *config) {
 #endif
 
   if (app_config_is_json_output(config)) {
-    printf("{\"format_version\":\"1.0\",\"app\":\"%s\",\"version\":\"%s\","
-           "\"git_commit\":\"%s\",\"build_date\":\"%s\",\"features\":{\"tui\":%s}}\n",
-           APP_NAME, APP_VERSION, APP_GIT_COMMIT, APP_BUILD_DATE,
-           app_bool_text(tui_enabled));
+    printf(
+        "{\"format_version\":\"1.0\",\"app\":\"%s\",\"version\":\"%s\","
+        "\"git_commit\":\"%s\",\"build_date\":\"%s\",\"features\":{\"tui\":%s}}"
+        "\n",
+        APP_NAME, APP_VERSION, APP_GIT_COMMIT, APP_BUILD_DATE,
+        app_bool_text(tui_enabled));
     return;
   }
 
@@ -75,15 +81,16 @@ static void print_doctor(const app_config_t *config) {
   const bool color_enabled = app_use_colors(config);
 
   if (app_config_is_json_output(config)) {
-    printf("{\"format_version\":\"1.0\",\"checks\":["
-           "{\"name\":\"binary\",\"status\":\"ok\",\"detail\":\"%s %s\"},"
-           "{\"name\":\"tui_compiled\",\"status\":\"ok\",\"enabled\":%s},"
-           "{\"name\":\"color_output\",\"status\":\"ok\",\"enabled\":%s},"
-           "{\"name\":\"quiet_mode\",\"status\":\"ok\",\"enabled\":%s}"
-           "]}\n",
-           APP_NAME, APP_VERSION, app_bool_text(tui_enabled),
-           app_bool_text(color_enabled),
-           app_bool_text(app_config_is_quiet(config)));
+    printf(
+        "{\"format_version\":\"1.0\",\"checks\":["
+        "{\"name\":\"binary\",\"status\":\"ok\",\"detail\":\"%s %s\"},"
+        "{\"name\":\"tui_compiled\",\"status\":\"ok\",\"enabled\":%s},"
+        "{\"name\":\"color_output\",\"status\":\"ok\",\"enabled\":%s},"
+        "{\"name\":\"quiet_mode\",\"status\":\"ok\",\"enabled\":%s}"
+        "]}\n",
+        APP_NAME, APP_VERSION, app_bool_text(tui_enabled),
+        app_bool_text(color_enabled),
+        app_bool_text(app_config_is_quiet(config)));
     return;
   }
 
@@ -108,14 +115,12 @@ static void output_joined_args(const app_config_t *config, int argc,
 
   for (int i = 0; i < argc && used < sizeof(buffer) - 1; i++) {
     const char *separator = i == 0 ? "" : " ";
-    const int written =
-        snprintf(buffer + used, sizeof(buffer) - used, "%s%s", separator,
-                 argv[i] ? argv[i] : "");
+    const int written = snprintf(buffer + used, sizeof(buffer) - used, "%s%s",
+                                 separator, argv[i] ? argv[i] : "");
     if (written < 0) {
       break;
     }
     if ((size_t)written >= sizeof(buffer) - used) {
-      used = sizeof(buffer) - 1;
       break;
     }
     used += (size_t)written;
@@ -182,18 +187,20 @@ static app_error handle_command(const app_config_t *config, const char *command,
 
   if (strcmp(command, "menu") == 0) {
     if (app_config_is_json_output(config)) {
-      app_output("The menu command is interactive; remove --json to launch the "
-                 "TUI.",
-                 config, true);
+      app_output(
+          "The menu command is interactive; remove --json to launch the "
+          "TUI.",
+          config, true);
       return APP_ERROR_INVALID_ARG;
     }
 
 #ifdef ENABLE_TUI
     return tui_run_demo();
 #else
-    app_output("TUI support is not compiled in. Rebuild with "
-               "'zig build -Denable-tui=true'.",
-               config, true);
+    app_output(
+        "TUI support is not compiled in. Rebuild with "
+        "'zig build -Denable-tui=true'.",
+        config, true);
     return APP_ERROR_CONFIG;
 #endif
   }
@@ -209,9 +216,7 @@ int main(int argc, char *argv[]) {
   (void)app_thread_id;  // Suppress unused variable warning
 #endif
 
-  // Start performance timing
-  struct timespec start_time, end_time;
-  clock_gettime(CLOCK_MONOTONIC, &start_time);
+  const int64_t start_ms = app_now_millis();
 
   // Initialize logging
   app_log_init();
@@ -236,10 +241,10 @@ int main(int argc, char *argv[]) {
   char **cmd_argv = app_config_get_command_args(config, &cmd_argc);
   err = handle_command(config, command, cmd_argc, cmd_argv);
 
-  // Calculate total processing time
-  clock_gettime(CLOCK_MONOTONIC, &end_time);
-  int64_t elapsed_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
-                       (end_time.tv_nsec - start_time.tv_nsec) / 1000000;
+  int64_t elapsed_ms = app_now_millis() - start_ms;
+  if (elapsed_ms < 0) {
+    elapsed_ms = 0;
+  }
   LOG_INFO("Command '%s' completed in %ld ms with status %d", command,
            (long)elapsed_ms, err);
 

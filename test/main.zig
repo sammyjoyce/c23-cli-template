@@ -121,6 +121,28 @@ fn testCommands(allocator: std.mem.Allocator) !void {
         try testing.expect(std.mem.indexOf(u8, result.stdout, "Version:") != null);
     }
 
+    // Test JSON info command
+    {
+        const result = try runCommand(allocator, &.{ "./zig-out/bin/myapp", "--json", "info" });
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "\"format_version\":\"1.0\"") != null);
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "\"features\"") != null);
+    }
+
+    // Test doctor command
+    {
+        const result = try runCommand(allocator, &.{ "./zig-out/bin/myapp", "doctor" });
+        defer allocator.free(result.stdout);
+        defer allocator.free(result.stderr);
+
+        try testing.expect(exitedWith(result, 0));
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "doctor") != null);
+        try testing.expect(std.mem.indexOf(u8, result.stdout, "binary") != null);
+    }
+
     std.debug.print("✓ All commands work correctly\n", .{});
 }
 

@@ -121,9 +121,9 @@ LOG_FILE="/var/log/myapp-daily.log"
 process_file() {
   local input_file="$1"
   local output_file="$2"
-  
+
   echo "[$(date)] Processing $input_file" >> "$LOG_FILE"
-  
+
   if $MYAPP_BIN validate "$input_file"; then
     $MYAPP_BIN process "$input_file" \
       --output "$output_file" \
@@ -139,7 +139,7 @@ process_file() {
 find "$DATA_DIR" -name "*.dat" -mtime -1 | while read -r file; do
   basename=$(basename "$file" .dat)
   output_file="$OUTPUT_DIR/${basename}_processed.json"
-  
+
   process_file "$file" "$output_file" || continue
 done
 
@@ -161,23 +161,23 @@ from pathlib import Path
 class MyAppWrapper:
     def __init__(self, binary_path="myapp"):
         self.binary = binary_path
-    
+
     def run_command(self, *args, input_data=None):
         """Run myapp with given arguments."""
         cmd = [self.binary] + list(args)
-        
+
         result = subprocess.run(
             cmd,
             input=input_data,
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode != 0:
             raise RuntimeError(f"Command failed: {result.stderr}")
-        
+
         return result.stdout
-    
+
     def process_json(self, data):
         """Process data and return JSON output."""
         json_str = json.dumps(data)
@@ -187,11 +187,11 @@ class MyAppWrapper:
             input_data=json_str
         )
         return json.loads(output)
-    
+
     def batch_process(self, files):
         """Process multiple files in batch."""
         results = []
-        
+
         for file_path in files:
             try:
                 output = self.run_command("process", str(file_path))
@@ -206,17 +206,17 @@ class MyAppWrapper:
                     "status": "error",
                     "error": str(e)
                 })
-        
+
         return results
 
 # Example usage
 if __name__ == "__main__":
     app = MyAppWrapper()
-    
+
     # Process all .dat files in current directory
     dat_files = Path(".").glob("*.dat")
     results = app.batch_process(dat_files)
-    
+
     # Print summary
     successful = sum(1 for r in results if r["status"] == "success")
     print(f"Processed {successful}/{len(results)} files successfully")
@@ -386,7 +386,7 @@ safe_process() {
   local file="$1"
   local max_retries=3
   local retry_count=0
-  
+
   while [ $retry_count -lt $max_retries ]; do
     if myapp process "$file" 2>/tmp/myapp-error.log; then
       return 0
@@ -396,7 +396,7 @@ safe_process() {
       sleep $((retry_count * 2))
     fi
   done
-  
+
   echo "Failed to process $file after $max_retries attempts"
   cat /tmp/myapp-error.log
   return 1
@@ -423,19 +423,19 @@ fi
 # Multi-stage validation
 validate_and_process() {
   local input="$1"
-  
+
   # Stage 1: Format validation
   if ! myapp validate --format "$input"; then
     echo "Format validation failed" >&2
     return 1
   fi
-  
+
   # Stage 2: Content validation
   if ! myapp validate --content "$input"; then
     echo "Content validation failed" >&2
     return 2
   fi
-  
+
   # Stage 3: Process with verification
   local output=$(mktemp)
   if myapp process "$input" --output "$output"; then

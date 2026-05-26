@@ -56,7 +56,7 @@ typedef struct {
 // Version is defined by the build system via -DAPP_VERSION compiler flag.
 // This fallback is only used if the build system doesn't provide it.
 #ifndef APP_VERSION
-#define APP_VERSION "1.0.0"
+#define APP_VERSION "0.1.0"
 #endif
 
 // Application name

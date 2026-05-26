@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,8 @@ char *app_read_input_from_stdin(void) {
   size_t capacity = INPUT_BUFFER_INITIAL_SIZE;
   struct stat st;
   if (fstat(fileno(stdin), &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0) {
-    capacity = st.st_size < INPUT_MAX_SIZE ? st.st_size + 1 : INPUT_MAX_SIZE;
+    const size_t file_size = (size_t)st.st_size;
+    capacity = file_size < INPUT_MAX_SIZE ? file_size + 1 : INPUT_MAX_SIZE;
   }
 
   if (capacity == 0 || capacity > INPUT_MAX_SIZE) {
@@ -88,6 +90,13 @@ char *app_read_input_from_stdin(void) {
         return nullptr;
       }
     }
+    if (bytes_read > bytes_to_read ||
+        bytes_read > INPUT_MAX_SIZE - total_size) {
+      LOG_ERROR("Input read exceeded expected bounds");
+      app_secure_free(buffer, capacity);
+      errno = EIO;
+      return nullptr;
+    }
 
     total_size += bytes_read;
   }
@@ -126,7 +135,7 @@ char *app_read_input_from_file(const char *filename) {
     return nullptr;
   }
 
-  if (st.st_size > INPUT_MAX_SIZE) {
+  if (st.st_size < 0 || (uintmax_t)st.st_size > (uintmax_t)INPUT_MAX_SIZE) {
     LOG_ERROR("File %s exceeds maximum size of %zu bytes", filename,
               (size_t)INPUT_MAX_SIZE);
     fclose(file);

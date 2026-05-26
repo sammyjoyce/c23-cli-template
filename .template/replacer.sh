@@ -57,6 +57,91 @@ declare -A VAR_TRANSFORM=()
 declare -A PLACEHOLDER_MAP=()
 declare -a VAR_KEYS=()
 
+detect_repository_url() {
+    git -C "$repo_root" config --get remote.origin.url 2>/dev/null || true
+}
+
+detect_repository_name() {
+    local url name
+    url=$(detect_repository_url)
+    if [[ -n $url ]]; then
+        name=${url##*/}
+        name=${name%.git}
+        if [[ -n $name ]]; then
+            printf '%s\n' "$name"
+            return
+        fi
+    fi
+    basename "$repo_root"
+}
+
+detect_repository_owner() {
+    local url path
+    url=$(detect_repository_url)
+    case "$url" in
+        git@github.com:*)
+            path=${url#git@github.com:}
+            ;;
+        https://github.com/*)
+            path=${url#https://github.com/}
+            ;;
+        http://github.com/*)
+            path=${url#http://github.com/}
+            ;;
+        *)
+            return
+            ;;
+    esac
+    path=${path%.git}
+    [[ $path == */* ]] || return
+    printf '%s\n' "${path%%/*}"
+}
+
+detect_license() {
+    if [[ -f "$repo_root/LICENSE" ]] && grep -qi 'MIT License' "$repo_root/LICENSE"; then
+        printf 'MIT\n'
+    fi
+}
+
+detect_source() {
+    case "$1" in
+        repository_name)
+            detect_repository_name
+            ;;
+        repository_owner)
+            detect_repository_owner
+            ;;
+        git_user_name)
+            git -C "$repo_root" config user.name 2>/dev/null || true
+            ;;
+        git_user_email)
+            git -C "$repo_root" config user.email 2>/dev/null || true
+            ;;
+        current_year)
+            date +%Y
+            ;;
+        license)
+            detect_license
+            ;;
+        repository_description|static)
+            return
+            ;;
+    esac
+}
+
+detect_from_sources() {
+    local entry="$1"
+    local source value
+    while IFS= read -r source; do
+        [[ -z $source || $source == "null" ]] && continue
+        value=$(detect_source "$source")
+        if [[ -n $value ]]; then
+            printf '%s\n' "$value"
+            return
+        fi
+    done < <(jq -r '(.value.sources // [])[]?' <<<"$entry")
+}
+
 normalize_key() {
     local key="$1"
     key=${key//[^A-Za-z0-9_]/_}
@@ -92,9 +177,13 @@ while IFS= read -r entry; do
         [[ $default_value == "null" ]] && default_value=""
     fi
 
+    detected_value=$(detect_from_sources "$entry")
+
     if [[ -n ${!safe_key+x} ]]; then
         value="${!safe_key}"
         VAR_OVERRIDDEN[$safe_key]=1
+    elif [[ -n $detected_value ]]; then
+        value="$detected_value"
     else
         value="$default_value"
     fi
@@ -117,19 +206,22 @@ to_words() {
 }
 
 to_snake() {
-    local words="$(to_words "$1")"
+    local words
+    words="$(to_words "$1")"
     [[ -z $words ]] && return
     printf '%s\n' "${words// /_}"
 }
 
 to_kebab() {
-    local words="$(to_words "$1")"
+    local words
+    words="$(to_words "$1")"
     [[ -z $words ]] && return
     printf '%s\n' "${words// /-}"
 }
 
 to_pascal() {
-    local words="$(to_words "$1")"
+    local words
+    words="$(to_words "$1")"
     [[ -z $words ]] && return
     local part result=""
     for part in $words; do
@@ -215,6 +307,7 @@ author_email="${VAR_VALUES[AUTHOR_EMAIL]:-}"
 github_user="${VAR_VALUES[GITHUB_USERNAME]:-}"
 
 [[ -n $project_kebab ]] && add_generic "myapp" "$project_kebab"
+[[ -n $project_kebab ]] && add_generic "yourproject" "$project_kebab"
 if [[ -n $author_name ]]; then
     add_generic '"Your Name"' "$author_name"
     add_generic 'Your Name' "$author_name"
@@ -224,6 +317,7 @@ if [[ -n $github_user && -n $project_kebab ]]; then
     add_generic "https://github.com/yourusername/yourproject" \
         "https://github.com/$github_user/$project_kebab"
 fi
+# shellcheck disable=SC2088 # Literal documentation/config placeholder.
 [[ -n $project_snake ]] && add_generic "~/.config/myapp" "~/.config/$project_snake"
 
 readarray -t FILE_PATTERNS < <(jq -r '(.file_patterns // [])[]?' "$vars_json")

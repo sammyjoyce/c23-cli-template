@@ -13,6 +13,7 @@
 #define R_OK 4
 #define access _access
 #endif
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,10 +42,15 @@ static void app_config_set_string(char **slot, const char *value) {
     return;
   }
 
+  char *copy = strdup(value);
+  if (!copy) {
+    return;
+  }
+
   if (*slot) {
     free(*slot);
   }
-  *slot = strdup(value);
+  *slot = copy;
 }
 
 app_error app_config_create(app_config_t **config) {
@@ -140,12 +146,9 @@ static char *find_config_file(void) {
 app_error app_config_load_file(app_config_t *const config, const char *path) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
 
-  // Use provided path or find default
-  char *config_path = NULL;
-  if (path) {
-    config_path = strdup(path);
-  } else {
-    config_path = find_config_file();
+  char *config_path = path ? strdup(path) : find_config_file();
+  if (path && !config_path) {
+    return APP_ERROR_MEMORY;
   }
 
   if (!config_path) {
@@ -153,7 +156,6 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
     return APP_SUCCESS;  // Not an error if no config file exists
   }
 
-  // Read file
   FILE *f = fopen(config_path, "r");
   if (!f) {
     LOG_WARNING("Failed to open config file: %s", config_path);
@@ -161,32 +163,49 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
     return APP_ERROR_IO;
   }
 
-  fseek(f, 0, SEEK_END);
-  long size = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
 
-  char *content = app_secure_malloc(size + 1);
+  long file_size = ftell(f);
+  if (file_size < 0 || (uintmax_t)file_size > (uintmax_t)SIZE_MAX - 1U) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
+
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
+
+  const size_t content_size = (size_t)file_size;
+  char *content = app_secure_malloc(content_size + 1);
   if (!content) {
     fclose(f);
     free(config_path);
     return APP_ERROR_MEMORY;
   }
 
-  if (fread(content, 1, size, f) != (size_t)size) {
-    app_secure_free(content, size + 1);
+  if (content_size > 0 && fread(content, 1, content_size, f) != content_size) {
+    app_secure_free(content, content_size + 1);
     fclose(f);
     free(config_path);
     return APP_ERROR_IO;
   }
-  content[size] = '\0';
+  content[content_size] = '\0';
   fclose(f);
 
   // Parse JSON
   // Note: In a real implementation, you'd parse JSON here
   // For now, we'll just log that we loaded the file
   LOG_INFO("Loaded configuration from %s", config_path);
+  app_config_set_string(&config->config_file, config_path);
 
-  app_secure_free(content, size + 1);
+  app_secure_free(content, content_size + 1);
   free(config_path);
   return APP_SUCCESS;
 }

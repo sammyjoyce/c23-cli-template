@@ -1,9 +1,9 @@
 {
   "opencli": "0.1",
   "info": {
-    "title": "CLI Application Starter",
-    "description": "A modern C23 CLI application template with Zig build system and comprehensive tooling.",
-    "version": "1.0.0",
+    "title": "C23 TUI + CLI Starter",
+    "description": "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs.",
+    "version": "0.1.0",
     "contact": {
       "name": "Your Name",
       "url": "https://github.com/yourusername/yourproject"
@@ -70,7 +70,7 @@
       "required": false,
       "aliases": [],
       "arguments": [],
-      "description": "Output in JSON format"
+      "description": "Output a versioned JSON response where supported"
     },
     {
       "name": "plain",
@@ -154,16 +154,27 @@
       "options": [],
       "arguments": [],
       "examples": [
-        "myapp info"
+        "myapp info",
+        "myapp --json info"
+      ]
+    },
+    {
+      "name": "doctor",
+      "description": "Run starter diagnostics for build metadata, output mode, and optional features",
+      "options": [],
+      "arguments": [],
+      "examples": [
+        "myapp doctor",
+        "myapp --json doctor"
       ]
     },
     {
       "name": "menu",
-      "description": "Launch interactive TUI menu (requires ncurses)",
+      "description": "Launch interactive TUI showcase (requires an ncurses-enabled build)",
       "options": [],
       "arguments": [],
       "examples": [
-        "myapp menu"
+        "zig build -Denable-tui=true run -- menu"
       ],
       "metadata": {
         "requires": "ncurses",
@@ -206,6 +217,8 @@
     "myapp hello Alice",
     "myapp echo Hello World",
     "myapp info",
+    "myapp --json info",
+    "myapp doctor",
     "myapp --help",
     "myapp --version"
   ],
@@ -230,7 +243,7 @@
       "name": "build",
       "value": {
         "system": "Zig build system",
-        "compiler": "Aro (C23 compatible)",
+        "compiler": "Zig cc (Clang/LLVM)",
         "standard": "C23"
       }
     }

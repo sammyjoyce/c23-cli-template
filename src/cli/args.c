@@ -31,8 +31,8 @@ app_error app_parse_args(int argc, char *argv[], app_config_t *config) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--version") == 0) {
       printf("%s %s\n", APP_NAME, APP_VERSION);
-      printf("A modern C23 CLI application\n");
-      printf("Built with: Zig, C23, Aro compiler\n");
+      printf("A C23 TUI + CLI starter application\n");
+      printf("Built with: Zig, C23, ncurses/PDCurses\n");
       exit(0);
     }
   }

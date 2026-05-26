@@ -1,11 +1,9 @@
 /*
  * Logging implementation for the application.
  *
- * Provides a lightweight, level-based logging system that integrates with
- * Claude Code's output handling. We avoid heavy logging frameworks to keep the
- * tool fast and minimize dependencies. The design prioritizes clear error
- * reporting for hook developers while maintaining performance for production
- * use.
+ * Provides a lightweight, level-based logging system. The design keeps
+ * dependencies small while still offering useful diagnostics for local
+ * development and production troubleshooting.
  */
 
 #include "logging.h"
@@ -23,7 +21,7 @@
 #include "../core/types.h"
 
 // Global log level defaults to ERROR to minimize output in production
-// environments. Hook developers can increase verbosity via APP_LOG_LEVEL when
+// environments. Developers can increase verbosity via APP_LOG_LEVEL when
 // debugging issues. We track initialization state to ensure environment
 // variables are read exactly once, preventing inconsistent behavior if the
 // environment changes during execution.
@@ -42,9 +40,7 @@ void app_log_init(void) {
 
 void app_log_update_level(void) {
   // Read log level from environment to allow runtime configuration without
-  // recompilation. This is essential for hook developers who need to debug
-  // issues in production environments where they can't modify the binary. We
-  // use string comparison rather than numeric levels for clarity in
+  // recompilation. Use string comparison rather than numeric levels for clear
   // configuration (APP_LOG_LEVEL=DEBUG is clearer than APP_LOG_LEVEL=3).
   const char *level = getenv("APP_LOG_LEVEL");
   if (level == nullptr) {
@@ -57,8 +53,7 @@ void app_log_update_level(void) {
     g_log_level = LOG_LEVEL_DEBUG;
   } else {
     // Default to ERROR for invalid values rather than failing. This ensures
-    // hooks continue to work even with misconfigured environments, following
-    // the principle of graceful degradation.
+    // Keep the application usable with a misconfigured environment.
     g_log_level = LOG_LEVEL_ERROR;
   }
 }

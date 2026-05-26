@@ -30,16 +30,28 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
   if (progress->title) {
     tui_set_color(win, TUI_COLOR_TITLE);
     tui_print_centered(win, 1, progress->title);
-    wattroff(win, COLOR_PAIR(TUI_COLOR_TITLE));
+    tui_unset_color(win, TUI_COLOR_TITLE);
   }
 
   // Progress bar dimensions
   const int bar_width = window->width - 6;  // padding
   const int bar_y = window->height / 2;
   const int bar_x = 3;
+  if (bar_width <= 0) {
+    tui_refresh_window(window);
+    return;
+  }
 
   // Calculate fill ratio and clamp to [0.0, 1.0]
-  double ratio = (double)progress->current_value / (double)progress->max_value;
+  int current_value = progress->current_value;
+  if (current_value < 0) {
+    current_value = 0;
+  }
+  if (current_value > progress->max_value) {
+    current_value = progress->max_value;
+  }
+
+  double ratio = (double)current_value / (double)progress->max_value;
   if (ratio < 0.0)
     ratio = 0.0;
   if (ratio > 1.0)
@@ -53,7 +65,11 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
   // Draw filled portion
   tui_set_color(win, TUI_COLOR_HIGHLIGHT);
   mvwhline(win, bar_y, bar_x, ' ', fill_width);
-  wattroff(win, COLOR_PAIR(TUI_COLOR_HIGHLIGHT));
+  tui_unset_color(win, TUI_COLOR_HIGHLIGHT);
+
+  char percent[16];
+  snprintf(percent, sizeof(percent), "%3d%%", (int)(ratio * 100.0));
+  tui_print_centered(win, bar_y, percent);
 
   // Status text
   if (status) {
@@ -80,10 +96,7 @@ APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   if (width > max_x - 4) {
     width = max_x - 4;
   }
-  int y = (max_y - height) / 2;
-  int x = (max_x - width) / 2;
-
-  tui_window_t *w = tui_create_window(height, width, y, x);
+  tui_window_t *w = tui_create_centered_window(height, width);
   if (!w) {
     return NULL;
   }
