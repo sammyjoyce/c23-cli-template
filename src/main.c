@@ -358,7 +358,11 @@ static app_error handle_command(const app_config_t *config, const char *command,
     }
 
 #ifdef ENABLE_TUI
-    return tui_run_demo();
+    const app_error tui_err = tui_run_demo();
+    if (tui_err != APP_SUCCESS) {
+      app_output_format(config, true, "TUI failed: %s", app_strerror(tui_err));
+    }
+    return tui_err;
 #else
     app_output(
         "TUI support is not compiled in. Rebuild with "
