@@ -144,10 +144,6 @@ pub fn build(b: *std.Build) void {
     const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
     const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
     const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
-    terminal_test_cmd.addArg("--binary");
-    terminal_test_cmd.addArg(installed_binary_path);
-    terminal_test_cmd.addArg("--tui-enabled");
-    terminal_test_cmd.addArg(if (enable_tui) "1" else "0");
     terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
     terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (enable_tui) "1" else "0");
     terminal_test_cmd.step.dependOn(b.getInstallStep());

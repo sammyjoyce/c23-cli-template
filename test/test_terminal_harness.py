@@ -37,9 +37,9 @@ class RunCliTests(unittest.TestCase):
 
         result = terminal.run_cli(["-c", script], binary=sys.executable)
 
-        self.assertEqual(7, result.exit_code, msg=result._debug_message())
-        result.assert_stdout_contains(self, "stdout-value")
-        result.assert_stderr_contains(self, "stderr-value")
+        self.assertEqual(7, result.exit_code, msg=terminal.command_debug_message(result))
+        terminal.assert_stdout_contains(self, result, "stdout-value")
+        terminal.assert_stderr_contains(self, result, "stderr-value")
 
 
 if __name__ == "__main__":

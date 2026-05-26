@@ -14,8 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from typing import Callable, Mapping, Sequence
-import unittest
+from typing import Any, Callable, Mapping, Sequence
 
 try:  # Optional: only required for PtySession.
     import pexpect  # type: ignore[import-not-found]
@@ -40,38 +39,6 @@ class CommandResult:
     stdout: str
     stderr: str
 
-    def assert_exit(self, case: unittest.TestCase, code: int) -> None:
-        case.assertEqual(
-            code,
-            self.exit_code,
-            msg=(
-                f"expected exit {code}, got {self.exit_code}\n"
-                f"argv: {self.argv!r}\n"
-                f"stdout:\n{self.stdout}\n"
-                f"stderr:\n{self.stderr}"
-            ),
-        )
-
-    def assert_success(self, case: unittest.TestCase) -> None:
-        self.assert_exit(case, 0)
-
-    def assert_stdout_contains(self, case: unittest.TestCase, needle: str) -> None:
-        case.assertIn(needle, self.stdout, msg=self._debug_message())
-
-    def assert_stderr_contains(self, case: unittest.TestCase, needle: str) -> None:
-        case.assertIn(needle, self.stderr, msg=self._debug_message())
-
-    def assert_stdout_not_contains(self, case: unittest.TestCase, needle: str) -> None:
-        case.assertNotIn(needle, self.stdout, msg=self._debug_message())
-
-    def _debug_message(self) -> str:
-        return (
-            f"argv: {self.argv!r}\n"
-            f"exit: {self.exit_code}\n"
-            f"stdout:\n{self.stdout}\n"
-            f"stderr:\n{self.stderr}"
-        )
-
 
 @dataclass(frozen=True)
 class TerminalSnapshot:
@@ -81,6 +48,31 @@ class TerminalSnapshot:
     lines: Sequence[str]
     cursor_row: int
     cursor_col: int
+
+
+def command_debug_message(result: CommandResult) -> str:
+    return (
+        f"argv: {result.argv!r}\n"
+        f"exit: {result.exit_code}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+
+
+def assert_exit(case: Any, result: CommandResult, code: int) -> None:
+    case.assertEqual(code, result.exit_code, msg=command_debug_message(result))
+
+
+def assert_success(case: Any, result: CommandResult) -> None:
+    assert_exit(case, result, 0)
+
+
+def assert_stdout_contains(case: Any, result: CommandResult, needle: str) -> None:
+    case.assertIn(needle, result.stdout, msg=command_debug_message(result))
+
+
+def assert_stderr_contains(case: Any, result: CommandResult, needle: str) -> None:
+    case.assertIn(needle, result.stderr, msg=command_debug_message(result))
 
 
 class PtySession:
@@ -249,12 +241,19 @@ class PtySession:
         if self._closed:
             return
         self._closed = True
-        if self.child.isalive():
+        try:
             try:
-                self.child.sendcontrol("c")
-                self.child.terminate(force=True)
-            except Exception:  # pragma: no cover - cleanup best effort.
-                pass
+                alive = self.child.isalive()
+            except Exception:
+                alive = False
+            try:
+                if alive:
+                    self.child.sendcontrol("c")
+                    self.child.terminate(force=True)
+            finally:
+                self.child.close()
+        except Exception:  # pragma: no cover - cleanup best effort.
+            pass
 
 
 def project_root() -> Path:
@@ -297,6 +296,7 @@ def run_cli(
         argv,
         input=input_text,
         text=True,
+        errors="replace",
         capture_output=True,
         timeout=timeout,
         cwd=str(cwd or project_root()),
