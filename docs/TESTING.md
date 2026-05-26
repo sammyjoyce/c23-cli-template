@@ -59,6 +59,13 @@ The non-interactive CLI scenarios and harness unit tests still run without those
 packages. PTY-backed TUI scenarios skip with a clear message when the optional
 packages are missing or when the binary was not built with `-Denable-tui=true`.
 
+CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
+`zig build check`. The PTY-backed TUI regression suite is Linux-gated in CI:
+Linux installs `pexpect` and `pyte` and runs
+`zig build -Denable-tui=true terminal-test` after the TUI build. macOS and
+Windows still build the TUI binary and run the `--json info` smoke check, but
+they do not run PTY-backed scenarios.
+
 ## Writing CLI Scenario Tests
 
 Add or edit `test/test_*_scenarios.py`:
@@ -72,8 +79,8 @@ class DeployTests(unittest.TestCase):
     def test_dry_run_is_machine_readable(self):
         result = terminal.run_cli(["--json", "deploy", "--dry-run"])
 
-        result.assert_success(self)
-        result.assert_stdout_contains(self, '"format_version"')
+        terminal.assert_success(self, result)
+        terminal.assert_stdout_contains(self, result, '"format_version"')
 ```
 
 Prefer stable contracts over incidental prose:

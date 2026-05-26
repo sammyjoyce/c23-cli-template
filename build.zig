@@ -134,6 +134,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
+    const test_options = b.addOptions();
+    test_options.addOption([]const u8, "binary_path", installed_binary_path);
+    test_exe.root_module.addOptions("test_options", test_options);
 
     const test_cmd = b.addRunArtifact(test_exe);
     test_cmd.step.dependOn(b.getInstallStep());
@@ -143,7 +147,6 @@ pub fn build(b: *std.Build) void {
 
     const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
     const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
-    const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
     terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
     terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (enable_tui) "1" else "0");
     terminal_test_cmd.step.dependOn(b.getInstallStep());
