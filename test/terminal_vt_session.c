@@ -61,7 +61,7 @@ bool vt_session_start(vt_session_t *session, const char *binary,
   }
 
   if (pid == 0) {
-    apply_child_env(NULL, 0, true);
+    apply_child_env(true);
     execv(binary, argv);
     perror("execv");
     _exit(127);

@@ -318,7 +318,7 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
-        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false, "test_terminal_harness.py");
+        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false, null);
     } else {
         addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui, null);
     }

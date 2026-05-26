@@ -16,8 +16,8 @@ The terminal-testing landscape has a few useful families:
 The template now has two terminal-test backends:
 
 - The **Ghostty VT backend** is a C runner split across `test/terminal_vt_*.c`.
-  It owns the default CLI and TUI scenario coverage when libghostty-vt is
-  available. It runs the app in a real PTY, feeds output through
+  It owns PTY/TUI scenario coverage when libghostty-vt is available. It runs the
+  app in a real PTY, feeds output through
   [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the
   virtual terminal with Ghostty's formatter API, and drives deterministic input
   plus resize sequences. This follows the same shape as the Bombadil terminal
@@ -32,8 +32,8 @@ Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
 Terminal and Formatter APIs; otherwise it falls back to Python. Use
 `-Dterminal-backend=ghostty` to require Ghostty VT on POSIX hosts, or
 `-Dterminal-backend=python` to force the fallback. Windows always uses the Python
-backend. The Ghostty path invokes Python only for the small fallback-harness unit
-suite.
+backend. The Ghostty path still runs the Python CLI and harness tests, then adds
+C-backed PTY/TUI coverage.
 
 ## Commands
 
@@ -81,27 +81,28 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-With Ghostty VT selected, CLI and TUI scenarios run in the C backend; only the
-small Python harness unit test file runs alongside it. With the Python backend,
-the fallback CLI contract suite and harness unit tests still run without
-optional Python packages; PTY-backed TUI smoke skips with a clear message when
-the fallback dependencies are missing or the binary was not built with
+CLI scenarios run through the Python suite on every backend. With Ghostty VT
+selected, the C backend adds PTY/TUI coverage using libghostty-vt. With the
+Python backend, the same CLI contract suite and harness unit tests still run
+without optional Python packages; PTY-backed TUI smoke skips with a clear message
+when the fallback dependencies are missing or the binary was not built with
 `-Denable-tui=true`.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
-`zig build check`. Today CI uses the Python fallback unless libghostty-vt is
-installed on the runner, so the fallback CLI suite intentionally mirrors the C
-CLI contracts. The PTY-backed TUI regression suite is Linux-gated in CI: Linux
-installs `pexpect` and `pyte` and runs `zig build -Denable-tui=true
-terminal-test` after the TUI build. macOS and Windows still build the TUI binary
-and run the `--json info` smoke check, but they do not run PTY-backed scenarios.
+`zig build check`; these CLI contracts live in `test/test_cli_scenarios.py` and
+run regardless of whether Ghostty is installed. The PTY-backed TUI regression
+suite is Linux-gated in CI: Linux installs `pexpect` and `pyte` and runs
+`zig build -Denable-tui=true terminal-test` after the TUI build. If a runner also
+provides libghostty-vt, that Linux TUI step uses the C Ghostty backend;
+otherwise it uses the Python smoke fallback. macOS and Windows still build the
+TUI binary and run the `--json info` smoke check, but they do not run PTY-backed
+scenarios.
 
 ## Writing CLI Scenario Tests
 
-Add durable CLI contract checks to `test/terminal_vt_scenarios.c`, which is the
-canonical terminal scenario source for the preferred Ghostty backend. Mirror
-those checks in `test/test_cli_scenarios.py` until CI provides libghostty-vt, so
-the fallback backend does not lose CLI safety coverage.
+Add durable CLI contract checks to `test/test_cli_scenarios.py`. The Ghostty C
+runner is intentionally scoped to PTY/TUI behavior so CLI contracts have one
+source of truth.
 
 Prefer stable contracts over incidental prose:
 

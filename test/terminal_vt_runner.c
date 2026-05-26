@@ -31,14 +31,6 @@ int main(int argc, char **argv) {
 
   test_stats_t stats = {0};
   printf("TAP version 13\n");
-  run_help_test(&stats, binary);
-  run_version_test(&stats, binary);
-  run_builtin_test(&stats, binary);
-  run_json_info_test(&stats, binary);
-  run_quiet_json_test(&stats, binary);
-  run_error_tests(&stats, binary);
-  run_config_test(&stats, binary);
-  run_cli_flag_precedence_test(&stats, binary);
   run_tui_menu_test(&stats, binary, tui_enabled);
   run_tui_fuzz_smoke(&stats, binary, tui_enabled);
   printf("1..%d\n", stats.passed + stats.failed + stats.skipped);
