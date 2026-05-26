@@ -51,6 +51,35 @@ fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
     });
 }
 
+fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8) void {
+    const b = run.step.owner;
+    const env_map = run.getEnvMap();
+
+    if (env_map.get(key)) |current| {
+        const value = if (current.len == 0)
+            b.dupe(dir)
+        else
+            b.fmt("{s}{c}{s}", .{ dir, std.fs.path.delimiter, current });
+        env_map.put(key, value) catch @panic("OOM");
+    } else {
+        env_map.put(key, b.dupe(dir)) catch @panic("OOM");
+    }
+}
+
+fn addPythonTerminalTests(
+    b: *std.Build,
+    terminal_test_step: *std.Build.Step,
+    installed_binary_path: []const u8,
+    tui_enabled: bool,
+) void {
+    const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
+    const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
+    terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
+    terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (tui_enabled) "1" else "0");
+    terminal_test_cmd.step.dependOn(b.getInstallStep());
+    terminal_test_step.dependOn(&terminal_test_cmd.step);
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -256,21 +285,17 @@ pub fn build(b: *std.Build) void {
         });
         if (ghostty_vt_prefix) |pref| {
             const lib_path = b.fmt("{s}/lib", .{pref});
-            vt_test_cmd.setEnvironmentVariable("LD_LIBRARY_PATH", lib_path);
-            vt_test_cmd.setEnvironmentVariable("DYLD_FALLBACK_LIBRARY_PATH", lib_path);
+            prependRunEnvPath(vt_test_cmd, "LD_LIBRARY_PATH", lib_path);
+            prependRunEnvPath(vt_test_cmd, "DYLD_FALLBACK_LIBRARY_PATH", lib_path);
         } else if (ghostty_pkg_lib_dir) |lib_dir| {
-            vt_test_cmd.setEnvironmentVariable("LD_LIBRARY_PATH", lib_dir);
-            vt_test_cmd.setEnvironmentVariable("DYLD_FALLBACK_LIBRARY_PATH", lib_dir);
+            prependRunEnvPath(vt_test_cmd, "LD_LIBRARY_PATH", lib_dir);
+            prependRunEnvPath(vt_test_cmd, "DYLD_FALLBACK_LIBRARY_PATH", lib_dir);
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
+        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false);
     } else {
-        const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
-        const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
-        terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
-        terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (enable_tui) "1" else "0");
-        terminal_test_cmd.step.dependOn(b.getInstallStep());
-        terminal_test_step.dependOn(&terminal_test_cmd.step);
+        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui);
     }
 
     // Clean command – cross-platform

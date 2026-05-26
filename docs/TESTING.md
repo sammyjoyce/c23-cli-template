@@ -13,7 +13,7 @@ The terminal-testing landscape has a few useful families:
 | Library-first test drivers | Bombadil terminal experiments, Termless, `tui-driver`, `ptytest` | Nice assertion APIs inside host-language tests | Often tied to Node, Go, Python, or Rust ecosystems |
 | Classic command tests | Cram, Bats, Expect, pexpect | Mature and easy to run in CI | Raw output matching can miss alternate-screen/cursor details |
 
-The template now has two terminal-test backends:
+The template now has two PTY backends for terminal UI coverage:
 
 - The **Ghostty VT backend** is a C runner in `test/terminal_vt_runner.c`. It runs
   the app in a real PTY, feeds output through
@@ -26,11 +26,12 @@ The template now has two terminal-test backends:
   for machines that do not have libghostty-vt installed. It is also the portable
   fallback on Windows.
 
-`zig build terminal-test` uses `-Dterminal-backend=auto` by default: it selects
-Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
-Terminal and Formatter APIs, otherwise it falls back to Python. Use
-`-Dterminal-backend=ghostty` to require Ghostty VT, or `-Dterminal-backend=python`
-to force the fallback.
+`zig build terminal-test` always runs the Python-discovered non-interactive CLI
+scenarios and harness unit tests. It uses `-Dterminal-backend=auto` by default
+for PTY coverage: auto selects Ghostty VT when `pkg-config` can find
+libghostty-vt and its headers expose the Terminal and Formatter APIs; otherwise
+it falls back to Python. Use `-Dterminal-backend=ghostty` to require Ghostty VT,
+or `-Dterminal-backend=python` to force the fallback.
 
 ## Commands
 
@@ -79,9 +80,10 @@ zig build -Denable-tui=true terminal-test \
 ```
 
 The non-interactive CLI scenarios and harness unit tests still run without
-Python packages. PTY-backed TUI scenarios skip with a clear message when the
-fallback dependencies are missing, libghostty-vt is unavailable, or the binary
-was not built with `-Denable-tui=true`.
+optional Python packages. When Ghostty VT is selected, the Python TUI scenarios
+skip and the C runner provides PTY coverage. With the Python backend,
+PTY-backed TUI scenarios skip with a clear message when the fallback
+dependencies are missing or the binary was not built with `-Denable-tui=true`.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
 `zig build check`. The PTY-backed TUI regression suite is Linux-gated in CI:

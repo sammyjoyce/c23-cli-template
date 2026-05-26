@@ -191,6 +191,56 @@ static void close_if_open(int *fd) {
   }
 }
 
+static bool write_nonblocking_all(int fd, const void *data, size_t len,
+                                  int timeout_ms) {
+  const uint8_t *bytes = data;
+  size_t written = 0;
+  const int64_t deadline = monotonic_ms() + timeout_ms;
+
+  while (written < len) {
+    const ssize_t n = write(fd, bytes + written, len - written);
+    if (n > 0) {
+      written += (size_t)n;
+      continue;
+    }
+    if (n == 0) {
+      errno = EIO;
+      return false;
+    }
+    if (errno == EINTR) {
+      continue;
+    }
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      const int64_t now = monotonic_ms();
+      if (now >= deadline) {
+        return false;
+      }
+
+      int wait_ms = (int)(deadline - now);
+      if (wait_ms > 50) {
+        wait_ms = 50;
+      }
+      struct pollfd pfd = {.fd = fd, .events = POLLOUT};
+      const int polled = poll(&pfd, 1, wait_ms);
+      if (polled < 0) {
+        if (errno == EINTR) {
+          continue;
+        }
+        return false;
+      }
+      if (polled == 0) {
+        continue;
+      }
+      if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        return false;
+      }
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 static char **make_argv(const char *binary, const char *const *args,
                         size_t argc) {
   char **argv = calloc(argc + 2, sizeof(char *));
@@ -318,7 +368,7 @@ static command_result_t run_cli_command(const char *binary,
             }
             break;
           }
-          if (errno == EAGAIN || errno == EWOULDBLOCK) {
+          if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
             break;
           }
           if (fds[i].fd == out_pipe[0]) {
@@ -413,18 +463,7 @@ static void ghostty_write_pty(GhosttyTerminal terminal, void *userdata,
     return;
   }
 
-  size_t written = 0;
-  while (written < len) {
-    const ssize_t n = write(session->master_fd, data + written, len - written);
-    if (n > 0) {
-      written += (size_t)n;
-      continue;
-    }
-    if (n < 0 && errno == EINTR) {
-      continue;
-    }
-    break;
-  }
+  (void)write_nonblocking_all(session->master_fd, data, len, PTY_TIMEOUT_MS);
 }
 
 static bool vt_session_start(vt_session_t *session, const char *binary,
@@ -652,16 +691,7 @@ static bool vt_expect_text(vt_session_t *session, const char *needle,
 
 static bool vt_send(vt_session_t *session, const char *bytes) {
   const size_t len = strlen(bytes);
-  size_t written = 0;
-  while (written < len) {
-    const ssize_t n = write(session->master_fd, bytes + written, len - written);
-    if (n > 0) {
-      written += (size_t)n;
-      continue;
-    }
-    if (n < 0 && errno == EINTR) {
-      continue;
-    }
+  if (!write_nonblocking_all(session->master_fd, bytes, len, PTY_TIMEOUT_MS)) {
     return false;
   }
   usleep(50000);
