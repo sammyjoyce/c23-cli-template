@@ -105,6 +105,9 @@ docs(readme): update installation instructions
    # Fedora/RHEL
    sudo dnf install ncurses-devel clang-tools-extra
 
+   # Optional outside the Nix dev shell: PTY-backed terminal tests
+   python3 -m pip install pexpect pyte
+
    # Windows (using vcpkg)
    git clone https://github.com/Microsoft/vcpkg.git
    cd vcpkg && bootstrap-vcpkg.bat
@@ -124,7 +127,15 @@ docs(readme): update installation instructions
    pre-commit install
    ```
 
-5. **Alternative: Use Devcontainer** (recommended for consistency):
+5. **Alternative: Use the Nix dev shell**:
+
+   ```bash
+   nix develop
+   ```
+
+   The flake provides Zig, C tooling, and the Python packages used by `zig build terminal-test`.
+
+6. **Alternative: Use Devcontainer** (recommended for consistency):
 
    This project includes a devcontainer configuration for VS Code that provides a consistent development environment.
    - Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code
@@ -203,8 +214,14 @@ For more details, see the [Architecture Overview](docs/ARCHITECTURE.md).
 #### Running Tests
 
 ```bash
-# Run all tests
+# Run fast Zig smoke tests
 zig build test
+
+# Run end-to-end CLI terminal scenarios
+zig build terminal-test
+
+# Run terminal scenarios against a TUI-enabled build
+zig build -Denable-tui=true terminal-test
 
 # Run tests with different optimization levels
 zig build test -Doptimize=Debug
@@ -214,10 +231,15 @@ zig build test -Doptimize=ReleaseFast
 
 #### Writing Tests
 
-- Write tests for new functionality in `test/` directory
+- Put fast build-integrated smoke coverage in `test/main.zig`
+- Put end-to-end CLI behavior in `test/test_cli_scenarios.py`
+- Put PTY-backed TUI behavior in `test/test_tui_scenarios.py`
+- Prefer JSON-field assertions for automation-facing output
 - Ensure all existing tests pass
 - Test on multiple platforms if possible
 - Test error conditions and edge cases
+
+See [docs/TESTING.md](docs/TESTING.md) for the terminal harness and key notation.
 
 ### Documentation
 

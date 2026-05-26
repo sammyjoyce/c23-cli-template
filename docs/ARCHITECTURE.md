@@ -122,7 +122,8 @@ graph TD
         DEPS[Fetch Dependencies<br/>aro, etc.]
         COMPILE[Compile C23 Code<br/>via Zig CC]
         LINK[Link Binary<br/>+ Platform Libs]
-        TEST[Run Tests<br/>test/main.zig]
+        TEST[Run Zig Tests<br/>test/main.zig]
+        TERMTEST[Run Terminal Scenarios<br/>test/*.py]
     end
 
     subgraph "Build Outputs"
@@ -140,7 +141,9 @@ graph TD
     COMPILE --> LINK
     LINK --> BIN
     PARSE --> TEST
+    LINK --> TERMTEST
     TEST --> TESTOUT
+    TERMTEST --> TESTOUT
     COMPILE --> CACHE
 ```
 
@@ -150,8 +153,14 @@ graph TD
 # Development build
 zig build
 
-# Run tests
+# Run fast Zig tests
 zig build test
+
+# Run end-to-end terminal scenario tests
+zig build terminal-test
+
+# Run PTY-backed TUI scenarios
+zig build -Denable-tui=true terminal-test
 
 # Release build
 zig build -Doptimize=ReleaseSafe
@@ -301,6 +310,7 @@ graph LR
         EDIT[Edit Code]
         BUILD[zig build]
         TEST[zig build test]
+        TERMTEST[zig build terminal-test]
         RUN[./zig-out/bin/myapp]
     end
 
@@ -318,7 +328,8 @@ graph LR
 
     EDIT --> BUILD
     BUILD --> TEST
-    TEST --> RUN
+    TEST --> TERMTEST
+    TERMTEST --> RUN
     RUN --> EDIT
 
     EDIT --> FORMAT
@@ -333,5 +344,6 @@ graph LR
 ## Next Steps
 
 - See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed build instructions
+- See [TESTING.md](TESTING.md) for CLI and PTY-backed TUI scenario tests
 - Check [examples/](../examples/) for usage examples
 - Review [build.zig](../build.zig) for build configuration details

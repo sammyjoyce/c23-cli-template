@@ -24,8 +24,8 @@ test "application test suite" {
     try testCommands(allocator);
     try testInvalidCommand(allocator);
 
-    // Note: TUI menu command is not tested here as it requires
-    // an interactive terminal. It should be tested manually.
+    // PTY-backed TUI flows live in test/test_tui_scenarios.py and run with:
+    // zig build -Denable-tui=true terminal-test
 }
 
 fn runBuild(allocator: std.mem.Allocator) !void {

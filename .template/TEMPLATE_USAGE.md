@@ -72,9 +72,13 @@ Variables are configured in `.template/template-vars.json`.
 | `CURRENT_YEAR` | Notice year | `2026` |
 | `PROJECT_LICENSE` | SPDX-style license identifier | `MIT` |
 
-The replacement script reads explicit environment variables first. When possible, it falls back to local git metadata, the repository name, the current year, and configured defaults.
+The replacement script reads explicit environment variables first. When possible,
+it falls back to local git metadata, the repository name, the current year, and
+configured defaults.
 
-Setup also refreshes `build.zig.zon` fingerprint after replacing the package name. Zig 0.16 validates that package names and fingerprints match, so generated repositories need a fresh fingerprint before they can build.
+Setup also refreshes `build.zig.zon` fingerprint after replacing the package
+name. Zig 0.16 validates that package names and fingerprints match, so
+generated repositories need a fresh fingerprint before they can build.
 
 ## What Cleanup Removes
 
@@ -94,11 +98,14 @@ Run these checks before first commit if you cleaned up locally:
 ```bash
 zig build
 zig build test
-zig build -Denable-tui=true
+zig build terminal-test
+zig build -Denable-tui=true terminal-test
 zig build check
 ```
 
-For the TUI, also run the menu command in a real terminal:
+For the TUI, `zig build -Denable-tui=true terminal-test` drives the menu through a pseudo-terminal when Python `pexpect` and `pyte` are available.
+
+Also run the menu command in a real terminal before shipping major UI changes:
 
 ```bash
 zig build -Denable-tui=true run -- menu

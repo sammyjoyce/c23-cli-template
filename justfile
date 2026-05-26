@@ -18,6 +18,14 @@ run *args:
 test:
     zig build test
 
+# Run end-to-end terminal scenario tests
+terminal-test:
+    zig build terminal-test
+
+# Run terminal scenarios against a TUI-enabled build
+tui-test:
+    zig build -Denable-tui=true terminal-test
+
 # Run tests with different optimization levels
 test-debug:
     zig build test -Doptimize=Debug
@@ -60,6 +68,8 @@ help:
     echo "  release     - Build with release optimization"
     echo "  run         - Run the application"
     echo "  test        - Run tests"
+    echo "  terminal-test - Run end-to-end terminal scenarios"
+    echo "  tui-test    - Run terminal scenarios with TUI support"
     echo "  test-debug  - Run tests with debug optimization"
     echo "  test-release - Run tests with release optimization"
     echo "  test-fast   - Run tests with fast optimization"
