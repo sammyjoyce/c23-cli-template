@@ -80,6 +80,10 @@ static int64_t app_now_millis(void) {
 }
 
 static void print_info(const app_config_t *config) {
+  if (app_config_is_quiet(config)) {
+    return;
+  }
+
   const bool tui_enabled =
 #ifdef ENABLE_TUI
       true;
@@ -135,6 +139,10 @@ static void print_doctor_json_check(const app_doctor_check_t *check,
 }
 
 static void print_doctor(const app_config_t *config) {
+  if (app_config_is_quiet(config)) {
+    return;
+  }
+
   const bool tui_enabled =
 #ifdef ENABLE_TUI
       true;
@@ -258,6 +266,10 @@ static void output_joined_args(const app_config_t *config, int argc,
 
 static const char *find_config_path_arg(int argc, char *argv[]) {
   for (int i = 1; i < argc; i++) {
+    if (!argv[i] || argv[i][0] != '-') {
+      return NULL;
+    }
+
     if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
       if (i + 1 < argc) {
         return argv[i + 1];
