@@ -71,11 +71,15 @@ fn addPythonTerminalTests(
     terminal_test_step: *std.Build.Step,
     installed_binary_path: []const u8,
     tui_enabled: bool,
+    pattern: ?[]const u8,
 ) void {
     const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
     const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
     terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
     terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (tui_enabled) "1" else "0");
+    if (pattern) |p| {
+        terminal_test_cmd.addArgs(&.{ "--pattern", p });
+    }
     terminal_test_cmd.step.dependOn(b.getInstallStep());
     terminal_test_step.dependOn(&terminal_test_cmd.step);
 }
@@ -302,8 +306,9 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
+        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false, "test_terminal_harness.py");
     } else {
-        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui);
+        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui, null);
     }
 
     // Clean command – cross-platform

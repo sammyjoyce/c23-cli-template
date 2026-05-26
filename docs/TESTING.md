@@ -32,7 +32,8 @@ Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
 Terminal and Formatter APIs; otherwise it falls back to Python. Use
 `-Dterminal-backend=ghostty` to require Ghostty VT on POSIX hosts, or
 `-Dterminal-backend=python` to force the fallback. Windows always uses the Python
-backend. The Ghostty path does not invoke Python.
+backend. The Ghostty path invokes Python only for the small fallback-harness unit
+suite.
 
 ## Commands
 
@@ -80,11 +81,11 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-With Ghostty VT selected, CLI and TUI scenarios run in the C backend without
-Python. With the Python backend, non-interactive CLI scenarios and harness unit
-tests still run without optional Python packages; PTY-backed TUI scenarios skip
-with a clear message when the fallback dependencies are missing or the binary
-was not built with `-Denable-tui=true`.
+With Ghostty VT selected, CLI and TUI scenarios run in the C backend; only the
+small Python harness unit test file runs alongside it. With the Python backend,
+minimal smoke tests and harness unit tests still run without optional Python
+packages; PTY-backed TUI smoke skips with a clear message when the fallback
+dependencies are missing or the binary was not built with `-Denable-tui=true`.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
 `zig build check`. The PTY-backed TUI regression suite is Linux-gated in CI:
@@ -95,23 +96,10 @@ they do not run PTY-backed scenarios.
 
 ## Writing CLI Scenario Tests
 
-For the preferred Ghostty backend, add durable CLI contract checks to
-`test/terminal_vt_scenarios.c`.
-
-For the Python fallback, add or edit `test/test_*_scenarios.py`:
-
-```python
-import unittest
-import terminal_harness as terminal
-
-
-class DeployTests(unittest.TestCase):
-    def test_dry_run_is_machine_readable(self):
-        result = terminal.run_cli(["--json", "deploy", "--dry-run"])
-
-        terminal.assert_success(self, result)
-        terminal.assert_stdout_contains(self, result, '"format_version"')
-```
+Add durable CLI contract checks to `test/terminal_vt_scenarios.c`, which is the
+canonical terminal scenario source for the preferred Ghostty backend. Keep
+`test/test_cli_scenarios.py` as a small Python fallback smoke test rather than a
+parallel contract suite.
 
 Prefer stable contracts over incidental prose:
 
@@ -127,25 +115,9 @@ menu, including a deterministic input/resize smoke test. Add project-specific
 Ghostty scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate
 screen snapshots or resize coverage.
 
-The Python fallback remains useful for quick project-level examples. Add or edit
-`test/test_tui_scenarios.py`:
-
-```python
-import unittest
-import terminal_harness as terminal
-
-
-@unittest.skipUnless(terminal.tui_enabled(), "build with -Denable-tui=true")
-@unittest.skipUnless(terminal.pty_available(), terminal.pty_unavailable_reason())
-class MenuTests(unittest.TestCase):
-    def test_menu_opens_help_panel(self):
-        with terminal.PtySession([terminal.binary_path(), "menu"], cols=80, rows=24) as session:
-            session.expect_text("Starter Showcase")
-            session.send_keys("<CR>")
-            session.expect_text("Starter Overview")
-```
-
-The key parser supports literal text plus common angle-bracket keys:
+Keep `test/test_tui_scenarios.py` as a minimal Python fallback smoke test unless
+you intentionally build a shared scenario manifest. The key parser supports
+literal text plus common angle-bracket keys:
 
 ```text
 <CR> <Enter> <Esc> <Tab> <BS> <Space> <Del> <Ins>
