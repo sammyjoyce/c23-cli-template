@@ -83,23 +83,25 @@ zig build -Denable-tui=true terminal-test \
 
 With Ghostty VT selected, CLI and TUI scenarios run in the C backend; only the
 small Python harness unit test file runs alongside it. With the Python backend,
-minimal smoke tests and harness unit tests still run without optional Python
-packages; PTY-backed TUI smoke skips with a clear message when the fallback
-dependencies are missing or the binary was not built with `-Denable-tui=true`.
+the fallback CLI contract suite and harness unit tests still run without
+optional Python packages; PTY-backed TUI smoke skips with a clear message when
+the fallback dependencies are missing or the binary was not built with
+`-Denable-tui=true`.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
-`zig build check`. The PTY-backed TUI regression suite is Linux-gated in CI:
-Linux installs `pexpect` and `pyte` and runs
-`zig build -Denable-tui=true terminal-test` after the TUI build. macOS and
-Windows still build the TUI binary and run the `--json info` smoke check, but
-they do not run PTY-backed scenarios.
+`zig build check`. Today CI uses the Python fallback unless libghostty-vt is
+installed on the runner, so the fallback CLI suite intentionally mirrors the C
+CLI contracts. The PTY-backed TUI regression suite is Linux-gated in CI: Linux
+installs `pexpect` and `pyte` and runs `zig build -Denable-tui=true
+terminal-test` after the TUI build. macOS and Windows still build the TUI binary
+and run the `--json info` smoke check, but they do not run PTY-backed scenarios.
 
 ## Writing CLI Scenario Tests
 
 Add durable CLI contract checks to `test/terminal_vt_scenarios.c`, which is the
-canonical terminal scenario source for the preferred Ghostty backend. Keep
-`test/test_cli_scenarios.py` as a small Python fallback smoke test rather than a
-parallel contract suite.
+canonical terminal scenario source for the preferred Ghostty backend. Mirror
+those checks in `test/test_cli_scenarios.py` until CI provides libghostty-vt, so
+the fallback backend does not lose CLI safety coverage.
 
 Prefer stable contracts over incidental prose:
 

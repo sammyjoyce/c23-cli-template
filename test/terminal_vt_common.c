@@ -55,10 +55,15 @@ const char *buffer_cstr(const buffer_t *buf) {
 
 int64_t monotonic_ms(void) {
   struct timespec ts;
-  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-    return 0;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
   }
-  return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+  if (timespec_get(&ts, TIME_UTC) == TIME_UTC) {
+    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+  }
+
+  const time_t now = time(NULL);
+  return now > 0 ? (int64_t)now * 1000 : 0;
 }
 
 void print_tail(FILE *stream, const char *label, const char *text, size_t len,

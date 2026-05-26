@@ -4,7 +4,7 @@ This template has two layers of tests:
 
 - `main.zig` keeps fast Zig smoke tests close to the build graph.
 - The C Ghostty VT runner covers canonical CLI contracts plus PTY-backed TUI flows when libghostty-vt is available.
-- `test_*_scenarios.py` and `test_terminal_harness.py` are minimal Python fallback smoke/harness tests for platforms without Ghostty VT.
+- `test_cli_scenarios.py` mirrors CLI contracts for the Python fallback; `test_tui_scenarios.py` keeps fallback TUI coverage to smoke level.
 
 Run the default Zig suite:
 
@@ -34,7 +34,8 @@ checks directly, runs TUI checks in a pseudo-terminal, feeds output through
 libghostty-vt, snapshots the screen with Ghostty's formatter API, and drives
 deterministic input plus resize actions.
 
-The Python fallback uses `pexpect` plus `pyte` only for minimal TUI smoke
+The Python fallback keeps full CLI contract coverage because CI may not have
+libghostty-vt installed; it uses `pexpect` plus `pyte` only for minimal TUI smoke
 coverage. The Nix dev shell provides the Python fallback dependencies. For the
 Ghostty backend, install a libghostty-vt build with the development Terminal and
 Formatter APIs and make it visible through `pkg-config` or
