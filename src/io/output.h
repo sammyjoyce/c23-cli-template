@@ -29,6 +29,9 @@ void app_output_format(const app_config_t *config, bool is_error,
                        const char *fmt, ...);
 
 // JSON helpers for command-specific structured output.
+void app_json_begin_object(FILE *stream);
+void app_json_end_object(FILE *stream);
+void app_json_end_line(FILE *stream);
 void app_json_write_string(FILE *stream, const char *text);
 void app_json_write_string_field(FILE *stream, const char *key,
                                  const char *value, bool *needs_comma);

@@ -22,6 +22,24 @@ static void app_json_write_separator(FILE *stream, bool *needs_comma) {
   *needs_comma = true;
 }
 
+void app_json_begin_object(FILE *stream) {
+  if (stream) {
+    fputc('{', stream);
+  }
+}
+
+void app_json_end_object(FILE *stream) {
+  if (stream) {
+    fputc('}', stream);
+  }
+}
+
+void app_json_end_line(FILE *stream) {
+  if (stream) {
+    fputc('\n', stream);
+  }
+}
+
 void app_json_write_string(FILE *stream, const char *text) {
   if (!stream) {
     return;
@@ -118,10 +136,11 @@ void app_output(const char *text, const app_config_t *config, bool is_error) {
 
   if (app_config_is_json_output(config)) {
     bool needs_comma = false;
-    fputc('{', stream);
+    app_json_begin_object(stream);
     app_json_write_string_field(stream, "format_version", "1.0", &needs_comma);
     app_json_write_string_field(stream, "message", text, &needs_comma);
-    fputs("}\n", stream);
+    app_json_end_object(stream);
+    app_json_end_line(stream);
   } else {
     // Plain text output
     fprintf(stream, "%s\n", text);

@@ -95,7 +95,7 @@ static void print_info(const app_config_t *config) {
     bool root_comma = false;
     bool feature_comma = false;
 
-    fputc('{', stdout);
+    app_json_begin_object(stdout);
     app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
     app_json_write_string_field(stdout, "app", APP_NAME, &root_comma);
     app_json_write_string_field(stdout, "version", APP_VERSION, &root_comma);
@@ -105,7 +105,9 @@ static void print_info(const app_config_t *config) {
                                 &root_comma);
     app_json_write_raw_field(stdout, "features", "{", &root_comma);
     app_json_write_bool_field(stdout, "tui", tui_enabled, &feature_comma);
-    fputs("}}\n", stdout);
+    app_json_end_object(stdout);
+    app_json_end_object(stdout);
+    app_json_end_line(stdout);
     return;
   }
 
@@ -128,14 +130,14 @@ static void print_doctor_json_check(const app_doctor_check_t *check,
   *needs_comma = true;
 
   bool field_comma = false;
-  fputc('{', stdout);
+  app_json_begin_object(stdout);
   app_json_write_string_field(stdout, "name", check->name, &field_comma);
   app_json_write_string_field(stdout, "status", check->status, &field_comma);
   app_json_write_string_field(stdout, "detail", check->detail, &field_comma);
   if (check->has_enabled) {
     app_json_write_bool_field(stdout, "enabled", check->enabled, &field_comma);
   }
-  fputc('}', stdout);
+  app_json_end_object(stdout);
 }
 
 static void print_doctor(const app_config_t *config) {
@@ -226,13 +228,15 @@ static void print_doctor(const app_config_t *config) {
     bool root_comma = false;
     bool check_comma = false;
 
-    fputc('{', stdout);
+    app_json_begin_object(stdout);
     app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
     app_json_write_raw_field(stdout, "checks", "[", &root_comma);
     for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
       print_doctor_json_check(&checks[i], &check_comma);
     }
-    fputs("]}\n", stdout);
+    fputc(']', stdout);
+    app_json_end_object(stdout);
+    app_json_end_line(stdout);
     return;
   }
 

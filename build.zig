@@ -47,6 +47,7 @@ pub fn build(b: *std.Build) void {
         "src/main.c",
         "src/core/error.c",
         "src/core/config.c",
+        "src/core/config_json.c",
         "src/utils/logging.c",
         "src/utils/memory.c",
         "src/utils/colors.c",
