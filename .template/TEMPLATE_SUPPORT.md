@@ -12,11 +12,12 @@ For issues with the template itself (not your generated project):
 
 - Check Actions tab for the workflow status
 - Run manually: `.template/setup.sh`
+- Run without prompts: `.template/setup.sh --non-interactive --cleanup`
 
 **Placeholders still visible?**
 
 The cleanup script replaces:
 
-- `myapp` → your repository name
-- `yourusername` → your GitHub username
-- `sammyjoyce` → your GitHub username
+- `myapp` to your repository name
+- `yourusername` to your GitHub username
+- `sammyjoyce` to your GitHub username

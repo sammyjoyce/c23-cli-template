@@ -46,23 +46,23 @@ jobs:
           # We are fetching a pre-built binary for efficiency.
           curl -L https://github.com/chmln/sd/releases/download/v0.7.6/sd-v0.7.6-x86_64-unknown-linux-musl.tar.gz | tar xz -C /usr/local/bin --strip-components=1
 
+      - name: "Set up Zig"
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
       - name: "Run Replacer Script"
         env:
           # Pass the workflow inputs as environment variables to the replacer script.
           PROJECT_NAME: ${{ github.event.inputs.project_name }}
           PROJECT_DESCRIPTION: ${{ github.event.inputs.project_description }}
           PROJECT_URL: ${{ github.event.inputs.project_url }}
-          PROJECT_AUTHOR: ${{ github.event.inputs.project_author }}
+          AUTHOR_NAME: ${{ github.event.inputs.project_author }}
           AUTHOR_EMAIL: ${{ github.event.inputs.author_email }}
           GITHUB_USERNAME: ${{ github.event.inputs.github_username }}
           PROJECT_LICENSE: ${{ github.event.inputs.project_license }}
         run: |
-          bash ./.template/replacer.sh
-
-      - name: "Run Cleanup Script"
-        run: |
-          # This script removes the template-specific files and itself.
-          bash ./.template/setup.sh
+          bash ./.template/setup.sh --non-interactive --cleanup
 
       - name: "Commit and Push Changes"
         uses: "stefanzweifel/git-auto-commit-action@v5"

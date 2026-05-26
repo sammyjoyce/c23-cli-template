@@ -6,8 +6,8 @@ This directory contains the template variable replacement system used when creat
 
 - `template-vars.json` - Centralized configuration for all template variables
 - `replacer.sh` - Core replacement engine for automatic variable replacement and transformations
-- `setup.sh` - Interactive setup script for manual configuration
-- `TEMPLATE_README.md` - The README that replaces the main README after setup
+- `setup.sh` - Interactive or non-interactive setup and cleanup script
+- `TEMPLATE_README.md` - The generated-project README installed during setup
 - `TEMPLATE_USAGE.md` - Comprehensive guide for using this template
 - `TEMPLATE_SUPPORT.md` - Support information for template issues
 - `README.md` - This documentation file
@@ -16,7 +16,8 @@ This directory contains the template variable replacement system used when creat
 
 ### Smart Variable Detection
 
-- Automatically detects values from Git, GitHub, and environment
+- Reads explicit environment values first
+- Falls back to local Git metadata, repository names, and defaults
 - Falls back to sensible defaults when detection fails
 - Supports multiple data sources per variable
 
@@ -43,10 +44,10 @@ This directory contains the template variable replacement system used when creat
 
 When you create a new project from this template:
 
-1. GitHub Actions automatically runs the template cleanup workflow
-2. The workflow executes `replacer.sh` to replace all variables
-3. Template-specific files are removed
-4. Changes are committed automatically
+1. Run the `Template Cleanup` workflow from the Actions tab, or run setup locally.
+2. Setup installs the generated-project README.
+3. Setup executes `replacer.sh` to replace all variables.
+4. Template-specific files are removed when cleanup is requested.
 
 If automatic cleanup fails:
 
@@ -54,9 +55,11 @@ If automatic cleanup fails:
 # Run interactively
 ./.template/setup.sh
 
-# Or run with automatic detection
-./.template/replacer.sh
+# Or run without prompts and remove template-only files
+./.template/setup.sh --non-interactive --cleanup
 ```
+
+Setup requires `jq`, `sd`, and `zig`. Interactive setup also requires `gum`.
 
 ## For Template Maintainers
 
@@ -92,6 +95,7 @@ Edit `template-vars.json`:
 - `git_user_name`: From git config
 - `git_user_email`: From git config
 - `current_year`: Current year
+- `license`: Detected from LICENSE where supported
 - `static`: Fixed value in config
 
 This directory keeps template infrastructure separate from project files, making it easy to maintain and update the template without affecting the actual project structure.

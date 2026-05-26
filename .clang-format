@@ -1,5 +1,5 @@
-# Claude Code Hooks Dispatcher (cchd) clang-format configuration
-# Based on Google C++ Style Guide, adapted for C
+# C23 TUI + CLI starter clang-format configuration.
+# Based on Google C++ style and adapted for C source.
 ---
 BasedOnStyle: Google
 Language: Cpp

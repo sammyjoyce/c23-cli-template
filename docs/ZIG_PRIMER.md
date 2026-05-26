@@ -62,12 +62,16 @@ pub fn build(b: *std.Build) void {
     // Create executable from C sources
     const exe = b.addExecutable(.{
         .name = "myapp",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = null,
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
     });
 
     // Add C source files
-    exe.addCSourceFiles(.{
+    exe.root_module.addCSourceFiles(.{
         .files = &.{
             "src/main.c",
             "src/cli/args.c",
@@ -83,11 +87,10 @@ pub fn build(b: *std.Build) void {
     });
 
     // Link libraries
-    exe.linkSystemLibrary("c");
     if (target.result.os.tag == .windows) {
-        exe.linkSystemLibrary("pdcurses");
+        exe.root_module.linkSystemLibrary("pdcurses", .{});
     } else {
-        exe.linkSystemLibrary("ncurses");
+        exe.root_module.linkSystemLibrary("ncursesw", .{});
     }
 
     // Install the executable
@@ -106,14 +109,14 @@ pub fn build(b: *std.Build) void {
 
 ```zig
 // Adding include directories
-exe.addIncludePath(b.path("src"));
-exe.addIncludePath(b.path("vendor/include"));
+exe.root_module.addIncludePath(b.path("src"));
+exe.root_module.addIncludePath(b.path("vendor/include"));
 
 // Platform-specific code
 if (target.result.os.tag == .windows) {
-    exe.defineCMacro("PLATFORM_WINDOWS", null);
+    c_flags.append(b.allocator, "-DPLATFORM_WINDOWS=1") catch @panic("OOM");
 } else if (target.result.os.tag == .linux) {
-    exe.defineCMacro("PLATFORM_LINUX", null);
+    c_flags.append(b.allocator, "-DPLATFORM_LINUX=1") catch @panic("OOM");
 }
 
 // Creating a test step
@@ -121,9 +124,9 @@ const test_step = b.step("test", "Run tests");
 test_step.dependOn(&exe.step);
 
 // Custom build options
-const enable_tui = b.option(bool, "enable-tui", "Enable TUI support") orelse true;
+const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: false)") orelse false;
 if (enable_tui) {
-    exe.defineCMacro("ENABLE_TUI", null);
+    c_flags.append(b.allocator, "-DENABLE_TUI=1") catch @panic("OOM");
 }
 ```
 
@@ -133,9 +136,10 @@ The `build.zig.zon` file manages dependencies and project metadata:
 
 ```zig
 .{
-    .name = "myapp",
+    .name = .myapp,
     .version = "0.1.0",
-    
+    .fingerprint = 0x8798022a387365d7,
+
     // Dependencies
     .dependencies = .{
         .some_lib = .{
@@ -143,7 +147,7 @@ The `build.zig.zon` file manages dependencies and project metadata:
             .hash = "1220abc...",
         },
     },
-    
+
     // Paths to include in package
     .paths = .{
         "build.zig",
@@ -194,6 +198,7 @@ rm -rf zig-cache zig-out
 ### Adding New C Files
 
 1. Add the file to `exe.addCSourceFiles()` in `build.zig`:
+
    ```zig
    exe.addCSourceFiles(.{
        .files = &.{
@@ -205,6 +210,7 @@ rm -rf zig-cache zig-out
    ```
 
 2. Rebuild:
+
    ```bash
    zig build
    ```
@@ -226,7 +232,7 @@ rm -rf zig-cache zig-out
 
 ### Migration Examples
 
-**Makefile → build.zig**
+#### Makefile To build.zig
 
 ```makefile
 # Makefile
@@ -245,14 +251,18 @@ myapp: main.o args.o
 // build.zig equivalent
 const exe = b.addExecutable(.{
     .name = "myapp",
-    .target = target,
-    .optimize = .ReleaseSafe,
+    .root_module = b.createModule(.{
+        .root_source_file = null,
+        .target = target,
+        .optimize = .ReleaseSafe,
+        .link_libc = true,
+    }),
 });
-exe.addCSourceFiles(.{
+exe.root_module.addCSourceFiles(.{
     .files = &.{ "main.c", "args.c" },
     .flags = &.{ "-std=c23", "-Wall" },
 });
-exe.linkSystemLibrary("ncurses");
+exe.root_module.linkSystemLibrary("ncursesw", .{});
 b.installArtifact(exe);
 ```
 
@@ -261,13 +271,15 @@ b.installArtifact(exe);
 ### Common Issues
 
 1. **"Unable to find zig"**
+
    ```bash
    # Install Zig from https://ziglang.org/download/
    # Or use the setup script:
-   curl -sSf https://ziglang.org/download/index.json | jq -r '.master."x86_64-linux".tarball'
+   curl -sSf https://ziglang.org/download/index.json | jq -r '.["0.16.0"]."x86_64-linux".tarball'
    ```
 
 2. **"C header not found"**
+
    ```zig
    // Add include paths in build.zig
    exe.addIncludePath(b.path("include"));
@@ -275,6 +287,7 @@ b.installArtifact(exe);
    ```
 
 3. **"Undefined symbol"**
+
    ```zig
    // Ensure libraries are linked
    exe.linkSystemLibrary("m");  // math library
@@ -282,6 +295,7 @@ b.installArtifact(exe);
    ```
 
 4. **Cache issues**
+
    ```bash
    # Clear cache
    rm -rf zig-cache zig-out
@@ -304,17 +318,21 @@ zig build --verbose-link
 
 ### Platform-Specific Issues
 
-**Windows**
+#### Windows
+
 - Ensure Visual Studio Build Tools or MinGW is installed
 - Use `zig cc` instead of `gcc` for better compatibility
 
-**macOS**
+#### macOS
+
 - May need to install Xcode Command Line Tools
 - Use `exe.linkFramework("CoreFoundation")` for system frameworks
 
-**Linux**
-- Install development packages: `apt install libncurses-dev`
+#### Linux
+
+- Install development packages for TUI builds: `apt install libncurses-dev`
 - Check pkg-config: `pkg-config --libs ncurses`
+- Use `zig build -Denable-tui=true` when you want to compile the optional TUI.
 
 ## Advanced Topics
 
@@ -369,7 +387,7 @@ test_step.dependOn(&test_cmd.step);
 
 ## Resources
 
-- [Zig Language Reference](https://ziglang.org/documentation/master/)
+- [Zig Language Reference](https://ziglang.org/documentation/0.16.0/)
 - [Zig Build System Guide](https://ziglang.org/learn/build-system/)
 - [Zig Discord](https://discord.gg/zig) - Active community for questions
 - [This Project's build.zig](../build.zig) - Real example to study

@@ -1,107 +1,126 @@
 # myapp
 
-A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application A modern A modern CLI A modern CLI application A modern CLI application A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A modern CLI application A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationro A modern CLI application
+A ready-to-use C23 TUI + CLI starter.
 
 ## Features
 
-- Modern A modern A modern CLI A modern CLI application A modern CLI application A modern CLI application A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationro A modern CLI applicationfor better compatibility
-- A modern CLI application A modern CLI application A modern CLI application for fast, reliable A modern CLI applications
-- NCurses TUI support for interactive interfaces
-- Secure memory management
-- Structured logging A modern CLI application configurable levels
-- Configuration A modern CLI application (files, environment, commA modern CLI application-line)
-- Color output A modern CLI application smart terminal detection
-- Comprehensive error hA modern CLI applicationling
-- Testing framework
-- OpenA modern CLI A modern CLI application compliant
+- C23 command-line application skeleton built with Zig 0.16.0.
+- Human-readable and JSON output modes for automation-friendly commands.
+- Layered configuration from config files, environment, and CLI flags.
+- Optional ncurses/PDCurses TUI build with windows, menus, dialogs, and progress bars.
+- Small module layout that keeps CLI routing, core state, I/O, TUI, and utilities separate.
+- Zig build steps for build, run, test, check, format, and cleanup.
 
-## Quick Start
+## Requirements
 
-### Prerequisites
+- Zig 0.16.0.
+- A system C toolchain for libc and optional platform libraries.
+- ncurses development headers on Linux/macOS when building with `-Denable-tui=true`.
+- PDCurses on Windows when building with `-Denable-tui=true`.
 
-- A modern CLI application (master branch recommended): Install via [zvm](https://github.com/tristanisham/zvm)
-- C A modern CLI application(for A modern CLI application libraries)
-
-### Build
+## Build
 
 ```bash
-zig A modern CLI application -Doptimize=ReleaseSafe
+zig build
+zig build -Doptimize=ReleaseSafe
+zig build -Denable-tui=true
 ```
 
-### Run
+The default binary name is `myapp`. You can override it without editing source:
+
+```bash
+zig build -Dapp-name=myapp
+```
+
+## Run
 
 ```bash
 ./zig-out/bin/myapp --help
+./zig-out/bin/myapp hello
+./zig-out/bin/myapp hello Alice
+./zig-out/bin/myapp echo Hello from C23
+./zig-out/bin/myapp info
+./zig-out/bin/myapp --json info
+./zig-out/bin/myapp doctor
 ```
 
-### Test
+Build with TUI support before launching the interactive showcase:
 
 ```bash
-zig A modern CLI application test
+zig build -Denable-tui=true
+./zig-out/bin/myapp menu
 ```
 
-## Usage
+## Test And Check
 
 ```bash
-# Show help
-myapp --help
-
-# Show version
-myapp --version
-
-# Example commA modern CLI applications
-myapp hello
-myapp hello A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationlice
-myapp echo Hello World
-myapp info
+zig build test
+zig build check
+zig build fmt-check
 ```
 
-## Development
+The Zig tests exercise the non-interactive CLI surface. The TUI requires a real terminal pass for keyboard, color, resize, and cleanup behavior.
 
-### Project Structure
+## Project Layout
 
-```
+```text
 .
-├── src/
-│   ├── main.c              # A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationpplication entry point
-│   ├── core/               # Core functionality
-│   │   ├── config.c/h      # Configuration management
-│   │   ├── error.c/h       # Error hA modern CLI applicationling
-│   │   └── types.h         # Type definitions
-│   ├── cli/                # A modern CLI A modern CLI application interface
-│   │   ├── args.c/h        # A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationrgument parsing
-│   │   └── help.c/h        # Help text
-│   ├── io/                 # Input/Output
-│   │   ├── input.c/h       # Input hA modern CLI applicationling
-│   │   └── output.c/h      # Output formatting
-│   └── utils/              # Utilities
-│       ├── colors.c/h      # Terminal colors
-│       ├── logging.c/h     # Logging A modern CLI application
-│       └── memory.c/h      # Secure memory
-├── test/                   # Test suite
-├── A modern CLI application.zig               # Build configuration
-└── A modern CLI application.zig.zon           # Build dependencies
+|-- build.zig
+|-- build.zig.zon
+|-- opencli.json
+|-- src/
+|   |-- main.c
+|   |-- cli/
+|   |-- core/
+|   |-- io/
+|   |-- tui/
+|   `-- utils/
+|-- test/
+|-- docs/
+`-- examples/
 ```
 
-### A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationdding CommA modern CLI applications
+## Add A Command
 
-A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationdd new commA modern CLI applications in `src/main.c`:
+Add the route in `src/main.c`:
 
 ```c
-if (strcmp(commA modern CLI application, "mycommA modern CLI application") == 0) {
-    // HA modern CLI applicationle your commA modern CLI application
-    return A A modern A modern CLI A modern CLI application A modern CLI application A modern CLI A modern CLI application A modern CLI applicationPP_SUCCESS;
+if (strcmp(command, "status") == 0) {
+  app_output(config, "status ok", false);
+  return APP_SUCCESS;
 }
 ```
 
-### Configuration
+Then update:
 
-Configuration precedence (highest to lowest):
-1. CommA modern CLI application-line arguments
-2. Environment variables
-3. Configuration file
-4. Default values
+- `src/cli/help.c` for user-facing help.
+- `opencli.json` for machine-readable CLI metadata.
+- `test/main.zig` for non-interactive behavior.
+
+## Customize The TUI
+
+The reusable TUI helpers live under `src/tui/`:
+
+- `tui.c` owns ncurses lifecycle, windows, bounded text, dialogs, and menus.
+- `tui_progress.c` owns progress window rendering.
+- `tui_demo.c` wires examples together for the `menu` command.
+
+Keep raw curses calls inside the TUI layer where practical. That keeps command handlers easy to test without a terminal.
+
+## Configuration
+
+Configuration precedence is:
+
+1. Command-line flags.
+2. Environment variables.
+3. Configuration file.
+4. Defaults.
+
+Default config paths are:
+
+- `~/.config/myapp/config.json` on Linux/macOS.
+- `%USERPROFILE%\AppData\Local\myapp\config.json` on Windows.
 
 ## License
 
-MIT
+MIT. Update `LICENSE` if your generated project uses a different license.

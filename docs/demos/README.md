@@ -89,20 +89,23 @@ myapp --invalid-option
 To generate the actual animated GIFs:
 
 1. **Install dependencies**:
+
    ```bash
    # Install asciinema
    pip install asciinema
-   
+
    # Install agg (asciinema gif generator)
    cargo install --git https://github.com/asciinema/agg
    ```
 
 2. **Build the project**:
+
    ```bash
    zig build
    ```
 
 3. **Run the demo script**:
+
    ```bash
    ./scripts/create-demo.sh
    ```

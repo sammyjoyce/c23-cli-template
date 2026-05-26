@@ -4,7 +4,8 @@ This example shows how to create a custom TUI screen using the ncurses wrapper.
 
 ## 1. Create Your TUI Function
 
-Add a new function in your command handler or create a separate file:
+Add a new function in `src/tui` and expose it through `tui.h` so command code
+does not call ncurses directly:
 
 ```c
 #ifdef ENABLE_TUI
@@ -51,7 +52,7 @@ static app_error show_data_viewer(void) {
         // Display some data
         tui_set_color(data_win->win, TUI_COLOR_INFO);
         mvwprintw(data_win->win, 2, 2, "Current Value: %d", data_value);
-        wattroff(data_win->win, COLOR_PAIR(TUI_COLOR_INFO));
+        tui_unset_color(data_win->win, TUI_COLOR_INFO);
 
         // Draw a simple bar graph
         int bar_width = (data_win->width - 4) * data_value / 100;
@@ -60,14 +61,14 @@ static app_error show_data_viewer(void) {
         for (int i = 0; i < bar_width; i++) {
             waddch(data_win->win, '=');
         }
-        wattroff(data_win->win, COLOR_PAIR(TUI_COLOR_SUCCESS));
+        tui_unset_color(data_win->win, TUI_COLOR_SUCCESS);
         mvwprintw(data_win->win, 4, 3 + bar_width, "]");
 
         // Instructions
         tui_set_color(main_win->win, TUI_COLOR_INFO);
         mvwprintw(main_win->win, max_y - 4, 2,
                   "Press: [+] Increase  [-] Decrease  [r] Reset  [q] Quit");
-        wattroff(main_win->win, COLOR_PAIR(TUI_COLOR_INFO));
+        tui_unset_color(main_win->win, TUI_COLOR_INFO);
 
         // Refresh windows
         tui_refresh_window(data_win);
@@ -117,7 +118,7 @@ if (strcmp(command, "viewer") == 0) {
 #else
     fprintf(stderr, "Error: TUI support not compiled in\n");
     fprintf(stderr, "Rebuild with: zig build -Denable-tui=true\n");
-    return APP_ERROR_UNSUPPORTED;
+    return APP_ERROR_CONFIG;
 #endif
 }
 ```
@@ -155,7 +156,7 @@ for (int i = 0; i <= 100; i++) {
     char status[64];
     snprintf(status, sizeof(status), "Processing file %d of 100", i);
     tui_progress_update(progress, i, status);
-    usleep(50000);  // Simulate work
+    napms(50);  // Simulate work inside curses
 }
 tui_progress_destroy(progress);
 ```
@@ -199,7 +200,7 @@ Use them like:
 ```c
 tui_set_color(window->win, TUI_COLOR_ERROR);
 mvwprintw(window->win, y, x, "Error: %s", error_message);
-wattroff(window->win, COLOR_PAIR(TUI_COLOR_ERROR));
+tui_unset_color(window->win, TUI_COLOR_ERROR);
 ```
 
 ## 5. Best Practices
@@ -209,7 +210,7 @@ wattroff(window->win, COLOR_PAIR(TUI_COLOR_ERROR));
 3. **Handle terminal resize**: Consider refreshing on `KEY_RESIZE`
 4. **Provide keyboard shortcuts**: Make UI keyboard-friendly
 5. **Show help**: Display available keys/commands
-6. **Test without TUI**: Ensure your app works with `-Denable-tui=false`
+6. **Test both builds**: Ensure `zig build` and `zig build -Denable-tui=true` work
 
 ## 6. Error Handling
 

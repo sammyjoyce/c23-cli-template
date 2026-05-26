@@ -11,12 +11,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "../core/types.h"
 
-// Forward declaration prevents circular dependency with config.h.
-// Allows output module to respect config settings without tight coupling.
-typedef struct app_config app_config_t;
+// The app_config_t type comes from core/types.h so this header can respect
+// config settings without including config.h.
 
 // Output text with appropriate formatting based on configuration.
 // Handles JSON output mode, plain text, or colored output as configured.
@@ -28,7 +28,14 @@ void app_output(const char *text, const app_config_t *config, bool is_error);
 void app_output_format(const app_config_t *config, bool is_error,
                        const char *fmt, ...);
 
-// Output JSON data with proper formatting.
-// Ensures valid JSON output when in JSON mode, with pretty printing option.
-void app_output_json(const char *json_string, const app_config_t *config,
-                     bool pretty);
+// JSON helpers for command-specific structured output.
+void app_json_begin_object(FILE *stream);
+void app_json_end_object(FILE *stream);
+void app_json_end_line(FILE *stream);
+void app_json_write_string(FILE *stream, const char *text);
+void app_json_write_string_field(FILE *stream, const char *key,
+                                 const char *value, bool *needs_comma);
+void app_json_write_bool_field(FILE *stream, const char *key, bool value,
+                               bool *needs_comma);
+void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
+                              bool *needs_comma);

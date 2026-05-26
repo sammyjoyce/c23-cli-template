@@ -105,7 +105,7 @@ body:
     attributes:
       label: Zig Version (if building from source)
       description: What version of Zig are you using?
-      placeholder: e.g., 0.14.1
+      placeholder: e.g., 0.16.0
 
   - type: textarea
     id: configuration

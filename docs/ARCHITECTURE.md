@@ -19,25 +19,25 @@ graph TB
         USER[User Input]
         TERM[Terminal Output]
     end
-    
+
     subgraph "Application Layer"
         MAIN[main.c<br/>Entry Point]
         CLI[CLI Module<br/>args.c/help.c]
         CORE[Core Module<br/>config.c/error.c]
-        TUI[TUI Module<br/>tui.c/progress.c]
+        TUI[TUI Module<br/>tui.c/tui_demo.c/progress.c]
         IO[I/O Module<br/>input.c/output.c]
     end
-    
+
     subgraph "Utility Layer"
         UTILS[Utils Module<br/>colors.c/logging.c/memory.c]
     end
-    
+
     subgraph "Platform Layer"
         NCURSES[ncurses<br/>Linux/macOS]
         PDCURSES[pdcurses<br/>Windows]
         LIBC[Platform libc]
     end
-    
+
     USER --> MAIN
     MAIN --> CLI
     CLI --> CORE
@@ -61,32 +61,34 @@ graph LR
         ARGS[args.c<br/>Argument Parsing]
         HELP[help.c<br/>Help Generation]
     end
-    
+
     subgraph "src/core"
         CONFIG[config.c<br/>Configuration]
         ERROR[error.c<br/>Error Handling]
         TYPES[types.h<br/>Core Types]
     end
-    
+
     subgraph "src/io"
         INPUT[input.c<br/>User Input]
         OUTPUT[output.c<br/>Formatted Output]
     end
-    
+
     subgraph "src/tui"
         TUIDEF[tui.c<br/>TUI Framework]
+        TUIDEMO[tui_demo.c<br/>Starter Showcase]
         PROGRESS[tui_progress.c<br/>Progress Bars]
     end
-    
+
     subgraph "src/utils"
         COLORS[colors.c<br/>Color Definitions]
         LOGGING[logging.c<br/>Logging System]
         MEMORY[memory.c<br/>Secure Memory]
     end
-    
+
     ARGS --> CONFIG
     ARGS --> ERROR
     TUIDEF --> COLORS
+    TUIDEMO --> TUIDEF
     TUIDEF --> OUTPUT
     CONFIG --> LOGGING
     INPUT --> MEMORY
@@ -114,7 +116,7 @@ graph TD
         CSRC[C Source Files<br/>src/**/*.c]
         CHDR[C Headers<br/>src/**/*.h]
     end
-    
+
     subgraph "Zig Build Process"
         PARSE[Parse build.zig]
         DEPS[Fetch Dependencies<br/>aro, etc.]
@@ -122,13 +124,13 @@ graph TD
         LINK[Link Binary<br/>+ Platform Libs]
         TEST[Run Tests<br/>test/main.zig]
     end
-    
+
     subgraph "Build Outputs"
         BIN[zig-out/bin/myapp<br/>Executable]
         TESTOUT[Test Results]
         CACHE[zig-cache/<br/>Build Cache]
     end
-    
+
     BUILDZIG --> PARSE
     BUILDZON --> DEPS
     CSRC --> COMPILE
@@ -173,11 +175,11 @@ sequenceDiagram
     participant Core
     participant TUI
     participant IO
-    
+
     User->>Main: ./myapp command args
     Main->>CLI: parse_args(argc, argv)
     CLI->>Core: validate_command()
-    
+
     alt Valid Command
         Core->>TUI: init_tui()
         TUI->>IO: setup_terminal()
@@ -190,7 +192,7 @@ sequenceDiagram
         CLI->>IO: print_error()
         IO->>User: Show Error + Help
     end
-    
+
     Main->>TUI: cleanup_tui()
     Main->>User: Exit(status)
 ```
@@ -204,23 +206,23 @@ graph TD
     subgraph "Application Code"
         APP[Platform-Agnostic Code]
     end
-    
+
     subgraph "Abstraction Layer"
         ABS[Platform Abstractions<br/>#ifdef guards]
     end
-    
+
     subgraph "Linux/macOS"
         UNIX[POSIX APIs]
         NC[ncurses]
         MLOCK[mlock()]
     end
-    
+
     subgraph "Windows"
         WIN[Win32 APIs]
         PDC[pdcurses]
         VLOCK[VirtualLock()]
     end
-    
+
     APP --> ABS
     ABS -->|__linux__ or __APPLE__| UNIX
     ABS -->|_WIN32| WIN
@@ -251,19 +253,19 @@ graph TB
         INPUTSAN[Input Sanitization]
         BUFCHECK[Buffer Overflow Protection]
     end
-    
+
     subgraph "Memory Security"
         SECMEM[Secure Allocation<br/>mlock/VirtualLock]
         ZEROMEM[Zero on Free<br/>secure_zero()]
         CANARY[Stack Canaries<br/>-fstack-protector]
     end
-    
+
     subgraph "Build Security"
         RELRO[RELRO<br/>Read-Only Relocations]
         NX[NX/DEP<br/>No-Execute]
         PIE[PIE/ASLR<br/>Position Independent]
     end
-    
+
     ARGVAL --> SECMEM
     INPUTSAN --> SECMEM
     BUFCHECK --> ZEROMEM
@@ -301,29 +303,29 @@ graph LR
         TEST[zig build test]
         RUN[./zig-out/bin/myapp]
     end
-    
+
     subgraph "Quality Checks"
         FORMAT[clang-format]
         LINT[clang-tidy]
         PRECOMMIT[pre-commit]
     end
-    
+
     subgraph "CI/CD"
         PUSH[git push]
         CI[GitHub Actions]
         RELEASE[Release Build]
     end
-    
+
     EDIT --> BUILD
     BUILD --> TEST
     TEST --> RUN
     RUN --> EDIT
-    
+
     EDIT --> FORMAT
     FORMAT --> LINT
     LINT --> PRECOMMIT
     PRECOMMIT --> PUSH
-    
+
     PUSH --> CI
     CI --> RELEASE
 ```

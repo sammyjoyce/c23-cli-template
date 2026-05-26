@@ -11,8 +11,9 @@
 #include "../core/config.h"
 
 bool app_use_colors(const app_config_t *config) {
-  // Command line flag takes precedence
-  if (config && app_config_is_no_color(config)) {
+  // Explicit plain/no-color modes take precedence over terminal heuristics.
+  if (config &&
+      (app_config_is_plain_output(config) || app_config_is_no_color(config))) {
     return false;
   }
 

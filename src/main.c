@@ -1,18 +1,21 @@
 /*
  * Generic CLI Application Template
  *
- * A modern C23 CLI application starter using Zig build system and Aro compiler.
+ * A modern C23 TUI + CLI starter using Zig as the build system and C toolchain.
  * This template provides a solid foundation for building command-line tools
  * with proper error handling, configuration management, and testing support.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#ifndef _WIN32
-#include <signal.h>
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
 #include <unistd.h>
 #endif
 
@@ -34,6 +37,249 @@
 static _Thread_local int app_thread_id = 0;
 #endif
 
+static const char *app_yes_no(bool value) {
+  return value ? "yes" : "no";
+}
+
+typedef struct {
+  const char *name;
+  const char *status;
+  const char *detail;
+  bool enabled;
+  bool has_enabled;
+} app_doctor_check_t;
+
+static bool app_has_interactive_terminal(void) {
+  return isatty(fileno(stdin)) && isatty(fileno(stdout));
+}
+
+static app_error app_doctor_tui_runtime_smoke(bool terminal_ready) {
+#ifdef ENABLE_TUI
+  if (!terminal_ready) {
+    return APP_ERROR_IO;
+  }
+
+  const app_error err = tui_init();
+  if (err != APP_SUCCESS) {
+    return err;
+  }
+  if (!tui_terminal_meets_minimum()) {
+    tui_cleanup();
+    return APP_ERROR_OUT_OF_RANGE;
+  }
+
+  tui_cleanup();
+  return APP_SUCCESS;
+#else
+  (void)terminal_ready;
+  return APP_ERROR_FEATURE_BASE;
+#endif
+}
+
+static int64_t app_now_millis(void) {
+  struct timespec now;
+  if (timespec_get(&now, TIME_UTC) != TIME_UTC) {
+    return 0;
+  }
+
+  return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+static void print_info(const app_config_t *config) {
+  if (app_config_is_quiet(config)) {
+    return;
+  }
+
+  const bool tui_enabled =
+#ifdef ENABLE_TUI
+      true;
+#else
+      false;
+#endif
+
+  if (app_config_is_json_output(config)) {
+    bool root_comma = false;
+    bool feature_comma = false;
+
+    app_json_begin_object(stdout);
+    app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
+    app_json_write_string_field(stdout, "app", APP_NAME, &root_comma);
+    app_json_write_string_field(stdout, "version", APP_VERSION, &root_comma);
+    app_json_write_string_field(stdout, "git_commit", APP_GIT_COMMIT,
+                                &root_comma);
+    app_json_write_string_field(stdout, "build_date", APP_BUILD_DATE,
+                                &root_comma);
+    app_json_write_raw_field(stdout, "features", "{", &root_comma);
+    app_json_write_bool_field(stdout, "tui", tui_enabled, &feature_comma);
+    app_json_end_object(stdout);
+    app_json_end_object(stdout);
+    app_json_end_line(stdout);
+    return;
+  }
+
+  app_output_format(config, false, "Application: %s", APP_NAME);
+  app_output_format(config, false, "Version: %s", APP_VERSION);
+  app_output_format(config, false, "Git Commit: %s", APP_GIT_COMMIT);
+  app_output_format(config, false, "Build: %s", APP_BUILD_DATE);
+  app_output_format(config, false, "TUI Support: %s", app_yes_no(tui_enabled));
+}
+
+static void print_doctor_json_check(const app_doctor_check_t *check,
+                                    bool *needs_comma) {
+  if (!check || !needs_comma) {
+    return;
+  }
+
+  if (*needs_comma) {
+    fputc(',', stdout);
+  }
+  *needs_comma = true;
+
+  bool field_comma = false;
+  app_json_begin_object(stdout);
+  app_json_write_string_field(stdout, "name", check->name, &field_comma);
+  app_json_write_string_field(stdout, "status", check->status, &field_comma);
+  app_json_write_string_field(stdout, "detail", check->detail, &field_comma);
+  if (check->has_enabled) {
+    app_json_write_bool_field(stdout, "enabled", check->enabled, &field_comma);
+  }
+  app_json_end_object(stdout);
+}
+
+static void print_doctor(const app_config_t *config) {
+  if (app_config_is_quiet(config)) {
+    return;
+  }
+
+  const bool tui_enabled =
+#ifdef ENABLE_TUI
+      true;
+#else
+      false;
+#endif
+  const bool color_enabled = app_use_colors(config);
+  const bool git_known = strcmp(APP_GIT_COMMIT, "unknown") != 0;
+  const bool terminal_ready = app_has_interactive_terminal();
+  const char *config_file = app_config_get_config_file(config);
+  const bool config_loaded = config_file && config_file[0] != '\0';
+  const app_error tui_runtime_err =
+      tui_enabled && terminal_ready
+          ? app_doctor_tui_runtime_smoke(terminal_ready)
+          : APP_ERROR_IO;
+  const bool tui_runtime_ok =
+      tui_enabled && terminal_ready && tui_runtime_err == APP_SUCCESS;
+  const char *tui_runtime_status =
+      tui_runtime_ok ? "ok" : (tui_enabled && terminal_ready ? "warn" : "skip");
+
+  char binary_detail[128];
+  char git_detail[128];
+  char tui_compiled_detail[96];
+  char tui_terminal_detail[96];
+  char tui_runtime_detail[128];
+  char color_detail[96];
+  char config_detail[PATH_MAX];
+  char quiet_detail[32];
+  char json_detail[32];
+
+  snprintf(binary_detail, sizeof(binary_detail), "%s %s", APP_NAME,
+           APP_VERSION);
+  snprintf(git_detail, sizeof(git_detail), "%s",
+           git_known ? APP_GIT_COMMIT : "commit metadata unavailable");
+  snprintf(tui_compiled_detail, sizeof(tui_compiled_detail), "%s",
+           tui_enabled ? "compiled with TUI support"
+                       : "rebuild with -Denable-tui=true");
+  snprintf(tui_terminal_detail, sizeof(tui_terminal_detail), "%s",
+           terminal_ready ? "stdin/stdout are TTYs" : "stdin/stdout not TTYs");
+  if (!tui_enabled) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "TUI support not compiled");
+  } else if (!terminal_ready) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "runtime smoke skipped without a TTY");
+  } else if (tui_runtime_ok) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             "ncurses initialized successfully");
+#ifdef ENABLE_TUI
+  } else if (tui_runtime_err == APP_ERROR_OUT_OF_RANGE) {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail),
+             "terminal is too small (minimum %dx%d)", TUI_MIN_COLS,
+             TUI_MIN_ROWS);
+#endif
+  } else {
+    snprintf(tui_runtime_detail, sizeof(tui_runtime_detail), "%s",
+             app_strerror(tui_runtime_err));
+  }
+  snprintf(color_detail, sizeof(color_detail), "%s",
+           color_enabled ? "enabled" : "disabled for this output");
+  snprintf(config_detail, sizeof(config_detail), "%s",
+           config_loaded ? config_file : "no config file loaded");
+  snprintf(quiet_detail, sizeof(quiet_detail), "%s",
+           app_yes_no(app_config_is_quiet(config)));
+  snprintf(json_detail, sizeof(json_detail), "%s",
+           app_yes_no(app_config_is_json_output(config)));
+
+  const app_doctor_check_t checks[] = {
+      {"binary", "ok", binary_detail, false, false},
+      {"git", git_known ? "ok" : "warn", git_detail, false, false},
+      {"tui_compiled", tui_enabled ? "ok" : "warn", tui_compiled_detail,
+       tui_enabled, true},
+      {"tui_terminal", terminal_ready ? "ok" : "warn", tui_terminal_detail,
+       terminal_ready, true},
+      {"tui_runtime", tui_runtime_status, tui_runtime_detail, tui_runtime_ok,
+       true},
+      {"color_output", color_enabled ? "ok" : "warn", color_detail,
+       color_enabled, true},
+      {"config_file", config_loaded ? "ok" : "skip", config_detail,
+       config_loaded, true},
+      {"quiet_mode", "ok", quiet_detail, app_config_is_quiet(config), true},
+      {"json_output", "ok", json_detail, app_config_is_json_output(config),
+       true},
+  };
+
+  if (app_config_is_json_output(config)) {
+    bool root_comma = false;
+    bool check_comma = false;
+
+    app_json_begin_object(stdout);
+    app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
+    app_json_write_raw_field(stdout, "checks", "[", &root_comma);
+    for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
+      print_doctor_json_check(&checks[i], &check_comma);
+    }
+    fputc(']', stdout);
+    app_json_end_object(stdout);
+    app_json_end_line(stdout);
+    return;
+  }
+
+  app_output_format(config, false, "%s doctor", APP_NAME);
+  for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
+    app_output_format(config, false, "  %-13s %-4s (%s)", checks[i].name,
+                      checks[i].status, checks[i].detail);
+  }
+}
+
+static void output_joined_args(const app_config_t *config, int argc,
+                               char *argv[]) {
+  char buffer[4096] = {0};
+  size_t used = 0;
+
+  for (int i = 0; i < argc && used < sizeof(buffer) - 1; i++) {
+    const char *separator = i == 0 ? "" : " ";
+    const int written = snprintf(buffer + used, sizeof(buffer) - used, "%s%s",
+                                 separator, argv[i] ? argv[i] : "");
+    if (written < 0) {
+      break;
+    }
+    if ((size_t)written >= sizeof(buffer) - used) {
+      break;
+    }
+    used += (size_t)written;
+  }
+
+  app_output(buffer, config, false);
+}
+
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   // Show help if no arguments
   if (argc == 1) {
@@ -41,15 +287,44 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     exit(0);
   }
 
-  // Create configuration
-  app_error err = app_config_create(config);
+  app_error err = app_args_handle_immediate_exit(argc, argv);
   if (err != APP_SUCCESS) {
     return err;
   }
 
-  // Load configuration from various sources
-  (void)app_config_load_file(*config, NULL);  // Load from default locations
-  (void)app_config_load_env(*config);
+  // Create configuration
+  err = app_config_create(config);
+  if (err != APP_SUCCESS) {
+    return err;
+  }
+
+  // Load configuration from lower-precedence sources before parsing args.
+  const char *explicit_config_path = NULL;
+  err = app_args_find_config_path(argc, argv, &explicit_config_path);
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
+    return err;
+  }
+
+  err = app_config_load_file(*config, explicit_config_path);
+  if (err != APP_SUCCESS) {
+    if (explicit_config_path) {
+      fprintf(stderr, "Error: failed to load config '%s': %s\n",
+              explicit_config_path, app_strerror(err));
+      app_config_destroy(*config);
+      return err;
+    }
+    if (err == APP_ERROR_MEMORY) {
+      app_config_destroy(*config);
+      return err;
+    }
+    LOG_WARNING("Ignoring default configuration: %s", app_strerror(err));
+  }
+  err = app_config_load_env(*config);
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
+    return err;
+  }
 
   // Parse command line arguments (may exit for --help or --version)
   err = app_parse_args(argc, argv, *config);
@@ -58,10 +333,15 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     return err;
   }
 
-  // Set up debug logging if requested
-  if (app_config_is_debug(*config)) {
+  // Command-line/config verbosity overrides APP_LOG_LEVEL after all layers
+  // load.
+  if (app_config_is_quiet(*config)) {
+    app_log_set_level(LOG_LEVEL_ERROR);
+  } else if (app_config_is_debug(*config)) {
     app_log_set_level(LOG_LEVEL_DEBUG);
     LOG_DEBUG("Debug mode enabled");
+  } else if (app_config_is_verbose(*config)) {
+    app_log_set_level(LOG_LEVEL_INFO);
   }
 
   return APP_SUCCESS;
@@ -69,151 +349,61 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
 
 static app_error handle_command(const app_config_t *config, const char *command,
                                 int argc, char *argv[]) {
-  // Example command handling
   if (strcmp(command, "hello") == 0) {
     const char *name = argc > 0 ? argv[0] : "World";
-    printf("Hello, %s!\n", name);
+    app_output_format(config, false, "Hello, %s!", name);
     return APP_SUCCESS;
   }
 
   if (strcmp(command, "echo") == 0) {
-    for (int i = 0; i < argc; i++) {
-      printf("%s%s", argv[i], i < argc - 1 ? " " : "\n");
-    }
+    output_joined_args(config, argc, argv);
     return APP_SUCCESS;
   }
 
   if (strcmp(command, "info") == 0) {
-    printf("Application: %s\n", APP_NAME);
-    printf("Version: %s\n", APP_VERSION);
-    printf("Build: %s\n", APP_BUILD_DATE);
+    print_info(config);
     return APP_SUCCESS;
   }
+
+  if (strcmp(command, "doctor") == 0) {
+    print_doctor(config);
+    return APP_SUCCESS;
+  }
+
+  if (strcmp(command, "menu") == 0) {
+    if (app_config_is_json_output(config)) {
+      app_output(
+          "The menu command is interactive; remove --json to launch the "
+          "TUI.",
+          config, true);
+      return APP_ERROR_INVALID_ARG;
+    }
 
 #ifdef ENABLE_TUI
-  if (strcmp(command, "menu") == 0) {
-    // Interactive menu example using ncurses
-    app_error err = tui_init();
-    if (err != APP_SUCCESS) {
-      fprintf(stderr, "Failed to initialize TUI\n");
-      return err;
-    }
-
-    // Create main menu items
-    tui_menu_item_t main_menu[] = {
-        {"File Operations", "Create, read, or modify files", 1, true},
-        {"System Information", "View system and application info", 2, true},
-        {"Settings", "Configure application settings", 3, true},
-        {"Run Tests", "Execute test suite", 4, true},
-        {"About", "About this application", 5, true},
-        {"Exit", "Exit the application", 0, true}};
-
-    // Create centered window for menu
-    int max_y = tui_get_max_y();
-    int max_x = tui_get_max_x();
-    int width = 60;
-    int height = 20;
-    int y = (max_y - height) / 2;
-    int x = (max_x - width) / 2;
-
-    tui_window_t *menu_window = tui_create_window(height, width, y, x);
-    if (!menu_window) {
-      tui_cleanup();
-      return APP_ERROR_MEMORY;
-    }
-
-    tui_draw_border(menu_window);
-    tui_set_window_title(menu_window, "Main Menu");
-
-    bool running = true;
-    while (running) {
-      int choice =
-          tui_show_menu(menu_window, "Select an option:", main_menu, 6, 0);
-
-      switch (choice) {
-      case 1:
-        tui_show_message("File Operations",
-                         "File operations would be implemented here.\n\n"
-                         "This could include:\n"
-                         "• Create new files\n"
-                         "• Read existing files\n"
-                         "• Edit file contents\n"
-                         "• Delete files");
-        break;
-
-      case 2: {
-        char info_msg[512];
-        snprintf(info_msg, sizeof(info_msg),
-                 "Application: %s\n"
-                 "Version: %s\n"
-                 "Build Date: %s\n"
-                 "Terminal Size: %dx%d\n"
-                 "Colors Supported: %s",
-                 APP_NAME, APP_VERSION, APP_BUILD_DATE, max_x, max_y,
-                 has_colors() ? "Yes" : "No");
-        tui_show_message("System Information", info_msg);
-        break;
-      }
-
-      case 3: {
-        char input_buffer[256] = {0};
-        if (tui_input_dialog("Settings", "Enter your name:", input_buffer,
-                             sizeof(input_buffer)) == APP_SUCCESS) {
-          char msg[512];
-          snprintf(msg, sizeof(msg),
-                   "Hello, %s!\n\nYour settings have been saved.",
-                   input_buffer);
-          tui_show_message("Settings Updated", msg);
-        }
-        break;
-      }
-
-      case 4: {
-        // Show progress bar example
-        tui_progress_t *progress = tui_progress_create("Running Tests", 100);
-        if (progress) {
-          for (int i = 0; i <= 100; i += 10) {
-            char status[64];
-            snprintf(status, sizeof(status), "Running test %d of 10...",
-                     i / 10 + 1);
-            tui_progress_update(progress, i, status);
-            usleep(100000);  // 100ms delay for demo
-          }
-          tui_progress_destroy(progress);
-          tui_show_message("Tests Complete", "All tests passed successfully!");
-        }
-        break;
-      }
-
-      case 5:
-        tui_show_message("About",
-                         "CLI Application Template\n\n"
-                         "A modern C23 application with:\n"
-                         "• NCurses TUI support\n"
-                         "• Zig build system\n"
-                         "• Comprehensive error handling\n"
-                         "• Configuration management\n\n"
-                         "Built with ❤️ for developers");
-        break;
-
-      case 0:
-      case -1:  // User pressed 'q' or ESC
-        if (tui_confirm("Exit", "Are you sure you want to exit?")) {
-          running = false;
-        }
-        break;
+    const app_error tui_err = tui_run_demo();
+    if (tui_err != APP_SUCCESS) {
+      if (tui_err == APP_ERROR_OUT_OF_RANGE) {
+        app_output_format(config, true,
+                          "TUI failed: terminal is too small (minimum %dx%d).",
+                          TUI_MIN_COLS, TUI_MIN_ROWS);
+      } else {
+        app_output_format(config, true, "TUI failed: %s",
+                          app_strerror(tui_err));
       }
     }
-
-    tui_destroy_window(menu_window);
-    tui_cleanup();
-    return APP_SUCCESS;
-  }
+    return tui_err;
+#else
+    app_output(
+        "TUI support is not compiled in. Rebuild with "
+        "'zig build -Denable-tui=true'.",
+        config, true);
+    return APP_ERROR_CONFIG;
 #endif
+  }
 
-  fprintf(stderr, "Unknown command: %s\n", command);
-  fprintf(stderr, "Run '%s --help' for available commands\n",
-          app_config_get_program_name(config));
+  app_output_format(config, true, "Unknown command: %s", command);
+  app_output_format(config, true, "Run '%s --help' for available commands",
+                    app_config_get_program_name(config));
   return APP_ERROR_INVALID_COMMAND;
 }
 
@@ -222,9 +412,7 @@ int main(int argc, char *argv[]) {
   (void)app_thread_id;  // Suppress unused variable warning
 #endif
 
-  // Start performance timing
-  struct timespec start_time, end_time;
-  clock_gettime(CLOCK_MONOTONIC, &start_time);
+  const int64_t start_ms = app_now_millis();
 
   // Initialize logging
   app_log_init();
@@ -249,10 +437,10 @@ int main(int argc, char *argv[]) {
   char **cmd_argv = app_config_get_command_args(config, &cmd_argc);
   err = handle_command(config, command, cmd_argc, cmd_argv);
 
-  // Calculate total processing time
-  clock_gettime(CLOCK_MONOTONIC, &end_time);
-  int64_t elapsed_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
-                       (end_time.tv_nsec - start_time.tv_nsec) / 1000000;
+  int64_t elapsed_ms = app_now_millis() - start_ms;
+  if (elapsed_ms < 0) {
+    elapsed_ms = 0;
+  }
   LOG_INFO("Command '%s' completed in %ld ms with status %d", command,
            (long)elapsed_ms, err);
 

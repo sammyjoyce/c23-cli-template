@@ -18,13 +18,13 @@ NC='\033[0m' # No Color
 check_dependencies() {
     local deps=("asciinema" "agg")
     local missing=()
-    
+
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
             missing+=("$dep")
         fi
     done
-    
+
     if [ ${#missing[@]} -ne 0 ]; then
         echo -e "${RED}Missing dependencies: ${missing[*]}${NC}"
         echo "Install with:"
@@ -38,7 +38,7 @@ check_dependencies() {
 build_project() {
     echo -e "${BLUE}Building project...${NC}"
     zig build
-    
+
     if [ ! -f "$BINARY" ]; then
         echo -e "${RED}Binary not found at $BINARY${NC}"
         exit 1
@@ -56,9 +56,9 @@ record_demo() {
     local name="$1"
     local title="$2"
     local script="$3"
-    
+
     echo -e "${BLUE}Recording demo: $title${NC}"
-    
+
     # Create a temporary script file
     local script_file="/tmp/demo-$name.sh"
     cat > "$script_file" << EOF
@@ -79,16 +79,16 @@ echo ""
 echo -e "${GREEN}Demo complete!${NC}"
 sleep 2
 EOF
-    
+
     chmod +x "$script_file"
-    
+
     # Record with asciinema
     asciinema rec \
         --title "$title" \
         --command "$script_file" \
         --overwrite \
         "$DEMO_DIR/recordings/$name.cast"
-    
+
     # Convert to GIF
     echo -e "${BLUE}Converting to GIF...${NC}"
     agg \
@@ -97,10 +97,10 @@ EOF
         --line-height 1.4 \
         "$DEMO_DIR/recordings/$name.cast" \
         "$DEMO_DIR/$name.gif"
-    
+
     # Clean up
     rm -f "$script_file"
-    
+
     echo -e "${GREEN}Created $DEMO_DIR/$name.gif${NC}"
 }
 
@@ -302,28 +302,28 @@ Or with HTML for more control:
 </p>
 ```
 EOF
-    
+
     echo -e "${GREEN}Created $DEMO_DIR/README.md${NC}"
 }
 
 # Main execution
 main() {
     echo -e "${GREEN}Creating TUI demos...${NC}"
-    
+
     check_dependencies
     build_project
     setup_demo_dir
-    
+
     # Create all demos
     demo_basic_usage
     demo_progress_bar
     demo_interactive
     demo_config
     demo_error_handling
-    
+
     # Create README
     create_demo_readme
-    
+
     echo -e "${GREEN}All demos created successfully!${NC}"
     echo -e "View demos in: ${BLUE}$DEMO_DIR/${NC}"
 }

@@ -15,10 +15,8 @@
 #include "../core/error.h"
 #include "../core/types.h"
 
-// Forward declaration for progress API
-struct tui_progress;
-
-typedef struct tui_progress tui_progress_t;
+#define TUI_MIN_COLS 48
+#define TUI_MIN_ROWS 12
 
 // TUI color pairs
 typedef enum {
@@ -48,8 +46,8 @@ typedef struct {
 
 // Menu item structure
 typedef struct {
-  char *label;
-  char *description;
+  const char *label;
+  const char *description;
   int id;
   bool enabled;
 } tui_menu_item_t;
@@ -62,15 +60,18 @@ bool tui_is_initialized(void);
 // Color management
 APP_NODISCARD app_error tui_init_colors(void);
 void tui_set_color(WINDOW *win, tui_color_pair_t color);
+void tui_unset_color(WINDOW *win, tui_color_pair_t color);
 
 // Window helpers
 APP_NODISCARD tui_window_t *tui_create_window(int height, int width, int y,
                                               int x);
+APP_NODISCARD tui_window_t *tui_create_centered_window(int height, int width);
 void tui_destroy_window(tui_window_t *window);
 void tui_draw_border(tui_window_t *window);
 void tui_set_window_title(tui_window_t *window, const char *title);
 void tui_refresh_window(tui_window_t *window);
 void tui_clear_window(tui_window_t *window);
+void tui_draw_status_line(WINDOW *win, const char *left, const char *right);
 
 // Text helpers
 void tui_print_centered(WINDOW *win, int y, const char *text);
@@ -83,7 +84,7 @@ APP_NODISCARD app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
 
 // Menu
 APP_NODISCARD int tui_show_menu(tui_window_t *window, const char *title,
-                                tui_menu_item_t *items, int item_count,
+                                const tui_menu_item_t *items, int item_count,
                                 int default_selection);
 
 // Dialogs
@@ -91,12 +92,14 @@ void tui_show_message(const char *title, const char *message);
 bool tui_confirm(const char *title, const char *question);
 APP_NODISCARD app_error tui_input_dialog(const char *title, const char *prompt,
                                          char *buffer, size_t size);
+APP_NODISCARD app_error tui_run_demo(void);
 
 // Utilities
 void tui_beep(void);
 void tui_flash(void);
 int tui_get_max_x(void);
 int tui_get_max_y(void);
+bool tui_terminal_meets_minimum(void);
 
 // Progress API is declared in a dedicated header to keep tui.h lean.
 #include "tui_progress.h"

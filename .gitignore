@@ -2,6 +2,13 @@
 zig-out/
 .zig-cache/
 zig-cache/
+zig-pkg/
+
+# Direnv cache
+.direnv/
+
+# Local agent state
+.pi/
 
 # OS files
 .DS_Store

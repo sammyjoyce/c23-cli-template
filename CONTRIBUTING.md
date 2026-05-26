@@ -75,13 +75,13 @@ docs(readme): update installation instructions
 
 ### Development Setup
 
-1. **Install Zig** (master branch recommended):
+1. **Install Zig 0.16.0** (current stable release):
 
    ```bash
    # Using zvm (recommended)
-   zvm install master
-   zvm use master
-   
+   zvm install 0.16.0
+   zvm use 0.16.0
+
    # Or download directly
    # Visit https://ziglang.org/download/
    ```
@@ -98,13 +98,13 @@ docs(readme): update installation instructions
    ```bash
    # macOS
    brew install ncurses
-   
+
    # Ubuntu/Debian
    sudo apt-get install libncurses-dev clang-format clang-tidy
-   
+
    # Fedora/RHEL
    sudo dnf install ncurses-devel clang-tools-extra
-   
+
    # Windows (using vcpkg)
    git clone https://github.com/Microsoft/vcpkg.git
    cd vcpkg && bootstrap-vcpkg.bat
@@ -116,10 +116,10 @@ docs(readme): update installation instructions
    ```bash
    # Install pre-commit
    pip install pre-commit
-   
+
    # Install Node.js for markdownlint
    # (varies by OS - use your preferred method)
-   
+
    # Install the hooks
    pre-commit install
    ```
@@ -167,13 +167,14 @@ zig build install --prefix ~/.local
 |--------|-------------|---------|
 | `-Doptimize=` | Build mode: `Debug`, `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | `Debug` |
 | `-Dtarget=` | Target triple (e.g., `x86_64-windows`, `aarch64-linux`) | Native |
-| `-Denable-tui=` | Enable TUI support | `true` |
+| `-Denable-tui=` | Enable TUI support | `false` |
 | `--prefix` | Installation directory | `zig-out` |
 
 #### Adding New Source Files
 
 1. Add your C file to the appropriate directory under `src/`
 2. Update `build.zig` to include the new file:
+
    ```zig
    exe.addCSourceFiles(.{
        .files = &.{
@@ -183,6 +184,7 @@ zig build install --prefix ~/.local
        .flags = &.{ "-std=c23", "-Wall", "-Wextra" },
    });
    ```
+
 3. If adding a new module, update the architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 #### Build Troubleshooting

@@ -9,8 +9,118 @@
 #include <string.h>
 
 #include "../core/config.h"
-#include "../utils/colors.h"
 #include "../utils/logging.h"
+
+static void app_json_write_separator(FILE *stream, bool *needs_comma) {
+  if (!stream || !needs_comma) {
+    return;
+  }
+
+  if (*needs_comma) {
+    fputc(',', stream);
+  }
+  *needs_comma = true;
+}
+
+void app_json_begin_object(FILE *stream) {
+  if (stream) {
+    fputc('{', stream);
+  }
+}
+
+void app_json_end_object(FILE *stream) {
+  if (stream) {
+    fputc('}', stream);
+  }
+}
+
+void app_json_end_line(FILE *stream) {
+  if (stream) {
+    fputc('\n', stream);
+  }
+}
+
+void app_json_write_string(FILE *stream, const char *text) {
+  if (!stream) {
+    return;
+  }
+
+  if (!text) {
+    fputs("null", stream);
+    return;
+  }
+
+  fputc('"', stream);
+  for (const unsigned char *p = (const unsigned char *)text; *p != '\0'; p++) {
+    switch (*p) {
+    case '"':
+      fputs("\\\"", stream);
+      break;
+    case '\\':
+      fputs("\\\\", stream);
+      break;
+    case '\b':
+      fputs("\\b", stream);
+      break;
+    case '\f':
+      fputs("\\f", stream);
+      break;
+    case '\n':
+      fputs("\\n", stream);
+      break;
+    case '\r':
+      fputs("\\r", stream);
+      break;
+    case '\t':
+      fputs("\\t", stream);
+      break;
+    default:
+      if (*p < 0x20) {
+        fprintf(stream, "\\u%04x", *p);
+      } else {
+        fputc(*p, stream);
+      }
+      break;
+    }
+  }
+  fputc('"', stream);
+}
+
+void app_json_write_string_field(FILE *stream, const char *key,
+                                 const char *value, bool *needs_comma) {
+  if (!stream || !key || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  app_json_write_string(stream, value);
+}
+
+void app_json_write_bool_field(FILE *stream, const char *key, bool value,
+                               bool *needs_comma) {
+  if (!stream || !key || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  fputs(value ? "true" : "false", stream);
+}
+
+void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
+                              bool *needs_comma) {
+  if (!stream || !key || !value || !needs_comma) {
+    return;
+  }
+
+  app_json_write_separator(stream, needs_comma);
+  app_json_write_string(stream, key);
+  fputc(':', stream);
+  fputs(value, stream);
+}
 
 void app_output(const char *text, const app_config_t *config, bool is_error) {
   if (text == nullptr || config == nullptr) {
@@ -25,8 +135,12 @@ void app_output(const char *text, const app_config_t *config, bool is_error) {
   FILE *stream = is_error ? stderr : stdout;
 
   if (app_config_is_json_output(config)) {
-    // Output as JSON string
-    fprintf(stream, "{\"message\":\"%s\"}\n", text);
+    bool needs_comma = false;
+    app_json_begin_object(stream);
+    app_json_write_string_field(stream, "format_version", "1.0", &needs_comma);
+    app_json_write_string_field(stream, "message", text, &needs_comma);
+    app_json_end_object(stream);
+    app_json_end_line(stream);
   } else {
     // Plain text output
     fprintf(stream, "%s\n", text);
@@ -51,19 +165,4 @@ void app_output_format(const app_config_t *config, bool is_error,
   va_end(args);
 
   app_output(buffer, config, is_error);
-}
-
-void app_output_json(const char *json_string, const app_config_t *config,
-                     bool pretty) {
-  if (json_string == nullptr || config == nullptr) {
-    LOG_ERROR("Invalid parameters in app_output_json");
-    return;
-  }
-
-  if (app_config_is_quiet(config)) {
-    return;
-  }
-
-  // Output JSON (pretty-printing would be implemented here if needed)
-  printf("%s\n", json_string);
 }

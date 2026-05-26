@@ -17,7 +17,7 @@ void app_print_concise_help(const char *program_name) {
     program_name = APP_NAME;
   }
 
-  printf("%s - A modern CLI application [version %s]\n\n", APP_NAME,
+  printf("%s - A C23 TUI + CLI starter [version %s]\n\n", APP_NAME,
          APP_VERSION);
 
   printf("Usage: %s [options] <command> [arguments]\n\n", program_name);
@@ -26,8 +26,9 @@ void app_print_concise_help(const char *program_name) {
   printf("  hello [name]    Print a greeting message\n");
   printf("  echo [text...]  Echo the provided text\n");
   printf("  info            Display application information\n");
+  printf("  doctor          Run starter diagnostics\n");
 #ifdef ENABLE_TUI
-  printf("  menu            Launch interactive TUI menu\n");
+  printf("  menu            Launch interactive TUI showcase\n");
 #endif
   printf("\n");
 
@@ -35,7 +36,8 @@ void app_print_concise_help(const char *program_name) {
   printf("  -h, --help      Show this help message\n");
   printf("  --version       Show version information\n");
   printf("  -d, --debug     Enable debug output\n");
-  printf("  -q, --quiet     Suppress non-essential output\n\n");
+  printf("  -q, --quiet     Suppress non-essential output\n");
+  printf("  --json          Emit a versioned JSON response\n\n");
 
   printf("Examples:\n");
   printf("  $ %s hello\n", program_name);
@@ -56,7 +58,7 @@ void app_print_verbose_usage(const char *program_name) {
   const char *bold = app_use_colors(nullptr) ? APP_COLOR_BOLD : "";
   const char *reset = app_use_colors(nullptr) ? APP_COLOR_RESET : "";
 
-  printf("%s%s - A modern CLI application%s\n", bold, APP_NAME, reset);
+  printf("%s%s - A C23 TUI + CLI starter%s\n", bold, APP_NAME, reset);
   printf("Version %s\n\n", APP_VERSION);
 
   printf("%sUSAGE%s\n", bold, reset);
@@ -64,7 +66,7 @@ void app_print_verbose_usage(const char *program_name) {
 
   printf("%sDESCRIPTION%s\n", bold, reset);
   printf(
-      "  A modern C23 CLI application template with comprehensive tooling.\n");
+      "  A ready-to-use C23 starter for command-line and ncurses TUI apps.\n");
   printf(
       "  This template provides a solid foundation for building "
       "command-line\n");
@@ -81,11 +83,16 @@ void app_print_verbose_usage(const char *program_name) {
   printf(
       "                     Shows version, build date, and configuration\n\n");
 
-#ifdef ENABLE_TUI
-  printf("  menu               Launch interactive TUI menu\n");
+  printf("  doctor             Run starter diagnostics\n");
   printf(
-      "                     Opens an ncurses-based terminal UI with various "
-      "options\n\n");
+      "                     Reports build metadata, output mode, and optional "
+      "feature status\n\n");
+
+#ifdef ENABLE_TUI
+  printf("  menu               Launch interactive TUI showcase\n");
+  printf(
+      "                     Opens reusable ncurses menus, dialogs, panels, "
+      "and progress bars\n\n");
 #endif
 
   printf("%sOPTIONS%s\n", bold, reset);
@@ -95,7 +102,7 @@ void app_print_verbose_usage(const char *program_name) {
   printf("  -q, --quiet        Suppress non-essential output\n");
   printf("  -v, --verbose      Enable verbose output\n");
   printf("  --json             Output in JSON format\n");
-  printf("  --plain            Output in plain text format\n");
+  printf("  --plain            Output plain text without colors\n");
   printf("  --no-color         Disable colored output\n");
   printf("  -c, --config PATH  Specify configuration file path\n\n");
 
@@ -135,6 +142,15 @@ void app_print_verbose_usage(const char *program_name) {
   printf("    Application: %s\n", APP_NAME);
   printf("    Version: %s\n", APP_VERSION);
   printf("    Build: <timestamp>\n\n");
+
+  printf("  Machine-readable info:\n");
+  printf("    $ %s --json info\n", program_name);
+  printf("    {\"format_version\":\"1.0\", ...}\n\n");
+
+  printf("  Run diagnostics:\n");
+  printf("    $ %s doctor\n", program_name);
+  printf("    %s doctor\n", APP_NAME);
+  printf("      binary        ok (%s %s)\n\n", APP_NAME, APP_VERSION);
 
   printf("  Enable debug logging:\n");
   printf("    $ %s -d info\n", program_name);

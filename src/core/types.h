@@ -56,7 +56,7 @@ typedef struct {
 // Version is defined by the build system via -DAPP_VERSION compiler flag.
 // This fallback is only used if the build system doesn't provide it.
 #ifndef APP_VERSION
-#define APP_VERSION "1.0.0"
+#define APP_VERSION "0.1.0"
 #endif
 
 // Application name
@@ -67,6 +67,11 @@ typedef struct {
 // Build date - should be provided by build system
 #ifndef APP_BUILD_DATE
 #define APP_BUILD_DATE "unknown"
+#endif
+
+// Git commit - should be provided by build system
+#ifndef APP_GIT_COMMIT
+#define APP_GIT_COMMIT "unknown"
 #endif
 
 // Buffer and limit constants

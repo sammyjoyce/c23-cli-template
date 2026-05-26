@@ -5,6 +5,8 @@
 #include "config.h"
 
 #include <limits.h>
+
+#include "config_json.h"
 #ifndef _WIN32
 #include <pwd.h>
 #include <unistd.h>
@@ -13,6 +15,7 @@
 #define R_OK 4
 #define access _access
 #endif
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +38,45 @@ struct app_config {
   bool plain_output;
   bool no_color;
 };
+
+static bool app_config_set_string(char **slot, const char *value) {
+  if (!slot || !value) {
+    return false;
+  }
+
+  char *copy = strdup(value);
+  if (!copy) {
+    return false;
+  }
+
+  if (*slot) {
+    free(*slot);
+  }
+  *slot = copy;
+  return true;
+}
+
+static app_config_json_state_t app_config_json_state_from_config(
+    const app_config_t *config) {
+  return (app_config_json_state_t){
+      .quiet = config->quiet,
+      .debug = config->debug,
+      .verbose = config->verbose,
+      .json_output = config->json_output,
+      .plain_output = config->plain_output,
+      .no_color = config->no_color,
+  };
+}
+
+static void app_config_commit_json_state(
+    app_config_t *config, const app_config_json_state_t *staged) {
+  config->quiet = staged->quiet;
+  config->debug = staged->debug;
+  config->verbose = staged->verbose;
+  config->json_output = staged->json_output;
+  config->plain_output = staged->plain_output;
+  config->no_color = staged->no_color;
+}
 
 app_error app_config_create(app_config_t **config) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
@@ -129,12 +171,9 @@ static char *find_config_file(void) {
 app_error app_config_load_file(app_config_t *const config, const char *path) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
 
-  // Use provided path or find default
-  char *config_path = NULL;
-  if (path) {
-    config_path = strdup(path);
-  } else {
-    config_path = find_config_file();
+  char *config_path = path ? strdup(path) : find_config_file();
+  if (path && !config_path) {
+    return APP_ERROR_MEMORY;
   }
 
   if (!config_path) {
@@ -142,40 +181,72 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
     return APP_SUCCESS;  // Not an error if no config file exists
   }
 
-  // Read file
-  FILE *f = fopen(config_path, "r");
+  FILE *f = fopen(config_path, "rb");
   if (!f) {
     LOG_WARNING("Failed to open config file: %s", config_path);
     free(config_path);
     return APP_ERROR_IO;
   }
 
-  fseek(f, 0, SEEK_END);
-  long size = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
 
-  char *content = app_secure_malloc(size + 1);
+  long file_size = ftell(f);
+  if (file_size < 0 || (uintmax_t)file_size > (uintmax_t)SIZE_MAX - 1U) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
+
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    free(config_path);
+    return APP_ERROR_IO;
+  }
+
+  const size_t content_size = (size_t)file_size;
+  char *content = app_secure_malloc(content_size + 1);
   if (!content) {
     fclose(f);
     free(config_path);
     return APP_ERROR_MEMORY;
   }
 
-  if (fread(content, 1, size, f) != (size_t)size) {
-    app_secure_free(content, size + 1);
+  if (content_size > 0 && fread(content, 1, content_size, f) != content_size) {
+    app_secure_free(content, content_size + 1);
     fclose(f);
     free(config_path);
     return APP_ERROR_IO;
   }
-  content[size] = '\0';
+  content[content_size] = '\0';
   fclose(f);
 
-  // Parse JSON
-  // Note: In a real implementation, you'd parse JSON here
-  // For now, we'll just log that we loaded the file
+  app_config_json_state_t staged = app_config_json_state_from_config(config);
+  app_error err = app_config_parse_json_state(&staged, content);
+  if (err != APP_SUCCESS) {
+    app_secure_free(content, content_size + 1);
+    free(config_path);
+    return err;
+  }
+
+  char *loaded_path = strdup(config_path);
+  if (!loaded_path) {
+    app_secure_free(content, content_size + 1);
+    free(config_path);
+    return APP_ERROR_MEMORY;
+  }
+
+  app_config_commit_json_state(config, &staged);
+  if (config->config_file) {
+    free(config->config_file);
+  }
+  config->config_file = loaded_path;
   LOG_INFO("Loaded configuration from %s", config_path);
 
-  app_secure_free(content, size + 1);
+  app_secure_free(content, content_size + 1);
   free(config_path);
   return APP_SUCCESS;
 }
@@ -237,7 +308,7 @@ bool app_config_is_debug(const app_config_t *config) {
 }
 
 bool app_config_is_json_output(const app_config_t *config) {
-  return config ? config->json_output : false;
+  return config ? config->json_output && !config->plain_output : false;
 }
 
 bool app_config_is_plain_output(const app_config_t *config) {
@@ -274,12 +345,18 @@ void app_config_set_verbose(app_config_t *config, bool verbose) {
 void app_config_set_json_output(app_config_t *config, bool json) {
   if (config) {
     config->json_output = json;
+    if (json) {
+      config->plain_output = false;
+    }
   }
 }
 
 void app_config_set_plain_output(app_config_t *config, bool plain) {
   if (config) {
     config->plain_output = plain;
+    if (plain) {
+      config->json_output = false;
+    }
   }
 }
 
@@ -290,20 +367,14 @@ void app_config_set_no_color(app_config_t *config, bool no_color) {
 }
 
 void app_config_set_program_name(app_config_t *config, const char *name) {
-  if (config && name) {
-    if (config->program_name) {
-      free(config->program_name);
-    }
-    config->program_name = strdup(name);
+  if (config) {
+    app_config_set_string(&config->program_name, name);
   }
 }
 
 void app_config_set_command(app_config_t *config, const char *command) {
-  if (config && command) {
-    if (config->command) {
-      free(config->command);
-    }
-    config->command = strdup(command);
+  if (config) {
+    app_config_set_string(&config->command, command);
   }
 }
 
@@ -314,10 +385,7 @@ void app_config_add_command_arg(app_config_t *config, const char *arg) {
 }
 
 void app_config_set_config_file(app_config_t *config, const char *path) {
-  if (config && path) {
-    if (config->config_file) {
-      free(config->config_file);
-    }
-    config->config_file = strdup(path);
+  if (config) {
+    app_config_set_string(&config->config_file, path);
   }
 }
