@@ -246,8 +246,14 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .link_libc = true,
         });
+        vt_test_mod.addIncludePath(b.path("test"));
         vt_test_mod.addCSourceFiles(.{
-            .files = &.{"test/terminal_vt_runner.c"},
+            .files = &.{
+                "test/terminal_vt_common.c",
+                "test/terminal_vt_session.c",
+                "test/terminal_vt_scenarios.c",
+                "test/terminal_vt_runner.c",
+            },
             .flags = &.{
                 "-Wall",
                 "-Wextra",
@@ -293,7 +299,6 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
-        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false);
     } else {
         addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui);
     }

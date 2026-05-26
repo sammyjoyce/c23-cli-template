@@ -213,7 +213,7 @@ zig build -Denable-tui=true  # Build with the TUI showcase
 
 # Test
 zig build test              # Run fast Zig smoke tests
-zig build terminal-test     # Run CLI terminal scenarios and harness unit tests
+zig build terminal-test     # Run terminal scenarios with the selected backend
 zig build -Denable-tui=true terminal-test  # Run TUI scenarios through Ghostty VT when available
 zig build -Dterminal-backend=ghostty terminal-test  # Require the C Ghostty VT test backend
 

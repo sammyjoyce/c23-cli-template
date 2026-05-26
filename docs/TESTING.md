@@ -13,25 +13,25 @@ The terminal-testing landscape has a few useful families:
 | Library-first test drivers | Bombadil terminal experiments, Termless, `tui-driver`, `ptytest` | Nice assertion APIs inside host-language tests | Often tied to Node, Go, Python, or Rust ecosystems |
 | Classic command tests | Cram, Bats, Expect, pexpect | Mature and easy to run in CI | Raw output matching can miss alternate-screen/cursor details |
 
-The template now has two PTY backends for terminal UI coverage:
+The template now has two terminal-test backends:
 
-- The **Ghostty VT backend** is a C runner in `test/terminal_vt_runner.c`. It runs
-  the app in a real PTY, feeds output through
+- The **Ghostty VT backend** is a C runner split across `test/terminal_vt_*.c`.
+  It owns the default CLI and TUI scenario coverage when libghostty-vt is
+  available. It runs the app in a real PTY, feeds output through
   [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the
   virtual terminal with Ghostty's formatter API, and drives deterministic input
   plus resize sequences. This follows the same shape as the Bombadil terminal
   experiment, but keeps the implementation in C and uses Ghostty's C API rather
   than Rust wrappers.
-- The **Python fallback backend** keeps the original `pexpect` + `pyte` harness
-  for machines that do not have libghostty-vt installed. It is also the portable
-  fallback on Windows.
+- The **Python fallback backend** keeps `pexpect` + `pyte` coverage for machines
+  that do not have libghostty-vt installed. It is also the portable fallback on
+  Windows.
 
-`zig build terminal-test` always runs the Python-discovered non-interactive CLI
-scenarios and harness unit tests. It uses `-Dterminal-backend=auto` by default
-for PTY coverage: auto selects Ghostty VT when `pkg-config` can find
-libghostty-vt and its headers expose the Terminal and Formatter APIs; otherwise
-it falls back to Python. Use `-Dterminal-backend=ghostty` to require Ghostty VT,
-or `-Dterminal-backend=python` to force the fallback.
+`zig build terminal-test` uses `-Dterminal-backend=auto` by default: auto selects
+Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
+Terminal and Formatter APIs; otherwise it falls back to Python. Use
+`-Dterminal-backend=ghostty` to require Ghostty VT, or `-Dterminal-backend=python`
+to force the fallback. The Ghostty path does not invoke Python.
 
 ## Commands
 
@@ -41,7 +41,7 @@ Fast Zig smoke tests:
 zig build test
 ```
 
-End-to-end terminal scenario tests plus harness unit tests:
+End-to-end terminal scenario tests:
 
 ```bash
 zig build terminal-test
@@ -79,11 +79,11 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-The non-interactive CLI scenarios and harness unit tests still run without
-optional Python packages. When Ghostty VT is selected, the Python TUI scenarios
-skip and the C runner provides PTY coverage. With the Python backend,
-PTY-backed TUI scenarios skip with a clear message when the fallback
-dependencies are missing or the binary was not built with `-Denable-tui=true`.
+With Ghostty VT selected, CLI and TUI scenarios run in the C backend without
+Python. With the Python backend, non-interactive CLI scenarios and harness unit
+tests still run without optional Python packages; PTY-backed TUI scenarios skip
+with a clear message when the fallback dependencies are missing or the binary
+was not built with `-Denable-tui=true`.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
 `zig build check`. The PTY-backed TUI regression suite is Linux-gated in CI:
@@ -94,7 +94,10 @@ they do not run PTY-backed scenarios.
 
 ## Writing CLI Scenario Tests
 
-Add or edit `test/test_*_scenarios.py`:
+For the preferred Ghostty backend, add durable CLI contract checks to
+`test/terminal_vt_scenarios.c`.
+
+For the Python fallback, add or edit `test/test_*_scenarios.py`:
 
 ```python
 import unittest
@@ -120,7 +123,7 @@ Prefer stable contracts over incidental prose:
 
 The Ghostty VT backend currently has fixed C scenarios for the template's demo
 menu, including a deterministic input/resize smoke test. Add project-specific
-Ghostty scenarios in `test/terminal_vt_runner.c` when you need cell-accurate
+Ghostty scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate
 screen snapshots or resize coverage.
 
 The Python fallback remains useful for quick project-level examples. Add or edit
