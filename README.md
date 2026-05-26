@@ -151,18 +151,8 @@ Check the **Actions** tab to see progress.
 
 ### 2. CI Runner Selection
 
-Generated repositories default to GitHub-hosted runners (`ubuntu-latest`, `macos-latest`, `windows-latest`) so the cleanup workflow and first CI run work without extra infrastructure.
-
-To use Namespace or another self-hosted fleet, set these repository or organization variables:
-
-| Variable | Default | Namespace example |
-| --- | --- | --- |
-| `CI_LINUX_RUNNER` | `ubuntu-latest` | `nscloud-ubuntu-24.04-amd64-4x8` |
-| `CI_MACOS_RUNNER` | `macos-latest` | `nscloud-macos-sequoia-arm64-6x14` |
-| `CI_WINDOWS_RUNNER` | `windows-latest` | `nscloud-windows-2022-amd64-4x8` |
-
-The workflows route runner labels through variables, so local `actionlint` can validate the template defaults without a custom runner-label allowlist.
-The Namespace macOS example is ARM64; if you need Intel macOS release artifacts, keep the default GitHub-hosted runner or add an explicit universal/x64 release job.
+Generated repositories default to GitHub-hosted runners so the cleanup workflow and first CI run work without extra infrastructure.
+To opt into Namespace or another self-hosted fleet, configure `CI_LINUX_RUNNER`, `CI_MACOS_RUNNER`, and `CI_WINDOWS_RUNNER` as described in [Using This Template](.template/TEMPLATE_USAGE.md#ci-runner-selection).
 
 ### 3. Add Your Commands
 
