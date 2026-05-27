@@ -257,7 +257,6 @@ pub fn build(b: *std.Build) void {
         vt_test_mod.addIncludePath(b.path("test"));
         vt_test_mod.addCSourceFiles(.{
             .files = &.{
-                "test/test_harness.c",
                 "test/terminal_vt_common.c",
                 "test/terminal_vt_session.c",
                 "test/terminal_vt_scenarios.c",
@@ -296,7 +295,7 @@ pub fn build(b: *std.Build) void {
             "--binary",
             installed_binary_path,
             "--tui-enabled",
-            if (enable_tui) "1" else "0",
+            "auto",
         });
         if (ghostty_vt_prefix) |pref| {
             const lib_path = b.fmt("{s}/lib", .{pref});
