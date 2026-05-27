@@ -151,6 +151,57 @@ static bool test_menu_state_honors_default_index_when_enabled(void) {
   return ok;
 }
 
+static bool test_menu_step_skips_separator(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.kind = TUI_MENU_ITEM_SEPARATOR},
+      {.label = "b", .id = 2},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 3};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  if (tui_menu_state_selected_index(s) != 0) {
+    tui_menu_state_destroy(s);
+    return false;
+  }
+  tui_menu_state_step(s, 1);
+  bool ok = tui_menu_state_selected_index(s) == 2;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_step_skips_disabled(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2, .disabled = true},
+      {.label = "c", .id = 3},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 3};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_step(s, 1);
+  bool ok = tui_menu_state_selected_index(s) == 2;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_step_wraps(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 2};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_step(s, -1); /* wrap from 0 to 1 */
+  bool ok = tui_menu_state_selected_index(s) == 1;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -214,6 +265,12 @@ int main(void) {
               "tui_menu_state_create skips disabled default");
   unit_record(&stats, test_menu_state_honors_default_index_when_enabled(),
               "tui_menu_state_create honors enabled default_index");
+  unit_record(&stats, test_menu_step_skips_separator(),
+              "tui_menu_state_step skips separators");
+  unit_record(&stats, test_menu_step_skips_disabled(),
+              "tui_menu_state_step skips disabled");
+  unit_record(&stats, test_menu_step_wraps(),
+              "tui_menu_state_step wraps at ends");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 

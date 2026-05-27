@@ -156,8 +156,22 @@ wchar_t tui_menu_state_mnemonic(const tui_menu_state_t *s, int idx) {
 /* Step/page/home/end/numeric/mnemonic/search ops are added in subsequent
  * tasks. Stub them so the link succeeds during incremental TDD. */
 void tui_menu_state_step(tui_menu_state_t *s, int direction) {
-  (void)s;
-  (void)direction;
+  if (!s || s->visible_count == 0 || direction == 0)
+    return;
+  int next = s->selected_visible;
+  for (int i = 0; i < s->visible_count; i++) {
+    next += direction;
+    if (next < 0)
+      next = s->visible_count - 1;
+    else if (next >= s->visible_count)
+      next = 0;
+    const int item_idx = s->visible[next];
+    if (menu_item_selectable(&s->cfg->items[item_idx])) {
+      s->selected_visible = next;
+      return;
+    }
+  }
+  /* All non-selectable; leave selection in place. */
 }
 void tui_menu_state_page(tui_menu_state_t *s, int direction, int page_size) {
   (void)s;
