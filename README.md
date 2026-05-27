@@ -18,7 +18,7 @@
 - 🚀 **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - ⚡ **Zig Build System** - Fast, reliable builds with cross-compilation
 - 🏗️ **Well-Structured** - Organized project layout ready for growth
-- 🧪 **Testing Included** - Zig smoke tests plus PTY terminal scenario tests for CLI/TUI flows
+- 🧪 **Testing Included** - C23 CLI contract tests plus PTY terminal scenario tests for CLI/TUI flows
 - 🎨 **Smart CLI** - Colored output, help text, argument parsing
 - 🖼️ **TUI Support** - ncurses/PDCurses integration for interactive terminal UIs
 - 🔧 **Configuration** - Layered config system (file → env → args)
@@ -34,7 +34,7 @@
 - 🧹 **Template Cleanup** - Scripted cleanup of template-specific files and placeholders
 - 📚 **OpenCLI Compliant** - Standardized CLI behavior
 - 🔄 **Dependency Updates** - Automated updates with Dependabot/Renovate
-- 📝 **Pre-commit Hooks** - Code quality enforcement before commits
+- 📝 **Markdown Linting** - Documentation checks in local tooling and CI
 - 🐳 **Devcontainer Support** - Consistent development environments
 - 📋 **Comprehensive Documentation** - Detailed guides and examples
 
@@ -92,11 +92,10 @@ your-cli/
 │   ├── io/                 # Input/Output
 │   ├── tui/                # ncurses windows, menus, dialogs, progress bars
 │   └── utils/              # Utilities
-├── test/                   # Zig tests + terminal scenario harness
-│   ├── main.zig            # Fast build-integrated smoke tests
-│   ├── terminal_harness.py # CLI/PTY test helpers for end users
-│   ├── test_cli_scenarios.py
-│   └── test_tui_scenarios.py
+├── test/                   # C23 CLI tests + Ghostty VT terminal scenarios
+│   ├── cli_contract_runner.c # C23 CLI contract tests
+│   ├── test_harness.*      # Shared C integration-test helpers
+│   └── terminal_vt_*       # C PTY/TUI scenario harness
 ├── build.zig               # Build config
 └── opencli.json            # CLI specification
 ```
@@ -192,15 +191,15 @@ const c_sources = [_][]const u8{
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
-- **Python `pexpect` + `pyte`** - Optional; required only for PTY-backed TUI scenario tests outside the Nix dev shell
+- **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional; enables the C Ghostty VT backend for PTY-backed terminal tests
 
 ### Development Environment
 
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **Nix Dev Shell** - Includes Zig, C tooling, and Python PTY test dependencies (`pexpect`, `pyte`)
-- **Pre-commit Hooks** - Automated code quality checks before commits
+- **Nix Dev Shell** - Includes Zig, C tooling, and markdown lint tooling
+- **CI Quality Checks** - Automated build, test, lint, security, and release checks
 
 ### Commands
 
@@ -211,9 +210,10 @@ zig build -Doptimize=ReleaseSafe  # Release build
 zig build -Denable-tui=true  # Build with the TUI showcase
 
 # Test
-zig build test              # Run fast Zig smoke tests
-zig build terminal-test     # Run end-to-end CLI terminal scenarios
-zig build -Denable-tui=true terminal-test  # Run TUI scenarios in a PTY
+zig build test              # Run fast C23 CLI contract tests
+zig build terminal-test     # Run terminal scenarios with the selected backend
+zig build -Denable-tui=true terminal-test  # Run TUI scenarios through Ghostty VT when available
+zig build -Dterminal-backend=ghostty terminal-test  # Require the C Ghostty VT test backend
 
 # Clean
 zig build clean             # Remove build artifacts

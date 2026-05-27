@@ -20,13 +20,10 @@
     "ghcr.io/devcontainers/features/github-cli:1": {
       "version": "latest"
     },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.11",
-      "installTools": true
-    },
     "ghcr.io/devcontainers/features/zig:1": {
       "version": "0.16.0"
-    }
+    },
+    "ghcr.io/devcontainers/features/nix:1": {}
   },
 
   // Configure tool-specific properties

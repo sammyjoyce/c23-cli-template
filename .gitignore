@@ -31,8 +31,6 @@ Thumbs.db
 # Test artifacts
 *.pid
 *.log
-__pycache__/
-.pytest_cache/
 test_output/
 
 # Configuration

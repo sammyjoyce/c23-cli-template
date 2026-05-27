@@ -43,7 +43,7 @@ body:
       placeholder: |
         # Example command
         your-app --new-feature
-        
+
         # Example configuration
         {
           "feature": {

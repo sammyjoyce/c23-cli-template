@@ -10,7 +10,7 @@ A ready-to-use C23 TUI + CLI starter.
 - Optional ncurses/PDCurses TUI build with windows, menus, dialogs, and progress bars.
 - Small module layout that keeps CLI routing, core state, I/O, TUI, and utilities separate.
 - Zig build steps for build, run, test, terminal-test, check, format, and cleanup.
-- End-to-end terminal scenario harness for non-interactive CLI tests and optional PTY-backed TUI tests.
+- C23 terminal scenario harness for non-interactive CLI contracts and optional Ghostty VT-backed TUI tests.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ A ready-to-use C23 TUI + CLI starter.
 - A system C toolchain for libc and optional platform libraries.
 - ncurses development headers on Linux/macOS when building with `-Denable-tui=true`.
 - PDCurses on Windows when building with `-Denable-tui=true`.
-- Python `pexpect` and `pyte` for PTY-backed TUI scenario tests outside the Nix dev shell.
+- Optional `libghostty-vt` development files for PTY-backed TUI scenario tests.
 
 ## Build
 
@@ -63,9 +63,10 @@ zig build check
 zig build fmt-check
 ```
 
-The Zig tests keep fast build-integrated smoke coverage. The terminal scenario tests exercise non-interactive CLI contracts and, when built with `-Denable-tui=true`, drive the ncurses menu through a pseudo-terminal.
+The Zig tests keep fast build-integrated smoke coverage. The terminal scenario tests exercise non-interactive CLI contracts through a C23 runner on every host.
+When built with `-Denable-tui=true` and `libghostty-vt` is available, they also drive the ncurses menu through a pseudo-terminal.
 
-PTY-backed tests skip cleanly if `pexpect`/`pyte` are not installed.
+PTY-backed TUI tests skip cleanly when `libghostty-vt` is not installed. Use `-Dterminal-backend=ghostty` to require Ghostty VT and fail if it is missing.
 
 ## Project Layout
 
@@ -82,10 +83,12 @@ PTY-backed tests skip cleanly if `pexpect`/`pyte` are not installed.
 |   |-- tui/
 |   `-- utils/
 |-- test/
-|   |-- main.zig
-|   |-- terminal_harness.py
-|   |-- test_cli_scenarios.py
-|   `-- test_tui_scenarios.py
+|   |-- cli_contract_runner.c
+|   |-- test_harness.c
+|   |-- test_harness.h
+|   |-- terminal_vt_runner.c
+|   |-- terminal_vt_scenarios.c
+|   `-- terminal_vt_session.c
 |-- docs/
 `-- examples/
 ```
@@ -105,8 +108,8 @@ Then update:
 
 - `src/cli/help.c` for user-facing help.
 - `opencli.json` for machine-readable CLI metadata.
-- `test/main.zig` for fast build-integrated smoke coverage.
-- `test/test_cli_scenarios.py` or `test/test_tui_scenarios.py` for end-to-end terminal behavior.
+- `test/cli_contract_runner.c` for fast CLI contract and smoke coverage.
+- `test/terminal_vt_scenarios.c` for PTY-backed TUI behavior when the command affects the menu flow.
 
 ## Customize The TUI
 

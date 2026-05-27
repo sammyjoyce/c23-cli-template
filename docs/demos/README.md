@@ -91,8 +91,7 @@ To generate the actual animated GIFs:
 1. **Install dependencies**:
 
    ```bash
-   # Install asciinema
-   pip install asciinema
+   # Install asciinema with your OS package manager
 
    # Install agg (asciinema gif generator)
    cargo install --git https://github.com/asciinema/agg

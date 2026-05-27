@@ -25,10 +25,6 @@
           ncursesDev = lib.getDev pkgs.ncurses;
           ncursesLib = lib.getLib pkgs.ncurses;
           zig = pkgs.zig_0_16 or pkgs.zig;
-          terminalTestPython = pkgs.python3.withPackages (ps: [
-            ps.pexpect
-            ps.pyte
-          ]);
           projectTooling = [
             # Build and day-to-day workflow.
             zig
@@ -56,9 +52,7 @@
             pkgs.shellcheck
             pkgs.nixfmt
 
-            # Pre-commit, terminal-test harness, and documentation hooks.
-            pkgs.pre-commit
-            terminalTestPython
+            # Documentation lint tooling.
             pkgs.nodejs
             pkgs.markdownlint-cli
 

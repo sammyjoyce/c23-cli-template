@@ -105,26 +105,22 @@ docs(readme): update installation instructions
    # Fedora/RHEL
    sudo dnf install ncurses-devel clang-tools-extra
 
-   # Optional outside the Nix dev shell: PTY-backed terminal tests
-   python3 -m pip install pexpect pyte
-
    # Windows (using vcpkg)
    git clone https://github.com/Microsoft/vcpkg.git
    cd vcpkg && bootstrap-vcpkg.bat
    vcpkg install pdcurses:x64-windows
    ```
 
-4. **Set up pre-commit hooks** (recommended):
+4. **Run local quality checks** (recommended):
 
    ```bash
-   # Install pre-commit
-   pip install pre-commit
+   zig build fmt-check
+   zig build check
+   git diff --check
+   find src test \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
 
-   # Install Node.js for markdownlint
-   # (varies by OS - use your preferred method)
-
-   # Install the hooks
-   pre-commit install
+   # Optional documentation lint, available in the Nix dev shell
+   markdownlint "**/*.md" --ignore ".template/**" --ignore ".github/**" --ignore "zig-pkg/**"
    ```
 
 5. **Alternative: Use the Nix dev shell**:
@@ -133,7 +129,7 @@ docs(readme): update installation instructions
    nix develop
    ```
 
-   The flake provides Zig, C tooling, and the Python packages used by `zig build terminal-test`.
+   The flake provides Zig, C tooling, and markdown lint tooling.
 
 6. **Alternative: Use Devcontainer** (recommended for consistency):
 
@@ -214,7 +210,7 @@ For more details, see the [Architecture Overview](docs/ARCHITECTURE.md).
 #### Running Tests
 
 ```bash
-# Run fast Zig smoke tests
+# Run fast C23 CLI contract tests
 zig build test
 
 # Run end-to-end CLI terminal scenarios
@@ -231,9 +227,8 @@ zig build test -Doptimize=ReleaseFast
 
 #### Writing Tests
 
-- Put fast build-integrated smoke coverage in `test/main.zig`
-- Put end-to-end CLI behavior in `test/test_cli_scenarios.py`
-- Put PTY-backed TUI behavior in `test/test_tui_scenarios.py`
+- Put fast build-integrated smoke and CLI contract coverage in `test/cli_contract_runner.c`
+- Put PTY-backed TUI and end-to-end terminal behavior in `test/terminal_vt_scenarios.c`
 - Prefer JSON-field assertions for automation-facing output
 - Ensure all existing tests pass
 - Test on multiple platforms if possible

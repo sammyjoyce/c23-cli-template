@@ -2,17 +2,17 @@
 
 This template has two layers of tests:
 
-- `main.zig` keeps fast Zig smoke tests close to the build graph.
-- `test_*_scenarios.py` files are end-to-end terminal scenarios for project users.
-- `test_terminal_harness.py` covers the reusable Python harness itself.
+- `cli_contract_runner.c` keeps fast C23 smoke and CLI contract tests close to
+  the build graph.
+- The C Ghostty VT runner covers PTY-backed TUI flows when libghostty-vt is available.
 
-Run the default Zig suite:
+Run the default CLI contract suite:
 
 ```bash
 zig build test
 ```
 
-Run the Python terminal scenarios against the built binary:
+Run the terminal scenarios against the built binary:
 
 ```bash
 zig build terminal-test
@@ -24,8 +24,15 @@ Run the same scenarios against a TUI-enabled build:
 zig build -Denable-tui=true terminal-test
 ```
 
-The non-interactive CLI scenarios use only Python's standard library.
+The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
+when `libghostty-vt` is available through `pkg-config` on POSIX hosts. CLI
+contracts always run through `cli_contract_runner.c`, so hosts without
+libghostty-vt still exercise non-interactive behavior without a fallback
+scripting runtime.
 
-TUI scenarios use `pexpect` plus `pyte` to run the app in a pseudo-terminal and
-assert on a headless VT screen. The Nix dev shell provides these dependencies;
-outside Nix, install them with your preferred Python package manager.
+The Ghostty VT runner is split across `terminal_vt_*.c` files. It runs TUI
+checks in a pseudo-terminal, feeds output through libghostty-vt, snapshots the
+screen with Ghostty's formatter API, and drives deterministic input plus resize
+actions. For the Ghostty backend, install a libghostty-vt build with the
+development Terminal and Formatter APIs and make it visible through `pkg-config` or
+`-Dghostty-vt-prefix=/path/to/ghostty`.
