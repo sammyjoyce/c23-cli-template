@@ -464,6 +464,66 @@ int run_tui_menu_resize(test_stats_t *stats, const char *binary,
   return failed;
 }
 
+int run_tui_menu_handler_resize(test_stats_t *stats, const char *binary,
+                                bool tui_enabled) {
+  const char *name = "tui menu restores frame after handler resize";
+  if (!tui_enabled) {
+    test_skip(stats, name, "rebuild with -Denable-tui=true");
+    return 0;
+  }
+  const char *args[] = {"menu"};
+  vt_session_t session;
+  if (!vt_session_start(&session, binary, args, 1, 100, 30)) {
+    return test_fail(stats, name, "failed to start PTY session");
+  }
+  char *snapshot = NULL;
+  int failed = 0;
+  if (!vt_expect_menu_frame(&session, 14, 72, PTY_TIMEOUT_MS, &snapshot)) {
+    print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+               snapshot ? strlen(snapshot) : 0, 4000);
+    failed = test_fail(stats, name, "initial menu frame was not 72 wide");
+  }
+  if (!failed && !vt_resize(&session, 60, 16))
+    failed = test_fail(stats, name, "failed to shrink before handler");
+  if (!failed &&
+      !vt_expect_menu_frame(&session, 0, 60, PTY_TIMEOUT_MS, &snapshot)) {
+    print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+               snapshot ? strlen(snapshot) : 0, 4000);
+    failed = test_fail(stats, name, "menu frame did not shrink to terminal");
+  }
+  if (!failed && !vt_send(&session, "o"))
+    failed = test_fail(stats, name, "failed to open overview handler");
+  if (!failed &&
+      !vt_expect_text(&session, "Starter Overview", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "overview handler did not open");
+  if (!failed && !vt_resize(&session, 100, 30))
+    failed = test_fail(stats, name, "failed to grow during handler");
+  if (!failed &&
+      !vt_expect_text(&session, "Starter Overview", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "overview disappeared after grow");
+  if (!failed && !vt_send(&session, "x"))
+    failed = test_fail(stats, name, "failed to dismiss overview");
+  if (!failed &&
+      !vt_expect_menu_frame(&session, 14, 72, PTY_TIMEOUT_MS, &snapshot)) {
+    print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+               snapshot ? strlen(snapshot) : 0, 4000);
+    failed = test_fail(stats, name,
+                       "menu frame did not restore to 72 columns after "
+                       "handler resize");
+  }
+  if (!failed && !vt_send(&session, "q"))
+    failed = test_fail(stats, name, "failed to start exit");
+  if (!failed && !vt_send(&session, "y"))
+    failed = test_fail(stats, name, "failed to confirm exit");
+  if (!failed && vt_wait_for_exit(&session, PTY_TIMEOUT_MS) != 0)
+    failed = test_fail(stats, name, "process did not exit cleanly");
+  if (!failed)
+    test_pass(stats, name);
+  free(snapshot);
+  vt_session_close(&session);
+  return failed;
+}
+
 int run_tui_menu_mnemonic(test_stats_t *stats, const char *binary,
                           bool tui_enabled) {
   const char *name = "tui menu mnemonic auto-confirms";

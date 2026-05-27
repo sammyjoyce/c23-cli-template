@@ -15,6 +15,8 @@ int run_tui_menu_separator(test_stats_t *stats, const char *binary,
                            bool tui_enabled);
 int run_tui_menu_resize(test_stats_t *stats, const char *binary,
                         bool tui_enabled);
+int run_tui_menu_handler_resize(test_stats_t *stats, const char *binary,
+                                bool tui_enabled);
 int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
                         bool tui_enabled);
 

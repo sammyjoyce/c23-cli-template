@@ -48,8 +48,8 @@ typedef struct {
   const tui_menu_item_t *items;
   int item_count;
   int default_index; /* -1 picks first enabled */
-  int frame_height;  /* used when window == NULL */
-  int frame_width;   /* used when window == NULL */
+  int frame_height;  /* requested frame height; 0 uses the current/default */
+  int frame_width;   /* requested frame width; 0 uses the current/default */
   bool enable_search;
   bool enable_mouse;
   bool show_detail_pane;
@@ -72,8 +72,9 @@ typedef struct {
 } tui_menu_result_t;
 
 /* If window == NULL, the menu owns its frame and recreates it on KEY_RESIZE.
- * If window != NULL, the menu draws into and recenters the caller's window on
- * KEY_RESIZE. It returns TUI_MENU_TOO_SMALL when the resized terminal cannot
- * host the requested frame dimensions. */
+ * If window != NULL, the menu draws into the caller's window. When
+ * frame_height/frame_width are set, the caller's window is restored to those
+ * requested dimensions on entry and on KEY_RESIZE. It returns
+ * TUI_MENU_TOO_SMALL when the terminal cannot host the requested frame. */
 APP_NODISCARD tui_menu_result_t tui_show_menu(tui_window_t *window,
                                               const tui_menu_config_t *config);

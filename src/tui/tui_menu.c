@@ -489,6 +489,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
   tui_menu_layout_t L = {0};
   L.frame = window;
   L.owns_frame = (window == NULL);
+  const bool has_requested_frame_size =
+      config->frame_height > 0 || config->frame_width > 0;
   L.desired_h = config->frame_height > 0 ? config->frame_height
                                          : (window ? window->height : 22);
   L.desired_w = config->frame_width > 0 ? config->frame_width
@@ -505,6 +507,10 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     tui_draw_border(L.frame);
     if (config->title)
       tui_set_window_title(L.frame, config->title);
+  } else if (has_requested_frame_size && !tui_menu_recenter_frame(&L)) {
+    tui_menu_state_destroy(state);
+    result.status = TUI_MENU_TOO_SMALL;
+    return result;
   }
 
   tui_push_background(L.frame);

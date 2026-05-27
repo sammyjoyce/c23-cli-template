@@ -18,6 +18,11 @@
 #include "tui.h"
 #include "tui_internal.h"
 
+enum {
+  MAIN_MENU_FRAME_HEIGHT = 22,
+  MAIN_MENU_FRAME_WIDTH = 72,
+};
+
 /* ============================================================
  * Section 1: Handlers - replace these with your app's actions.
  * ============================================================ */
@@ -273,9 +278,11 @@ app_error tui_run_app(void) {
     return err;
 
   /* Own the menu frame here so it remains visible behind dialog modals
-   * that handlers may open. tui_show_menu recenters this caller-owned frame
-   * on KEY_RESIZE and reports TUI_MENU_TOO_SMALL if it no longer fits. */
-  tui_window_t *menu_frame = tui_create_centered_window(22, 72);
+   * that handlers may open. tui_show_menu restores this caller-owned frame
+   * on entry and KEY_RESIZE, and reports TUI_MENU_TOO_SMALL if it no
+   * longer fits. */
+  tui_window_t *menu_frame =
+      tui_create_centered_window(MAIN_MENU_FRAME_HEIGHT, MAIN_MENU_FRAME_WIDTH);
   if (!menu_frame) {
     tui_cleanup();
     return APP_ERROR_OUT_OF_RANGE;
@@ -293,6 +300,8 @@ app_error tui_run_app(void) {
             .items = main_menu,
             .item_count = (int)(sizeof(main_menu) / sizeof(main_menu[0])),
             .default_index = 0,
+            .frame_height = MAIN_MENU_FRAME_HEIGHT,
+            .frame_width = MAIN_MENU_FRAME_WIDTH,
             .enable_search = true,
             .enable_mouse = true,
             .show_detail_pane = true,

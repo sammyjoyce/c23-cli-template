@@ -114,6 +114,7 @@ int main(int argc, char **argv) {
   run_tui_menu_mnemonic(&stats, binary, tui_enabled);
   run_tui_menu_separator(&stats, binary, tui_enabled);
   run_tui_menu_resize(&stats, binary, tui_enabled);
+  run_tui_menu_handler_resize(&stats, binary, tui_enabled);
   run_tui_menu_sigint(&stats, binary, tui_enabled);
   printf("1..%d\n", stats.passed + stats.failed + stats.skipped);
   fprintf(stderr, "%d passed, %d failed, %d skipped\n", stats.passed,
