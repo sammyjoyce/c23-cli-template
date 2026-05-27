@@ -27,6 +27,19 @@ static bool tui_initialized = false;
 static bool tui_default_colors = false;
 static volatile sig_atomic_t tui_interrupted_flag = 0;
 static int tui_saved_cursor_state = 0;
+static tui_window_t *tui_background_win = NULL;
+
+void tui_set_background_window(tui_window_t *window) {
+  tui_background_win = window;
+}
+
+void tui_clear_background_window(void) {
+  tui_background_win = NULL;
+}
+
+tui_window_t *tui_get_background_window(void) {
+  return tui_background_win;
+}
 
 /* ---- signal handling ---------------------------------------------------- */
 

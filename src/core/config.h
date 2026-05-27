@@ -38,18 +38,15 @@ typedef enum {
 typedef struct {
   app_flag_id id;
   const char *json_key;
-  const char *env_var;    // NULL when no env override is supported
-  const char *env_match;  // NULL means any non-empty value enables the flag
-  const char *cli_short;  // NULL when there is no short option
-  const char *cli_long;   // long option, including leading "--"
+  const char *env_var;         // NULL when no env override is supported
+  const char *env_match;       // NULL means env-var presence enables the flag
+  const char *cli_short;       // NULL when there is no short option
+  const char *cli_long;        // long option, including leading "--"
   app_flag_id exclusive_with;  // set to id itself when there is no conflict
 } app_flag_spec_t;
 
 // Iterate over every flag spec. count is non-NULL on return.
 const app_flag_spec_t *app_flag_table(size_t *count);
-
-// Look up a flag spec by id. Returns NULL for an out-of-range id.
-const app_flag_spec_t *app_flag_lookup(app_flag_id id);
 
 // Look up by JSON key (used while loading config files).
 const app_flag_spec_t *app_flag_find_by_json_key(const char *key);

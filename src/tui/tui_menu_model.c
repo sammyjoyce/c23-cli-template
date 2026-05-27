@@ -253,8 +253,6 @@ wchar_t tui_menu_state_mnemonic(const tui_menu_state_t *s, int idx) {
   return s->mnemonics[idx];
 }
 
-/* Step/page/home/end/numeric/mnemonic/search ops are added in subsequent
- * tasks. Stub them so the link succeeds during incremental TDD. */
 void tui_menu_state_step(tui_menu_state_t *s, int direction) {
   if (!s || s->visible_count == 0 || direction == 0)
     return;

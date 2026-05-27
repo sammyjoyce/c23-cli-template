@@ -21,8 +21,6 @@
 #include "tui_menu.h"
 #include "tui_menu_internal.h"
 
-/* Background-window registry: shared between the menu (which sets it on
- * entry) and tui.c's modal helpers (which redraw it underneath dialogs). */
 #ifdef _WIN32
 static int tui_wcwidth(wchar_t wc) {
   if (wc == 0)
@@ -36,18 +34,6 @@ static int tui_wcwidth(wchar_t wc) {
   return wcwidth(wc);
 }
 #endif
-
-static tui_window_t *tui_menu_background_win = NULL;
-
-void tui_set_background_window(tui_window_t *window) {
-  tui_menu_background_win = window;
-}
-void tui_clear_background_window(void) {
-  tui_menu_background_win = NULL;
-}
-tui_window_t *tui_get_background_window(void) {
-  return tui_menu_background_win;
-}
 
 /* Column-correct wide-string write: budgets `cols` display columns,
  * truncates at glyph boundaries using wcwidth, never emits partial glyphs.
@@ -342,7 +328,6 @@ typedef enum {
   TUI_MENU_EV_NONE,
   TUI_MENU_EV_CONFIRM,
   TUI_MENU_EV_CANCEL,
-  TUI_MENU_EV_INTERRUPT,
 } tui_menu_event_t;
 
 static tui_menu_event_t menu_handle_key_in_search(tui_menu_state_t *s, int ch) {
@@ -581,25 +566,23 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     case TUI_MENU_EV_CONFIRM: {
       const int idx = confirm_index >= 0 ? confirm_index
                                          : tui_menu_state_selected_index(state);
-      if (idx >= 0) {
-        const tui_menu_item_t *it = &config->items[idx];
-        if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
-          tui_beep();
-          continue;
-        }
-        result.status = TUI_MENU_OK;
-        result.selected_id = it->id;
-        result.selected_index = idx;
+      if (idx < 0) {
+        tui_beep();
+        continue;
       }
+      const tui_menu_item_t *it = &config->items[idx];
+      if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
+        tui_beep();
+        continue;
+      }
+      result.status = TUI_MENU_OK;
+      result.selected_id = it->id;
+      result.selected_index = idx;
       exit_loop = true;
       break;
     }
     case TUI_MENU_EV_CANCEL:
       result.status = TUI_MENU_CANCELLED;
-      exit_loop = true;
-      break;
-    case TUI_MENU_EV_INTERRUPT:
-      result.status = TUI_MENU_INTERRUPTED;
       exit_loop = true;
       break;
     case TUI_MENU_EV_NONE:

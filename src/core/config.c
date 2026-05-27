@@ -91,13 +91,6 @@ const app_flag_spec_t *app_flag_table(size_t *count) {
   return g_app_flag_table;
 }
 
-const app_flag_spec_t *app_flag_lookup(app_flag_id id) {
-  if ((int)id < 0 || id >= APP_FLAG_COUNT) {
-    return NULL;
-  }
-  return &g_app_flag_table[id];
-}
-
 const app_flag_spec_t *app_flag_find_by_json_key(const char *key) {
   if (!key) {
     return NULL;
@@ -303,7 +296,7 @@ app_error app_config_load_env(app_config_t *config) {
       continue;
     }
     const char *value = getenv(spec->env_var);
-    if (!value || value[0] == '\0') {
+    if (!value) {
       continue;
     }
     if (spec->env_match && strcmp(value, spec->env_match) != 0) {

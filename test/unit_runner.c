@@ -35,6 +35,35 @@ static void unit_record(unit_stats_t *stats, bool ok, const char *name) {
   }
 }
 
+#ifndef _WIN32
+static bool test_config_env_no_color_empty_sets_flag(void) {
+  const char *previous = getenv("NO_COLOR");
+  char *previous_copy = previous ? strdup(previous) : NULL;
+  if (previous && !previous_copy) {
+    return false;
+  }
+
+  bool ok = setenv("NO_COLOR", "", 1) == 0;
+  app_config_t *config = NULL;
+  if (ok) {
+    ok = app_config_create(&config) == APP_SUCCESS;
+  }
+  if (ok) {
+    ok = app_config_load_env(config) == APP_SUCCESS &&
+         app_config_is_no_color(config);
+  }
+
+  app_config_destroy(config);
+  if (previous_copy) {
+    (void)setenv("NO_COLOR", previous_copy, 1);
+  } else {
+    (void)unsetenv("NO_COLOR");
+  }
+  free(previous_copy);
+  return ok;
+}
+#endif
+
 static bool test_strerror_covers_every_code(void) {
   // Iterate every defined enum value. APP_ERROR_FEATURE_BASE marks the start
   // of the reserved range for user-defined codes, so we stop just before it.
@@ -518,6 +547,10 @@ int main(void) {
               "config_json rejects trailing garbage");
   unit_record(&stats, test_config_json_exclusivity(),
               "config_json enforces flag exclusivity");
+#ifndef _WIN32
+  unit_record(&stats, test_config_env_no_color_empty_sets_flag(),
+              "config env treats empty NO_COLOR as present");
+#endif
   unit_record(&stats, test_menu_state_rejects_zero_items(),
               "tui_menu_state_create rejects zero items");
   unit_record(&stats,
