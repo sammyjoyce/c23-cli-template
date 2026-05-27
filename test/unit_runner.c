@@ -15,6 +15,7 @@
 #include "../src/core/config_json.h"
 #include "../src/core/error.h"
 #include "../src/tui/tui_menu.h"
+#include "../src/tui/tui_menu_internal.h"
 #include "../src/utils/memory.h"
 
 typedef struct {
@@ -147,6 +148,12 @@ int main(void) {
     const tui_menu_result_t r = {.status = TUI_MENU_OK, .selected_id = 7};
     unit_record(&stats, r.status == TUI_MENU_OK && r.selected_id == 7,
                 "tui_menu_result_t designated-init works");
+  }
+  {
+    /* Forward-declared opaque pointer is usable as a value type. */
+    tui_menu_state_t *s = NULL;
+    unit_record(&stats, s == NULL,
+                "tui_menu_state_t is forward-declared opaque");
   }
 
   unit_record(&stats, test_strerror_covers_every_code(),
