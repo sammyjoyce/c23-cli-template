@@ -367,6 +367,20 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
   if (tui_menu_state_search_active(s)) {
     return menu_handle_key_in_search(s, ch);
   }
+
+  if (ch > 0 && ch < KEY_MIN && iswalnum((wint_t)ch)) {
+    bool beep = false;
+    int auto_idx = tui_menu_state_mnemonic_jump(s, (wchar_t)ch, &beep);
+    if (auto_idx >= 0) {
+      *out_confirm_index = auto_idx;
+      return TUI_MENU_EV_CONFIRM;
+    }
+    if (beep) {
+      tui_beep();
+      return TUI_MENU_EV_NONE;
+    }
+  }
+
   switch (ch) {
   case KEY_UP:
   case 'k':
@@ -402,16 +416,6 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
     if (cfg->show_numeric_keys && ch >= '1' && ch <= '9') {
       tui_menu_state_numeric_jump(s, ch - '1');
       return TUI_MENU_EV_NONE;
-    }
-    if (ch > 0 && ch < KEY_MIN && iswalnum((wint_t)ch)) {
-      bool beep = false;
-      int auto_idx = tui_menu_state_mnemonic_jump(s, (wchar_t)ch, &beep);
-      if (auto_idx >= 0) {
-        *out_confirm_index = auto_idx;
-        return TUI_MENU_EV_CONFIRM;
-      }
-      if (beep)
-        tui_beep();
     }
     return TUI_MENU_EV_NONE;
   }
@@ -469,8 +473,9 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
 
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {
-  tui_menu_result_t result = {
-      .status = TUI_MENU_INVALID_ARG, .selected_id = 0, .selected_index = -1};
+  tui_menu_result_t result = {.status = TUI_MENU_INVALID_ARG,
+                              .selected_id = TUI_MENU_ID_NONE,
+                              .selected_index = -1};
   if (!config)
     return result;
 
@@ -488,7 +493,6 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
                                          : (window ? window->height : 22);
   L.desired_w = config->frame_width > 0 ? config->frame_width
                                         : (window ? window->width : 72);
-  tui_window_t *previous_background = tui_get_background_window();
   if (L.owns_frame) {
     const int h = L.desired_h;
     const int w = L.desired_w;
@@ -503,7 +507,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
       tui_set_window_title(L.frame, config->title);
   }
 
-  tui_set_background_window(L.frame);
+  tui_push_background(L.frame);
 
 #ifdef NCURSES_MOUSE_VERSION
   mmask_t prev_mask = 0;
@@ -551,7 +555,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     if (ch == KEY_RESIZE) {
       if (L.owns_frame) {
         if (tui_get_background_window() == L.frame)
-          tui_set_background_window(previous_background);
+          tui_set_background_window(NULL);
         tui_destroy_window(L.frame);
         L.frame = tui_create_centered_window(L.desired_h, L.desired_w);
         if (!L.frame) {
@@ -612,9 +616,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     mousemask(prev_mask, NULL);
 #endif
 
+  tui_pop_background();
   if (L.owns_frame) {
-    if (tui_get_background_window() == L.frame)
-      tui_set_background_window(previous_background);
     if (L.frame)
       tui_destroy_window(L.frame);
   }

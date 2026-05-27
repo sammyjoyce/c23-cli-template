@@ -80,7 +80,27 @@ static void app_show_progress(void) {
                    "percentage, and owns its window lifecycle.");
 }
 
-static void app_draw_layout_window(tui_window_t *win) {
+typedef enum {
+  APP_CONFIG_OUTPUT_MODE = 1,
+  APP_CONFIG_LOG_LEVEL,
+  APP_CONFIG_TERMINAL_SETTINGS,
+  APP_CONFIG_RESET_DEFAULTS,
+  APP_CONFIG_EXPORT,
+  APP_CONFIG_BACK,
+} app_config_menu_id_t;
+
+typedef enum {
+  APP_MENU_OVERVIEW = 1,
+  APP_MENU_SYSTEM_INFO,
+  APP_MENU_INPUT,
+  APP_MENU_PROGRESS,
+  APP_MENU_LAYOUT,
+  APP_MENU_CONFIGURATION,
+  APP_MENU_EXIT,
+} app_main_menu_id_t;
+
+static void app_draw_layout_window(tui_window_t *win, void *userdata) {
+  (void)userdata;
   tui_draw_border(win);
   tui_set_window_title(win, "Layout Pattern");
   tui_set_color(win->win, TUI_COLOR_TITLE);
@@ -94,65 +114,41 @@ static void app_draw_layout_window(tui_window_t *win) {
   tui_refresh_window(win);
 }
 
+static tui_modal_decision_t app_handle_layout_key(int ch, void *userdata) {
+  (void)userdata;
+  return ch == '\n' || ch == KEY_ENTER || ch == 27 || ch == 'q' || ch == 'Q'
+             ? TUI_MODAL_DONE
+             : TUI_MODAL_CONTINUE;
+}
+
 static void app_show_layout(void) {
-  tui_window_t *win = tui_create_centered_window(14, 72);
-  if (!win)
-    return;
-  app_draw_layout_window(win);
-  while (true) {
-    if (tui_interrupted()) {
-      tui_acknowledge_interrupt();
-      break;
-    }
-    int ch = tui_get_char();
-    if (tui_interrupted()) {
-      tui_acknowledge_interrupt();
-      break;
-    }
-    if (ch == KEY_RESIZE) {
-      tui_destroy_window(win);
-      win = tui_create_centered_window(14, 72);
-      if (!win) {
-        break;
-      }
-      app_draw_layout_window(win);
-      continue;
-    }
-    if (ch == ERR) {
-      continue;
-    }
-    if (ch == '\n' || ch == KEY_ENTER || ch == 27 || ch == 'q' || ch == 'Q')
-      break;
-  }
-  if (win) {
-    tui_destroy_window(win);
-  }
-  touchwin(stdscr);
-  refresh();
+  (void)tui_modal_run(14, 72, "Layout Pattern", app_draw_layout_window,
+                      app_handle_layout_key, NULL);
 }
 
 static void app_show_config_menu(void) {
   static const tui_menu_item_t cfg_items[] = {
       {.label = "Output &mode",
        .description = "Plain, JSON, or colorized output",
-       .id = 1},
+       .id = APP_CONFIG_OUTPUT_MODE},
       {.label = "&Log level",
        .description = "Quiet, normal, debug verbosity",
-       .id = 2},
+       .id = APP_CONFIG_LOG_LEVEL},
       {.label = "&Terminal settings",
        .description = "Color, minimum dimensions, fallbacks",
-       .id = 3},
+       .id = APP_CONFIG_TERMINAL_SETTINGS},
       {.label = "&Reset to defaults",
        .description = "Restore all configuration",
-       .id = 4},
+       .id = APP_CONFIG_RESET_DEFAULTS},
       {.label = "&Export config",
        .description = "Write current settings to disk",
-       .id = 5,
+       .id = APP_CONFIG_EXPORT,
        .disabled = true},
       {.kind = TUI_MENU_ITEM_SEPARATOR},
-      {.label = "&Back", .description = "Return to the main menu", .id = 0},
+      {.label = "&Back",
+       .description = "Return to the main menu",
+       .id = APP_CONFIG_BACK},
   };
-  tui_window_t *previous_background = tui_get_background_window();
   tui_window_t *config_frame = tui_create_centered_window(16, 60);
   if (!config_frame) {
     tui_show_message("Configuration",
@@ -161,6 +157,7 @@ static void app_show_config_menu(void) {
   }
   tui_draw_border(config_frame);
   tui_set_window_title(config_frame, "Configuration");
+  tui_push_background(config_frame);
 
   bool sub_running = true;
   while (sub_running) {
@@ -182,20 +179,20 @@ static void app_show_config_menu(void) {
       continue;
     }
     switch (r.selected_id) {
-    case 0:
+    case APP_CONFIG_BACK:
       sub_running = false;
       break;
-    case 1:
+    case APP_CONFIG_OUTPUT_MODE:
       tui_show_message("Output Mode",
                        "Set via --json, --plain, or --quiet flags.");
       break;
-    case 2:
+    case APP_CONFIG_LOG_LEVEL:
       tui_show_message("Log Level", "Use --debug for verbose logging.");
       break;
-    case 3:
+    case APP_CONFIG_TERMINAL_SETTINGS:
       tui_show_message("Terminal Settings", "Minimum terminal: 48 x 12.");
       break;
-    case 4:
+    case APP_CONFIG_RESET_DEFAULTS:
       tui_show_message("Reset to Defaults", "All settings reverted.");
       break;
     default:
@@ -203,8 +200,7 @@ static void app_show_config_menu(void) {
       break;
     }
   }
-  if (tui_get_background_window() == config_frame)
-    tui_set_background_window(previous_background);
+  tui_pop_background();
   tui_destroy_window(config_frame);
 }
 
@@ -216,47 +212,49 @@ static const tui_menu_item_t main_menu[] = {
     {.label = "&Overview",
      .description =
          "See the starter's CLI, TUI foundation, and core architecture",
-     .id = 1},
+     .id = APP_MENU_OVERVIEW},
     {.label = "&System Information",
      .description =
          "Inspect build metadata, terminal dimensions, and color support",
-     .id = 2},
+     .id = APP_MENU_SYSTEM_INFO},
     {.label = "&Input Dialog",
      .description = "Capture bounded text with scoped echo and cursor state",
-     .id = 3},
+     .id = APP_MENU_INPUT},
     {.kind = TUI_MENU_ITEM_SEPARATOR},
     {.label = "&Progress Pattern",
      .description =
          "Show a modal progress indicator with percentage and status",
-     .id = 4},
+     .id = APP_MENU_PROGRESS},
     {.label = "&Layout Pattern",
      .description = "Open a reusable bordered panel with a status line",
-     .id = 5},
+     .id = APP_MENU_LAYOUT},
     {.label = "&Configuration",
      .description = "Adjust output mode, log level, and terminal settings",
-     .id = 6},
+     .id = APP_MENU_CONFIGURATION},
     {.kind = TUI_MENU_ITEM_SEPARATOR},
-    {.label = "E&xit", .description = "Return to the shell", .id = 0},
+    {.label = "E&xit",
+     .description = "Return to the shell",
+     .id = APP_MENU_EXIT},
 };
 
 static void app_dispatch(int id) {
   switch (id) {
-  case 1:
+  case APP_MENU_OVERVIEW:
     app_show_overview();
     break;
-  case 2:
+  case APP_MENU_SYSTEM_INFO:
     app_show_system_info();
     break;
-  case 3:
+  case APP_MENU_INPUT:
     app_show_input();
     break;
-  case 4:
+  case APP_MENU_PROGRESS:
     app_show_progress();
     break;
-  case 5:
+  case APP_MENU_LAYOUT:
     app_show_layout();
     break;
-  case 6:
+  case APP_MENU_CONFIGURATION:
     app_show_config_menu();
     break;
   default:
@@ -284,6 +282,7 @@ app_error tui_run_app(void) {
   }
   tui_draw_border(menu_frame);
   tui_set_window_title(menu_frame, "Starter Showcase");
+  tui_push_background(menu_frame);
 
   bool running = true;
   while (running) {
@@ -301,7 +300,7 @@ app_error tui_run_app(void) {
         });
     switch (r.status) {
     case TUI_MENU_OK:
-      if (r.selected_id == 0) {
+      if (r.selected_id == APP_MENU_EXIT) {
         running = !tui_confirm("Exit", "Return to the shell?");
       } else {
         app_dispatch(r.selected_id);
@@ -315,13 +314,17 @@ app_error tui_run_app(void) {
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:
-    case TUI_MENU_NO_MEMORY:
       running = false;
       err = APP_ERROR_OUT_OF_RANGE;
+      break;
+    case TUI_MENU_NO_MEMORY:
+      running = false;
+      err = APP_ERROR_MEMORY;
       break;
     }
   }
 
+  tui_pop_background();
   tui_destroy_window(menu_frame);
   tui_cleanup();
   return err;

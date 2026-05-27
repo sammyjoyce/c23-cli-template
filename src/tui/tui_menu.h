@@ -33,10 +33,15 @@ typedef struct {
   const char *label; /* NUL-terminated UTF-8; "&x" marks mnemonic 'x'; "&&" =>
                         literal '&' */
   const char *description; /* optional UTF-8; shown in the detail pane */
-  int id;                  /* returned via result.selected_id when chosen */
-  bool disabled;           /* zero-init => ENABLED. Polarity is intentional. */
+  int id; /* returned via result.selected_id when chosen; use non-zero ids for
+             selectable actions. 0 is reserved for TUI_MENU_ID_NONE. */
+  bool disabled; /* zero-init => ENABLED. Polarity is intentional. */
   tui_menu_item_kind_t kind;
 } tui_menu_item_t;
+
+enum {
+  TUI_MENU_ID_NONE = 0,
+};
 
 typedef struct {
   const char *title;
@@ -62,7 +67,7 @@ typedef enum {
 
 typedef struct {
   tui_menu_status_t status;
-  int selected_id;
+  int selected_id; /* TUI_MENU_ID_NONE unless status == TUI_MENU_OK. */
   int selected_index;
 } tui_menu_result_t;
 

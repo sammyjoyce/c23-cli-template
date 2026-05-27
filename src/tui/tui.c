@@ -28,6 +28,9 @@ static bool tui_default_colors = false;
 static volatile sig_atomic_t tui_interrupted_flag = 0;
 static int tui_saved_cursor_state = 0;
 static tui_window_t *tui_background_win = NULL;
+#define TUI_BACKGROUND_STACK_MAX 16
+static tui_window_t *tui_background_stack[TUI_BACKGROUND_STACK_MAX];
+static size_t tui_background_stack_depth = 0;
 
 void tui_set_background_window(tui_window_t *window) {
   tui_background_win = window;
@@ -35,10 +38,37 @@ void tui_set_background_window(tui_window_t *window) {
 
 void tui_clear_background_window(void) {
   tui_background_win = NULL;
+  for (size_t i = 0; i < tui_background_stack_depth; i++) {
+    tui_background_stack[i] = NULL;
+  }
+  tui_background_stack_depth = 0;
 }
 
 tui_window_t *tui_get_background_window(void) {
   return tui_background_win;
+}
+
+void tui_push_background(tui_window_t *window) {
+  if (tui_background_stack_depth < TUI_BACKGROUND_STACK_MAX) {
+    tui_background_stack[tui_background_stack_depth++] = tui_background_win;
+  } else {
+    for (size_t i = 1; i < TUI_BACKGROUND_STACK_MAX; i++) {
+      tui_background_stack[i - 1] = tui_background_stack[i];
+    }
+    tui_background_stack[TUI_BACKGROUND_STACK_MAX - 1] = tui_background_win;
+    LOG_WARNING("TUI background stack overflow; oldest background dropped");
+  }
+  tui_background_win = window;
+}
+
+void tui_pop_background(void) {
+  if (tui_background_stack_depth == 0) {
+    tui_background_win = NULL;
+    return;
+  }
+  tui_background_stack_depth--;
+  tui_background_win = tui_background_stack[tui_background_stack_depth];
+  tui_background_stack[tui_background_stack_depth] = NULL;
 }
 
 /* ---- signal handling ---------------------------------------------------- */
@@ -601,20 +631,12 @@ static void tui_modal_close(tui_window_t *window) {
 
 static void tui_modal_redraw_background(void);
 
-typedef enum {
-  TUI_MODAL_CONTINUE,
-  TUI_MODAL_DONE,
-} tui_modal_decision_t;
-
-typedef void (*tui_modal_redraw_fn)(tui_window_t *window, void *userdata);
-typedef tui_modal_decision_t (*tui_modal_key_fn)(int ch, void *userdata);
-
 // Run a modal dialog loop until the key handler reports DONE or the user
 // triggers a SIGINT. Handles window setup, redraw on resize, and teardown.
 // Returns true if the loop completed normally and false on open failure.
-static bool tui_modal_run(int height, int width, const char *title,
-                          tui_modal_redraw_fn redraw, tui_modal_key_fn handle,
-                          void *userdata) {
+bool tui_modal_run(int height, int width, const char *title,
+                   tui_modal_redraw_fn redraw, tui_modal_key_fn handle,
+                   void *userdata) {
   tui_window_t *window = tui_modal_open(height, width, title);
   if (!window) {
     return false;

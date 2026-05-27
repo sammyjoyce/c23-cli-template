@@ -46,42 +46,45 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = "DEBUG",
      .cli_short = "-d",
      .cli_long = "--debug",
-     .exclusive_with = APP_FLAG_DEBUG},
+     .exclusive_mask =
+         APP_FLAG_MASK(APP_FLAG_QUIET) | APP_FLAG_MASK(APP_FLAG_VERBOSE)},
     {.id = APP_FLAG_QUIET,
      .json_key = "quiet",
      .env_var = NULL,
      .env_match = NULL,
      .cli_short = "-q",
      .cli_long = "--quiet",
-     .exclusive_with = APP_FLAG_QUIET},
+     .exclusive_mask =
+         APP_FLAG_MASK(APP_FLAG_DEBUG) | APP_FLAG_MASK(APP_FLAG_VERBOSE)},
     {.id = APP_FLAG_VERBOSE,
      .json_key = "verbose",
      .env_var = NULL,
      .env_match = NULL,
      .cli_short = "-v",
      .cli_long = "--verbose",
-     .exclusive_with = APP_FLAG_VERBOSE},
+     .exclusive_mask =
+         APP_FLAG_MASK(APP_FLAG_DEBUG) | APP_FLAG_MASK(APP_FLAG_QUIET)},
     {.id = APP_FLAG_JSON_OUTPUT,
      .json_key = "json_output",
      .env_var = NULL,
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--json",
-     .exclusive_with = APP_FLAG_PLAIN_OUTPUT},
+     .exclusive_mask = APP_FLAG_MASK(APP_FLAG_PLAIN_OUTPUT)},
     {.id = APP_FLAG_PLAIN_OUTPUT,
      .json_key = "plain_output",
      .env_var = NULL,
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--plain",
-     .exclusive_with = APP_FLAG_JSON_OUTPUT},
+     .exclusive_mask = APP_FLAG_MASK(APP_FLAG_JSON_OUTPUT)},
     {.id = APP_FLAG_NO_COLOR,
      .json_key = "no_color",
      .env_var = "NO_COLOR",
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--no-color",
-     .exclusive_with = APP_FLAG_NO_COLOR},
+     .exclusive_mask = 0},
 };
 
 const app_flag_spec_t *app_flag_table(size_t *count) {
@@ -380,8 +383,10 @@ void app_config_set_flag(app_config_t *config, app_flag_id id, bool value) {
   config->flags[id] = value;
   if (value) {
     const app_flag_spec_t *spec = &g_app_flag_table[id];
-    if (spec->exclusive_with != id) {
-      config->flags[spec->exclusive_with] = false;
+    for (app_flag_id other = 0; other < APP_FLAG_COUNT; other++) {
+      if ((spec->exclusive_mask & APP_FLAG_MASK(other)) != 0) {
+        config->flags[other] = false;
+      }
     }
   }
 }

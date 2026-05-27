@@ -32,17 +32,20 @@ typedef enum {
   APP_FLAG_COUNT,
 } app_flag_id;
 
+typedef unsigned int app_flag_mask_t;
+
+#define APP_FLAG_MASK(id) (1u << (unsigned)(id))
+
 // Metadata about a flag: how it appears on the command line, in env vars,
-// in JSON config files, and which other flag (if any) it should reset when
-// set to true.
+// in JSON config files, and which flags it should reset when set to true.
 typedef struct {
   app_flag_id id;
   const char *json_key;
-  const char *env_var;         // NULL when no env override is supported
-  const char *env_match;       // NULL means env-var presence enables the flag
-  const char *cli_short;       // NULL when there is no short option
-  const char *cli_long;        // long option, including leading "--"
-  app_flag_id exclusive_with;  // set to id itself when there is no conflict
+  const char *env_var;    // NULL when no env override is supported
+  const char *env_match;  // NULL means env-var presence enables the flag
+  const char *cli_short;  // NULL when there is no short option
+  const char *cli_long;   // long option, including leading "--"
+  app_flag_mask_t exclusive_mask;
 } app_flag_spec_t;
 
 // Iterate over every flag spec. count is non-NULL on return.

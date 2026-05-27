@@ -268,6 +268,8 @@ pub fn build(b: *std.Build) void {
     unit_exe.root_module.addCSourceFiles(.{
         .files = &.{
             "test/unit_runner.c",
+            "test/unit_config_tests.c",
+            "test/unit_tui_menu_tests.c",
             "src/core/error.c",
             "src/core/config.c",
             "src/core/config_json.c",

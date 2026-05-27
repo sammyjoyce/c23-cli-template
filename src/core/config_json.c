@@ -210,8 +210,12 @@ static bool app_config_apply_json_bool_key(app_config_json_state_t *state,
   }
 
   state->values[spec->id] = value;
-  if (value && spec->exclusive_with != spec->id) {
-    state->values[spec->exclusive_with] = false;
+  if (value) {
+    for (app_flag_id other = 0; other < APP_FLAG_COUNT; other++) {
+      if ((spec->exclusive_mask & APP_FLAG_MASK(other)) != 0) {
+        state->values[other] = false;
+      }
+    }
   }
   LOG_DEBUG("Loaded config key '%s' from file", key);
   return true;

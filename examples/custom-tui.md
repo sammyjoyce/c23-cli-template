@@ -164,19 +164,55 @@ tui_progress_destroy(progress);
 ### Menus
 
 ```c
-tui_menu_item_t options[] = {
-    {"Option 1", "First option description", 1, true},
-    {"Option 2", "Second option description", 2, true},
-    {"Disabled", "This option is disabled", 3, false},
-    {"Exit", "Return to main menu", 0, true}
+enum {
+    MENU_OPTION_ONE = 1,
+    MENU_OPTION_TWO,
+    MENU_EXIT,
 };
 
-int choice = tui_show_menu(window, "Select Option", options, 4, 0);
-switch (choice) {
-    case 1: /* Handle option 1 */ break;
-    case 2: /* Handle option 2 */ break;
-    case 0: /* Exit */ break;
-    case -1: /* User cancelled */ break;
+const tui_menu_item_t options[] = {
+    {
+        .label = "Option &1",
+        .description = "First option description",
+        .id = MENU_OPTION_ONE,
+    },
+    {
+        .label = "Option &2",
+        .description = "Second option description",
+        .id = MENU_OPTION_TWO,
+    },
+    {
+        .label = "&Disabled",
+        .description = "This option is disabled",
+        .id = 3,
+        .disabled = true,
+    },
+    {
+        .label = "E&xit",
+        .description = "Return to main menu",
+        .id = MENU_EXIT,
+    },
+};
+
+tui_menu_result_t result = tui_show_menu(
+    window,
+    &(tui_menu_config_t){
+        .title = "Select Option",
+        .items = options,
+        .item_count = (int)(sizeof(options) / sizeof(options[0])),
+        .default_index = 0,
+        .enable_search = true,
+        .show_detail_pane = true,
+    });
+
+if (result.status != TUI_MENU_OK) {
+    return;
+}
+
+switch (result.selected_id) {
+    case MENU_OPTION_ONE: /* Handle option 1 */ break;
+    case MENU_OPTION_TWO: /* Handle option 2 */ break;
+    case MENU_EXIT: /* Exit */ break;
 }
 ```
 
