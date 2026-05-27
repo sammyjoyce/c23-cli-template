@@ -412,21 +412,163 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
 }
 #endif
 
-/* Stub - implemented in Task 16. */
+/* Forward declarations for the background-window helpers - currently
+ * defined in tui.c. Task 17 moves them here. */
+void tui_set_background_window(tui_window_t *window);
+void tui_clear_background_window(void);
+
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {
-  (void)window;
-  (void)config;
-  (void)tui_menu_write_wcs;
-  (void)tui_menu_layout_compute;
-  (void)tui_menu_render_title;
-  (void)tui_menu_render_items;
-  (void)tui_menu_render_scrollbar;
-  (void)tui_menu_render_detail;
-  (void)tui_menu_render_footer;
-  (void)menu_handle_key;
+  tui_menu_result_t result = {
+      .status = TUI_MENU_INVALID_ARG, .selected_id = 0, .selected_index = -1};
+  if (!config)
+    return result;
+
+  tui_menu_state_t *state = NULL;
+  tui_menu_status_t st = tui_menu_state_create(config, &state);
+  if (st != TUI_MENU_OK) {
+    result.status = st;
+    return result;
+  }
+
+  tui_menu_layout_t L = {0};
+  L.frame = window;
+  L.owns_frame = (window == NULL);
+  if (L.owns_frame) {
+    const int h = config->frame_height > 0 ? config->frame_height : 22;
+    const int w = config->frame_width > 0 ? config->frame_width : 72;
+    L.frame = tui_create_centered_window(h, w);
+    if (!L.frame) {
+      tui_menu_state_destroy(state);
+      result.status = TUI_MENU_TOO_SMALL;
+      return result;
+    }
+    tui_draw_border(L.frame);
+    if (config->title)
+      tui_set_window_title(L.frame, config->title);
+  }
+
+  tui_set_background_window(L.frame);
+
 #ifdef NCURSES_MOUSE_VERSION
-  (void)menu_handle_mouse;
+  mmask_t prev_mask = 0;
+  if (config->enable_mouse) {
+    mousemask(BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON4_PRESSED |
+                  BUTTON5_PRESSED,
+              &prev_mask);
+  }
 #endif
-  return (tui_menu_result_t){.status = TUI_MENU_INVALID_ARG};
+
+  bool exit_loop = false;
+  while (!exit_loop) {
+    if (!tui_menu_layout_compute(&L, L.frame, config)) {
+      result.status = TUI_MENU_TOO_SMALL;
+      break;
+    }
+    werase(L.frame->win);
+    tui_draw_border(L.frame);
+    if (config->title)
+      tui_menu_render_title(&L, config->title);
+
+    /* Adjust top_visible so selection stays in view. */
+    const int sel_v = tui_menu_state_selected_visible(state);
+    int top = tui_menu_state_top_visible(state);
+    if (sel_v < top)
+      top = sel_v;
+    else if (sel_v >= top + L.item_area_h)
+      top = sel_v - L.item_area_h + 1;
+    if (top < 0)
+      top = 0;
+    tui_menu_state_set_top_visible(state, top);
+
+    tui_menu_render_items(&L, state);
+    tui_menu_render_scrollbar(&L, state);
+    if (L.detail_pane_visible)
+      tui_menu_render_detail(&L, state);
+    tui_menu_render_footer(&L, state);
+
+    wnoutrefresh(L.frame->win);
+    doupdate();
+
+    const int ch = wgetch(L.frame->win);
+    int confirm_id = 0;
+    tui_menu_event_t ev = TUI_MENU_EV_NONE;
+
+    if (ch == ERR) {
+      if (tui_interrupted()) {
+        result.status = TUI_MENU_INTERRUPTED;
+        exit_loop = true;
+      }
+      continue;
+    }
+    if (ch == KEY_RESIZE) {
+      if (L.owns_frame) {
+        tui_destroy_window(L.frame);
+        const int h = config->frame_height > 0 ? config->frame_height : 22;
+        const int w = config->frame_width > 0 ? config->frame_width : 72;
+        L.frame = tui_create_centered_window(h, w);
+        if (!L.frame) {
+          result.status = TUI_MENU_TOO_SMALL;
+          break;
+        }
+        tui_draw_border(L.frame);
+        if (config->title)
+          tui_set_window_title(L.frame, config->title);
+        tui_set_background_window(L.frame);
+      }
+      continue;
+    }
+#ifdef NCURSES_MOUSE_VERSION
+    if (ch == KEY_MOUSE) {
+      ev = menu_handle_mouse(state, &L, &confirm_id);
+    } else
+#endif
+    {
+      ev = menu_handle_key(state, ch, &confirm_id);
+    }
+
+    switch (ev) {
+    case TUI_MENU_EV_CONFIRM: {
+      const int idx = tui_menu_state_selected_index(state);
+      if (confirm_id != 0) {
+        result.status = TUI_MENU_OK;
+        result.selected_id = confirm_id;
+        result.selected_index = idx;
+      } else if (idx >= 0) {
+        const tui_menu_item_t *it = &config->items[idx];
+        if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
+          tui_beep();
+          continue;
+        }
+        result.status = TUI_MENU_OK;
+        result.selected_id = it->id;
+        result.selected_index = idx;
+      }
+      exit_loop = true;
+      break;
+    }
+    case TUI_MENU_EV_CANCEL:
+      result.status = TUI_MENU_CANCELLED;
+      exit_loop = true;
+      break;
+    case TUI_MENU_EV_INTERRUPT:
+      result.status = TUI_MENU_INTERRUPTED;
+      exit_loop = true;
+      break;
+    case TUI_MENU_EV_NONE:
+    case TUI_MENU_EV_REDRAW:
+      break;
+    }
+  }
+
+#ifdef NCURSES_MOUSE_VERSION
+  if (config->enable_mouse)
+    mousemask(prev_mask, NULL);
+#endif
+
+  tui_clear_background_window();
+  if (L.owns_frame && L.frame)
+    tui_destroy_window(L.frame);
+  tui_menu_state_destroy(state);
+  return result;
 }
