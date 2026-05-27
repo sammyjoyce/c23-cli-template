@@ -10,6 +10,7 @@
 #include <ncurses.h>
 #endif
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -35,6 +36,17 @@ static int tui_wcwidth(wchar_t wc) {
 }
 #endif
 
+static void tui_menu_write_wchar(WINDOW *w, int y, int x, wchar_t wc) {
+  char mb[MB_LEN_MAX];
+  mbstate_t state = {0};
+  size_t len = wcrtomb(mb, wc, &state);
+  if (len == (size_t)-1 || len == 0) {
+    mb[0] = '?';
+    len = 1;
+  }
+  mvwaddnstr(w, y, x, mb, (int)len);
+}
+
 /* Column-correct wide-string write: budgets `cols` display columns,
  * truncates at glyph boundaries using wcwidth, never emits partial glyphs.
  */
@@ -51,18 +63,18 @@ static void tui_menu_write_wcs(WINDOW *w, int y, int x, int cols,
   if (cols <= 0)
     return;
 
-  /* Walk s, accumulating wchars whose total column width fits. */
   int used = 0;
-  size_t count = 0;
-  for (; s[count]; count++) {
-    int w_cols = tui_wcwidth(s[count]);
+  int cur_x = x;
+  for (size_t i = 0; s[i]; i++) {
+    int w_cols = tui_wcwidth(s[i]);
     if (w_cols < 0)
       w_cols = 1; /* non-printable: best effort */
     if (used + w_cols > cols)
       break;
+    tui_menu_write_wchar(w, y, cur_x, s[i]);
     used += w_cols;
+    cur_x += w_cols;
   }
-  mvwaddnwstr(w, y, x, s, (int)count);
 }
 
 typedef struct {
@@ -234,7 +246,7 @@ static void tui_menu_render_items(const tui_menu_layout_t *L,
       const bool here = !underlined && (wchar_t)towlower(lab[k]) == mn;
       if (here)
         wattron(win, A_UNDERLINE);
-      mvwaddnwstr(win, y, cur_x, &lab[k], 1);
+      tui_menu_write_wchar(win, y, cur_x, lab[k]);
       if (here) {
         wattroff(win, A_UNDERLINE);
         underlined = true;
@@ -551,6 +563,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
         result.status = TUI_MENU_TOO_SMALL;
         break;
       }
+      clear();
+      refresh();
       tui_set_background_window(L.frame);
       continue;
     }
