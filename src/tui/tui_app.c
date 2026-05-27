@@ -16,6 +16,7 @@
 #include <stdio.h>
 
 #include "tui.h"
+#include "tui_internal.h"
 
 /* ============================================================
  * Section 1: Handlers - replace these with your app's actions.
@@ -125,20 +126,31 @@ static void app_show_config_menu(void) {
       {.kind = TUI_MENU_ITEM_SEPARATOR},
       {.label = "&Back", .description = "Return to the main menu", .id = 0},
   };
+  tui_window_t *previous_background = tui_get_background_window();
+  tui_window_t *config_frame = tui_create_centered_window(16, 60);
+  if (!config_frame) {
+    tui_show_message("Configuration",
+                     "The terminal is too small for the configuration menu.");
+    return;
+  }
+  tui_draw_border(config_frame);
+  tui_set_window_title(config_frame, "Configuration");
+
   bool sub_running = true;
   while (sub_running) {
     tui_menu_result_t r = tui_show_menu(
-        NULL, &(tui_menu_config_t){
-                  .title = "Configuration",
-                  .items = cfg_items,
-                  .item_count = (int)(sizeof(cfg_items) / sizeof(cfg_items[0])),
-                  .default_index = 0,
-                  .frame_height = 16,
-                  .frame_width = 60,
-                  .enable_search = true,
-                  .show_detail_pane = true,
-                  .show_numeric_keys = true,
-              });
+        config_frame,
+        &(tui_menu_config_t){
+            .title = "Configuration",
+            .items = cfg_items,
+            .item_count = (int)(sizeof(cfg_items) / sizeof(cfg_items[0])),
+            .default_index = 0,
+            .frame_height = 16,
+            .frame_width = 60,
+            .enable_search = true,
+            .show_detail_pane = true,
+            .show_numeric_keys = true,
+        });
     if (r.status != TUI_MENU_OK) {
       sub_running = false;
       continue;
@@ -165,6 +177,9 @@ static void app_show_config_menu(void) {
       break;
     }
   }
+  if (tui_get_background_window() == config_frame)
+    tui_set_background_window(previous_background);
+  tui_destroy_window(config_frame);
 }
 
 /* ============================================================

@@ -489,6 +489,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
                                          : (window ? window->height : 22);
   L.desired_w = config->frame_width > 0 ? config->frame_width
                                         : (window ? window->width : 72);
+  tui_window_t *previous_background = tui_get_background_window();
   if (L.owns_frame) {
     const int h = L.desired_h;
     const int w = L.desired_w;
@@ -550,6 +551,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     }
     if (ch == KEY_RESIZE) {
       if (L.owns_frame) {
+        if (tui_get_background_window() == L.frame)
+          tui_set_background_window(previous_background);
         tui_destroy_window(L.frame);
         L.frame = tui_create_centered_window(L.desired_h, L.desired_w);
         if (!L.frame) {
@@ -611,7 +614,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
 #endif
 
   if (L.owns_frame) {
-    tui_clear_background_window();
+    if (tui_get_background_window() == L.frame)
+      tui_set_background_window(previous_background);
     if (L.frame)
       tui_destroy_window(L.frame);
   }
