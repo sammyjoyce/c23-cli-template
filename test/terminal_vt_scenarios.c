@@ -273,6 +273,47 @@ int run_tui_menu_separator(test_stats_t *stats, const char *binary,
   return failed;
 }
 
+int run_tui_menu_resize(test_stats_t *stats, const char *binary,
+                        bool tui_enabled) {
+  const char *name = "tui menu survives shrink-then-grow resize";
+  if (!tui_enabled) {
+    test_skip(stats, name, "rebuild with -Denable-tui=true");
+    return 0;
+  }
+  const char *args[] = {"menu"};
+  vt_session_t session;
+  if (!vt_session_start(&session, binary, args, 1, 100, 30)) {
+    return test_fail(stats, name, "failed to start PTY session");
+  }
+  char *snapshot = NULL;
+  int failed = 0;
+  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "initial menu did not render");
+  /* Shrink: above minimum but smaller than initial frame_width=72. */
+  if (!failed && !vt_resize(&session, 60, 16))
+    failed = test_fail(stats, name, "failed to shrink");
+  if (!failed &&
+      !vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "title vanished after shrink");
+  /* Grow back. */
+  if (!failed && !vt_resize(&session, 100, 30))
+    failed = test_fail(stats, name, "failed to grow");
+  if (!failed &&
+      !vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "title vanished after grow");
+  if (!failed && !vt_send(&session, "q"))
+    failed = test_fail(stats, name, "failed to start exit");
+  if (!failed && !vt_send(&session, "y"))
+    failed = test_fail(stats, name, "failed to confirm exit");
+  if (!failed && vt_wait_for_exit(&session, PTY_TIMEOUT_MS) != 0)
+    failed = test_fail(stats, name, "process did not exit cleanly");
+  if (!failed)
+    test_pass(stats, name);
+  free(snapshot);
+  vt_session_close(&session);
+  return failed;
+}
+
 int run_tui_menu_mnemonic(test_stats_t *stats, const char *binary,
                           bool tui_enabled) {
   const char *name = "tui menu mnemonic auto-confirms";
