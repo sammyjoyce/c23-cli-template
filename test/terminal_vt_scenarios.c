@@ -1,18 +1,8 @@
 #include "terminal_vt.h"
 
-static bool vt_select_menu_index(vt_session_t *session, int index) {
-  for (int i = 0; i < index; i++) {
-    if (!vt_send(session, "j")) {
-      return false;
-    }
-  }
-  return vt_send(session, "\r");
-}
-
 typedef enum {
   TUI_STEP_EXPECT,
   TUI_STEP_SEND,
-  TUI_STEP_SELECT,
   TUI_STEP_RESIZE,
   TUI_STEP_WAIT_EXIT,
 } tui_step_kind_t;
@@ -42,10 +32,6 @@ static int run_tui_step(test_stats_t *stats, const char *test_name,
     return test_fail(stats, test_name, "%s", step->failure);
   case TUI_STEP_SEND:
     return vt_send(session, step->value)
-               ? 0
-               : test_fail(stats, test_name, "%s", step->failure);
-  case TUI_STEP_SELECT:
-    return vt_select_menu_index(session, step->menu_index)
                ? 0
                : test_fail(stats, test_name, "%s", step->failure);
   case TUI_STEP_RESIZE:
@@ -92,7 +78,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Exit", 0, 0, 0, 1000,
        "menu label did not appear: Exit"},
 
-      {TUI_STEP_SELECT, NULL, 0, 0, 0, 0, "failed to select Overview"},
+      {TUI_STEP_SEND, "o", 0, 0, 0, 0, "failed to select Overview"},
       {TUI_STEP_EXPECT, "Starter Overview", 0, 0, 0, PTY_TIMEOUT_MS,
        "Starter Overview did not appear"},
       {TUI_STEP_EXPECT, "C23 modules", 0, 0, 0, 1000,
@@ -101,8 +87,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after overview"},
 
-      {TUI_STEP_SELECT, NULL, 1, 0, 0, 0,
-       "failed to select System Information"},
+      {TUI_STEP_SEND, "s", 0, 0, 0, 0, "failed to select System Information"},
       {TUI_STEP_EXPECT, "System Information", 0, 0, 0, PTY_TIMEOUT_MS,
        "System Information did not appear"},
       {TUI_STEP_EXPECT, "Application:", 0, 0, 0, 1000,
@@ -115,7 +100,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after system info"},
 
-      {TUI_STEP_SELECT, NULL, 2, 0, 0, 0, "failed to select Input Dialog"},
+      {TUI_STEP_SEND, "i", 0, 0, 0, 0, "failed to select Input Dialog"},
       {TUI_STEP_EXPECT, "Input Dialog", 0, 0, 0, PTY_TIMEOUT_MS,
        "Input Dialog did not appear"},
       {TUI_STEP_EXPECT, "Enter a display name:", 0, 0, 0, 1000,
@@ -131,7 +116,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after input flow"},
 
-      {TUI_STEP_SELECT, NULL, 3, 0, 0, 0, "failed to select Progress Pattern"},
+      {TUI_STEP_SEND, "p", 0, 0, 0, 0, "failed to select Progress Pattern"},
       {TUI_STEP_EXPECT, "Progress Complete", 0, 0, 0, PTY_TIMEOUT_MS,
        "Progress Complete did not appear"},
       {TUI_STEP_EXPECT, "window lifecycle", 0, 0, 0, 1000,
@@ -140,7 +125,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after progress"},
 
-      {TUI_STEP_SELECT, NULL, 4, 0, 0, 0, "failed to select Layout Pattern"},
+      {TUI_STEP_SEND, "l", 0, 0, 0, 0, "failed to select Layout Pattern"},
       {TUI_STEP_EXPECT, "Layout Pattern", 0, 0, 0, PTY_TIMEOUT_MS,
        "Layout Pattern did not appear"},
       {TUI_STEP_EXPECT, "Composable terminal UI", 0, 0, 0, 1000,
@@ -161,7 +146,7 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_SEND, "n", 0, 0, 0, 0, "failed to cancel exit confirmation"},
       {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after exit cancel"},
-      {TUI_STEP_SELECT, NULL, 6, 0, 0, 0, "failed to select Exit"},
+      {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to select Exit"},
       {TUI_STEP_EXPECT, "Return to the shell?", 0, 0, 0, PTY_TIMEOUT_MS,
        "exit menu confirmation did not appear"},
       {TUI_STEP_SEND, "y", 0, 0, 0, 0, "failed to confirm exit"},
