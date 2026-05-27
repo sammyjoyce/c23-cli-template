@@ -58,17 +58,12 @@ int64_t monotonic_ms(void) {
   if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
     return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
   }
-  if (timespec_get(&ts, TIME_UTC) == TIME_UTC) {
-    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-  }
 
-  const time_t now = time(NULL);
-  if (now > 0) {
-    return (int64_t)now * 1000;
-  }
-
-  static int64_t fallback_ms = 1;
-  return fallback_ms++;
+  const int saved_errno = errno != 0 ? errno : EINVAL;
+  fprintf(stderr,
+          "terminal-vt tests require clock_gettime(CLOCK_MONOTONIC): %s\n",
+          strerror(saved_errno));
+  exit(EXIT_FAILURE);
 }
 
 void print_tail(FILE *stream, const char *label, const char *text, size_t len,
