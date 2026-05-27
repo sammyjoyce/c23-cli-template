@@ -225,6 +225,56 @@ static void tui_menu_render_scrollbar(const tui_menu_layout_t *L,
   }
 }
 
+static void tui_menu_render_detail(const tui_menu_layout_t *L,
+                                   const tui_menu_state_t *s) {
+  if (!L->detail_pane_visible)
+    return;
+  WINDOW *win = L->frame->win;
+  const tui_menu_config_t *cfg = tui_menu_state_config(s);
+  const int sel_v = tui_menu_state_selected_visible(s);
+  const int idx = tui_menu_state_visible_at(s, sel_v);
+  if (idx < 0)
+    return;
+
+  tui_set_color(win, TUI_COLOR_BORDER);
+  mvwhline(win, L->detail_y, 2, ACS_HLINE, L->frame->width - 4);
+  tui_unset_color(win, TUI_COLOR_BORDER);
+  const char *desc = cfg->items[idx].description;
+  if (desc) {
+    tui_print_wrapped(win, L->detail_y + 1, 3, L->frame->width - 6, desc);
+  }
+}
+
+static void tui_menu_render_footer(const tui_menu_layout_t *L,
+                                   const tui_menu_state_t *s) {
+  WINDOW *win = L->frame->win;
+  const tui_menu_config_t *cfg = tui_menu_state_config(s);
+  tui_set_color(win, TUI_COLOR_INFO);
+  mvwhline(win, L->footer_y, 1, ' ', L->frame->width - 2);
+
+  if (tui_menu_state_search_active(s)) {
+    char buf[128];
+    /* Convert the wchar query to a multibyte string for display. */
+    char mb[64];
+    const wchar_t *q = tui_menu_state_search_query(s);
+    size_t n = wcstombs(mb, q, sizeof(mb) - 1);
+    if (n == (size_t)-1)
+      n = 0;
+    mb[n] = 0;
+    snprintf(buf, sizeof(buf), "Search: %s_     Esc cancel", mb);
+    mvwaddnstr(win, L->footer_y, 3, buf, L->frame->width - 6);
+  } else {
+    const char *parts =
+        cfg->enable_search && cfg->show_numeric_keys
+            ? "  navigate  / search  1-9 jump  Enter ok  q quit"
+        : cfg->enable_search     ? "  navigate  / search  Enter ok  q quit"
+        : cfg->show_numeric_keys ? "  navigate  1-9 jump  Enter ok  q quit"
+                                 : "  navigate  Enter ok  q quit";
+    mvwaddnstr(win, L->footer_y, 3, parts, L->frame->width - 6);
+  }
+  tui_unset_color(win, TUI_COLOR_INFO);
+}
+
 /* Stub - implemented in Task 16. */
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {
@@ -235,5 +285,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
   (void)tui_menu_render_title;
   (void)tui_menu_render_items;
   (void)tui_menu_render_scrollbar;
+  (void)tui_menu_render_detail;
+  (void)tui_menu_render_footer;
   return (tui_menu_result_t){.status = TUI_MENU_INVALID_ARG};
 }
