@@ -58,7 +58,8 @@ static const char *const info_examples[] = {
 };
 
 static const app_command_option_t doctor_options[] = {
-    {.name = "deep",
+    {.id = APP_COMMAND_OPTION_DOCTOR_DEEP,
+     .name = "deep",
      .description =
          "Also exercise the optional TUI runtime when a TTY is available"},
 };
@@ -213,6 +214,22 @@ const app_command_t *app_command_find(const char *name) {
   for (size_t i = 0; i < G_APP_COMMANDS_COUNT; i++) {
     if (strcmp(g_app_commands[i].name, name) == 0) {
       return &g_app_commands[i];
+    }
+  }
+  return NULL;
+}
+
+const app_command_option_t *app_command_option_find(
+    const app_command_t *command, const char *arg) {
+  if (!command || !arg || strncmp(arg, "--", 2) != 0 || arg[2] == '\0') {
+    return NULL;
+  }
+
+  const char *name = arg + 2;
+  for (size_t i = 0; i < command->option_count; i++) {
+    const app_command_option_t *option = &command->options[i];
+    if (option->name && strcmp(option->name, name) == 0) {
+      return option;
     }
   }
   return NULL;

@@ -42,7 +42,10 @@ static bool test_help_is_human_readable(test_context_t *ctx) {
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "USAGE") &&
                   cc_expect_stdout_contains(&result, "COMMANDS") &&
-                  cc_expect_stdout_contains(&result, "doctor");
+                  cc_expect_stdout_contains(&result, "doctor") &&
+                  cc_expect_stdout_contains(
+                      &result, "Enable debug output (DEBUG level logs)") &&
+                  cc_expect_stdout_contains(&result, "(env: APP_LOG_LEVEL)");
   cc_command_result_free(&result);
   return ok;
 }
@@ -124,6 +127,28 @@ static bool test_doctor_reports_binary_state(test_context_t *ctx) {
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "doctor") &&
                   cc_expect_stdout_contains(&result, "binary");
+  cc_command_result_free(&result);
+  return ok;
+}
+
+static bool test_doctor_deep_option_exercises_runtime_probe(
+    test_context_t *ctx) {
+  const char *args[] = {"--json", "doctor", "--deep"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  bool ok = cc_expect_exit(&result, 0) &&
+            cc_expect_stdout_contains(&result, "\"name\":\"tui_runtime\"");
+  if (ok) {
+    const bool deep_detail =
+        result.out &&
+        (strstr(result.out, "TUI support not compiled") ||
+         strstr(result.out, "runtime smoke skipped without a TTY") ||
+         strstr(result.out, "ncurses initialized successfully") ||
+         strstr(result.out, "terminal is too small"));
+    if (!deep_detail) {
+      fprintf(stderr, "expected doctor --deep runtime probe detail\n");
+      ok = false;
+    }
+  }
   cc_command_result_free(&result);
   return ok;
 }
@@ -285,6 +310,8 @@ const test_case_t cli_contract_cases[] = {
     {"quiet json commands suppress stdout",
      test_quiet_json_commands_suppress_stdout},
     {"doctor reports binary state", test_doctor_reports_binary_state},
+    {"doctor --deep exercises runtime probe",
+     test_doctor_deep_option_exercises_runtime_probe},
     {"plain mode disables forced color", test_plain_mode_disables_forced_color},
     {"command arguments are not global config flags",
      test_command_arguments_are_not_global_config_flags},

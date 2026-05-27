@@ -25,7 +25,13 @@ typedef struct {
   const char *description;
 } app_command_arg_t;
 
+typedef enum {
+  APP_COMMAND_OPTION_UNKNOWN = 0,
+  APP_COMMAND_OPTION_DOCTOR_DEEP,
+} app_command_option_id_t;
+
 typedef struct {
+  app_command_option_id_t id;
   const char *name;
   const char *description;
 } app_command_option_t;
@@ -85,6 +91,10 @@ const app_global_value_option_t *app_global_value_option_find(const char *arg);
 
 // Look up a command by name. Returns NULL when no command matches.
 const app_command_t *app_command_find(const char *name);
+
+// Look up a command option by CLI spelling, for example "--deep".
+const app_command_option_t *app_command_option_find(
+    const app_command_t *command, const char *arg);
 
 static inline const char *app_yes_no(bool value) {
   return value ? "yes" : "no";

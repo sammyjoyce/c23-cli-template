@@ -89,8 +89,11 @@ app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv) {
   }
 
   bool deep = false;
+  const app_command_t *doctor_command = app_command_find("doctor");
   for (int i = 0; i < argc; i++) {
-    if (argv[i] && strcmp(argv[i], "--deep") == 0) {
+    const app_command_option_t *option =
+        app_command_option_find(doctor_command, argv[i]);
+    if (option && option->id == APP_COMMAND_OPTION_DOCTOR_DEEP) {
       deep = true;
     }
   }

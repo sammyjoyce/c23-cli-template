@@ -79,7 +79,7 @@ static void print_global_value_options(void) {
   }
 }
 
-static void print_flag_options(void) {
+static void print_flag_options(bool include_env_hints) {
   size_t count = 0;
   const app_flag_spec_t *flags = app_flag_table(&count);
   for (size_t i = 0; i < count; i++) {
@@ -94,7 +94,13 @@ static void print_flag_options(void) {
     } else {
       continue;
     }
-    printf("  %-20s(boolean)\n", left);
+    const char *description =
+        spec->description ? spec->description : "Boolean flag";
+    if (include_env_hints && spec->env_var && spec->env_var[0] != '\0') {
+      printf("  %-20s%s (env: %s)\n", left, description, spec->env_var);
+    } else {
+      printf("  %-20s%s\n", left, description);
+    }
   }
 }
 
@@ -110,7 +116,7 @@ void app_print_concise_help(const char *program_name) {
 
   printf("Options:\n");
   print_builtin_options();
-  print_flag_options();
+  print_flag_options(false);
   print_global_value_options();
   printf("\n");
 
@@ -155,27 +161,7 @@ void app_print_verbose_usage(const char *program_name) {
 
   printf("%sOPTIONS%s\n", bold, reset);
   print_builtin_options();
-  size_t flag_count = 0;
-  const app_flag_spec_t *flags = app_flag_table(&flag_count);
-  for (size_t i = 0; i < flag_count; i++) {
-    const app_flag_spec_t *spec = &flags[i];
-    char left[64];
-    if (spec->cli_short && spec->cli_long) {
-      snprintf(left, sizeof(left), "%s, %s", spec->cli_short, spec->cli_long);
-    } else if (spec->cli_long) {
-      snprintf(left, sizeof(left), "%s", spec->cli_long);
-    } else if (spec->cli_short) {
-      snprintf(left, sizeof(left), "%s", spec->cli_short);
-    } else {
-      continue;
-    }
-    const char *env_hint = spec->env_var ? spec->env_var : "";
-    if (env_hint[0] != '\0') {
-      printf("  %-20sboolean (env: %s)\n", left, env_hint);
-    } else {
-      printf("  %-20sboolean\n", left);
-    }
-  }
+  print_flag_options(true);
   print_global_value_options();
   printf("\n");
 
