@@ -446,11 +446,11 @@ bool write_temp_config(const char *content, char **path_out) {
   }
 
   FILE *stream = fdopen(file.fd, "wb");
-  file.fd = -1;
   if (!stream) {
     cleanup_temp_file(&file);
     return false;
   }
+  file.fd = -1;
   const size_t len = strlen(content);
   const bool ok = fwrite(content, 1, len, stream) == len;
   if (fclose(stream) != 0) {
