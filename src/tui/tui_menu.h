@@ -57,6 +57,7 @@ typedef enum {
   TUI_MENU_INTERRUPTED,
   TUI_MENU_TOO_SMALL,
   TUI_MENU_INVALID_ARG,
+  TUI_MENU_NO_MEMORY,
 } tui_menu_status_t;
 
 typedef struct {

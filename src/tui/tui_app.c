@@ -80,10 +80,7 @@ static void app_show_progress(void) {
                    "percentage, and owns its window lifecycle.");
 }
 
-static void app_show_layout(void) {
-  tui_window_t *win = tui_create_centered_window(14, 72);
-  if (!win)
-    return;
+static void app_draw_layout_window(tui_window_t *win) {
   tui_draw_border(win);
   tui_set_window_title(win, "Layout Pattern");
   tui_set_color(win->win, TUI_COLOR_TITLE);
@@ -95,12 +92,41 @@ static void app_show_layout(void) {
                     "command code can stay easy to test.");
   tui_draw_status_line(win->win, "Enter/Esc closes this panel", APP_NAME);
   tui_refresh_window(win);
+}
+
+static void app_show_layout(void) {
+  tui_window_t *win = tui_create_centered_window(14, 72);
+  if (!win)
+    return;
+  app_draw_layout_window(win);
   while (true) {
+    if (tui_interrupted()) {
+      tui_acknowledge_interrupt();
+      break;
+    }
     int ch = tui_get_char();
+    if (tui_interrupted()) {
+      tui_acknowledge_interrupt();
+      break;
+    }
+    if (ch == KEY_RESIZE) {
+      tui_destroy_window(win);
+      win = tui_create_centered_window(14, 72);
+      if (!win) {
+        break;
+      }
+      app_draw_layout_window(win);
+      continue;
+    }
+    if (ch == ERR) {
+      continue;
+    }
     if (ch == '\n' || ch == KEY_ENTER || ch == 27 || ch == 'q' || ch == 'Q')
       break;
   }
-  tui_destroy_window(win);
+  if (win) {
+    tui_destroy_window(win);
+  }
   touchwin(stdscr);
   refresh();
 }
@@ -289,6 +315,7 @@ app_error tui_run_app(void) {
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:
+    case TUI_MENU_NO_MEMORY:
       running = false;
       err = APP_ERROR_OUT_OF_RANGE;
       break;

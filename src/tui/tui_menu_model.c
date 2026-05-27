@@ -138,7 +138,7 @@ tui_menu_status_t tui_menu_state_create(const tui_menu_config_t *cfg,
 
   struct tui_menu_state *s = calloc(1, sizeof(*s));
   if (!s)
-    return TUI_MENU_INVALID_ARG;
+    return TUI_MENU_NO_MEMORY;
   s->cfg = cfg;
 
   s->visible = calloc((size_t)cfg->item_count, sizeof(int));
@@ -146,7 +146,7 @@ tui_menu_status_t tui_menu_state_create(const tui_menu_config_t *cfg,
   s->mnemonics = calloc((size_t)cfg->item_count, sizeof(wchar_t));
   if (!s->visible || !s->label_w || !s->mnemonics) {
     tui_menu_state_destroy(s);
-    return TUI_MENU_INVALID_ARG;
+    return TUI_MENU_NO_MEMORY;
   }
 
   menu_state_parse_labels(s);
