@@ -275,6 +275,143 @@ static void tui_menu_render_footer(const tui_menu_layout_t *L,
   tui_unset_color(win, TUI_COLOR_INFO);
 }
 
+typedef enum {
+  TUI_MENU_EV_NONE,
+  TUI_MENU_EV_CONFIRM,
+  TUI_MENU_EV_CANCEL,
+  TUI_MENU_EV_INTERRUPT,
+  TUI_MENU_EV_REDRAW,
+} tui_menu_event_t;
+
+static tui_menu_event_t menu_handle_key_in_search(tui_menu_state_t *s, int ch) {
+  switch (ch) {
+  case 27: /* Esc */
+    tui_menu_state_search_close(s);
+    return TUI_MENU_EV_NONE;
+  case '\n':
+  case KEY_ENTER:
+    return TUI_MENU_EV_CONFIRM;
+  case KEY_BACKSPACE:
+  case 127:
+    tui_menu_state_search_backspace(s);
+    return TUI_MENU_EV_NONE;
+  default:
+    if (ch >= 32 && ch < 0x7f) {
+      tui_menu_state_search_append(s, (wchar_t)ch);
+    }
+    return TUI_MENU_EV_NONE;
+  }
+}
+
+static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
+                                        int *out_confirm_id) {
+  const tui_menu_config_t *cfg = tui_menu_state_config(s);
+  if (tui_menu_state_search_active(s)) {
+    return menu_handle_key_in_search(s, ch);
+  }
+  switch (ch) {
+  case KEY_UP:
+  case 'k':
+    tui_menu_state_step(s, -1);
+    return TUI_MENU_EV_NONE;
+  case KEY_DOWN:
+  case 'j':
+    tui_menu_state_step(s, 1);
+    return TUI_MENU_EV_NONE;
+  case KEY_HOME:
+    tui_menu_state_home(s);
+    return TUI_MENU_EV_NONE;
+  case KEY_END:
+    tui_menu_state_end(s);
+    return TUI_MENU_EV_NONE;
+  case KEY_PPAGE:
+    tui_menu_state_page(s, -1, 8);
+    return TUI_MENU_EV_NONE;
+  case KEY_NPAGE:
+    tui_menu_state_page(s, 1, 8);
+    return TUI_MENU_EV_NONE;
+  case '\n':
+  case KEY_ENTER:
+    return TUI_MENU_EV_CONFIRM;
+  case 'q':
+  case 27:
+    return TUI_MENU_EV_CANCEL;
+  case '/':
+    if (cfg->enable_search)
+      tui_menu_state_search_open(s);
+    return TUI_MENU_EV_NONE;
+  default:
+    if (cfg->show_numeric_keys && ch >= '1' && ch <= '9') {
+      tui_menu_state_numeric_jump(s, ch - '1');
+      return TUI_MENU_EV_NONE;
+    }
+    if (iswalnum((wint_t)ch)) {
+      bool beep = false;
+      int auto_idx = tui_menu_state_mnemonic_jump(s, (wchar_t)ch, &beep);
+      if (auto_idx >= 0) {
+        *out_confirm_id = cfg->items[auto_idx].id;
+        return TUI_MENU_EV_CONFIRM;
+      }
+      if (beep)
+        tui_beep();
+    }
+    return TUI_MENU_EV_NONE;
+  }
+}
+
+#ifdef NCURSES_MOUSE_VERSION
+static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
+                                          const tui_menu_layout_t *L,
+                                          int *out_confirm_id) {
+  MEVENT ev;
+  if (getmouse(&ev) != OK)
+    return TUI_MENU_EV_NONE;
+  int wy = ev.y, wx = ev.x;
+  if (!wmouse_trafo(L->frame->win, &wy, &wx, FALSE))
+    return TUI_MENU_EV_NONE;
+
+  if (wy < L->item_area_y || wy >= L->item_area_y + L->item_area_h) {
+    return TUI_MENU_EV_NONE;
+  }
+  const int row = wy - L->item_area_y;
+  const int v = tui_menu_state_top_visible(s) + row;
+  if (v < 0 || v >= tui_menu_state_visible_count(s))
+    return TUI_MENU_EV_NONE;
+  const tui_menu_config_t *cfg = tui_menu_state_config(s);
+  const int idx = tui_menu_state_visible_at(s, v);
+  const tui_menu_item_t *it = &cfg->items[idx];
+
+  if (ev.bstate & BUTTON4_PRESSED) {
+    tui_menu_state_step(s, -1);
+    return TUI_MENU_EV_NONE;
+  }
+  if (ev.bstate & BUTTON5_PRESSED) {
+    tui_menu_state_step(s, 1);
+    return TUI_MENU_EV_NONE;
+  }
+
+  if (it->kind == TUI_MENU_ITEM_SEPARATOR || it->disabled) {
+    tui_beep();
+    return TUI_MENU_EV_NONE;
+  }
+  if (ev.bstate & BUTTON1_CLICKED) {
+    /* Set selection but don't confirm. */
+    const int sel_v = tui_menu_state_selected_visible(s);
+    if (v != sel_v) {
+      /* step to v using the model API by walking */
+      const int delta = v - sel_v;
+      tui_menu_state_step(s, delta > 0 ? 1 : -1);
+    }
+    return TUI_MENU_EV_NONE;
+  }
+  if (ev.bstate & BUTTON1_DOUBLE_CLICKED) {
+    *out_confirm_id = it->id;
+    return TUI_MENU_EV_CONFIRM;
+  }
+  return TUI_MENU_EV_NONE;
+}
+#endif
+
 /* Stub - implemented in Task 16. */
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {
@@ -287,5 +424,9 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
   (void)tui_menu_render_scrollbar;
   (void)tui_menu_render_detail;
   (void)tui_menu_render_footer;
+  (void)menu_handle_key;
+#ifdef NCURSES_MOUSE_VERSION
+  (void)menu_handle_mouse;
+#endif
   return (tui_menu_result_t){.status = TUI_MENU_INVALID_ARG};
 }
