@@ -118,7 +118,8 @@ zig build -Denable-tui=true terminal-test
 zig build check
 ```
 
-For the TUI, `zig build -Denable-tui=true terminal-test` drives the menu through a pseudo-terminal when Python `pexpect` and `pyte` are available.
+For the TUI, `zig build -Denable-tui=true terminal-test` drives the menu through a pseudo-terminal when `libghostty-vt` is available.
+Use `-Dterminal-backend=ghostty` to require that backend instead of skipping PTY-backed TUI coverage on machines without Ghostty VT.
 
 Also run the menu command in a real terminal before shipping major UI changes:
 

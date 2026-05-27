@@ -1,4 +1,9 @@
-# Pre-commit hooks for Zig projects
+# Optional local pre-commit hooks for Zig projects.
+#
+# CI does not run pre-commit as a separate gate. The enforced path is the
+# repository workflow: zig build check, text hygiene, clang-format checks, and
+# markdownlint. Install these hooks only as a local convenience for earlier
+# feedback before pushing.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -38,5 +43,5 @@ repos:
         stages: [commit-msg]
         args: []
 
-# Note: When using this template, run `pre-commit install` to set up the hooks.
+# Optional: run `pre-commit install` to set up local hooks.
 # For commit message linting, also run `pre-commit install --hook-type commit-msg`.
