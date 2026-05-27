@@ -1,0 +1,127 @@
+/*
+ * OpenCLI contract metadata tables.
+ */
+
+#include "opencli_contract.h"
+
+static const app_command_arg_t root_arguments[] = {
+    {.name = "command",
+     .required = true,
+     .ordinal = 1,
+     .arity_minimum = 1,
+     .arity_maximum = 1,
+     .description = "The command to execute"},
+};
+
+static const app_command_arg_t config_arguments[] = {
+    {.name = "path",
+     .required = true,
+     .ordinal = 1,
+     .arity_minimum = 1,
+     .arity_maximum = 1,
+     .description = "Path to configuration file"},
+};
+
+static const app_opencli_option_t leading_options[] = {
+    {.name = "help",
+     .required = false,
+     .alias = "h",
+     .description = "Show help message and exit"},
+    {.name = "version",
+     .required = false,
+     .description = "Show version information and exit"},
+};
+
+static const app_opencli_option_t trailing_options[] = {
+    {.name = "config",
+     .required = false,
+     .alias = "c",
+     .arguments = config_arguments,
+     .argument_count = sizeof(config_arguments) / sizeof(config_arguments[0]),
+     .description = "Specify configuration file path"},
+};
+
+static const char *const extra_examples[] = {
+    APP_NAME " --help",
+    APP_NAME " --version",
+};
+
+static const app_opencli_metadata_field_t environment_fields[] = {
+    {.name = "APP_LOG_LEVEL",
+     .description =
+         "Set logging verbosity: ERROR, WARNING, INFO, DEBUG (default: ERROR)"},
+    {.name = "NO_COLOR", .description = "Disable colored output when set"},
+};
+
+static const app_opencli_metadata_field_t configuration_fields[] = {
+    {.name = "location", .description = "~/.config/" APP_NAME "/config.json"},
+    {.name = "format",
+     .description =
+         "Flat JSON object with boolean debug, quiet, verbose, no_color, "
+         "json_output, and plain_output keys"},
+    {.name = "precedence",
+     .description = "CLI args > Environment > Config file > Defaults"},
+};
+
+static const app_opencli_metadata_field_t build_fields[] = {
+    {.name = "system", .description = "Zig build system"},
+    {.name = "compiler", .description = "Zig cc (Clang/LLVM)"},
+    {.name = "standard", .description = "C23"},
+};
+
+static const app_opencli_metadata_group_t metadata_groups[] = {
+    {.name = "environment",
+     .fields = environment_fields,
+     .field_count = sizeof(environment_fields) / sizeof(environment_fields[0])},
+    {.name = "configuration",
+     .fields = configuration_fields,
+     .field_count =
+         sizeof(configuration_fields) / sizeof(configuration_fields[0])},
+    {.name = "build",
+     .fields = build_fields,
+     .field_count = sizeof(build_fields) / sizeof(build_fields[0])},
+};
+
+static const app_opencli_contract_t g_opencli_contract = {
+    .opencli_version = "0.1",
+    .info =
+        {
+            .title = "C23 TUI + CLI Starter",
+            .description =
+                "A ready-to-use C23 starter for command-line tools and "
+                "ncurses terminal UIs.",
+            .version = APP_VERSION,
+            .contact =
+                {
+                    .name = "Your Name",
+                    .url = "https://github.com/yourusername/yourproject",
+                },
+            .license =
+                {
+                    .name = "MIT License",
+                    .identifier = "MIT",
+                },
+        },
+    .conventions =
+        {
+            .group_options = false,
+            .option_argument_separator = " ",
+        },
+    .root_arguments = root_arguments,
+    .root_argument_count = sizeof(root_arguments) / sizeof(root_arguments[0]),
+    .leading_options = leading_options,
+    .leading_option_count =
+        sizeof(leading_options) / sizeof(leading_options[0]),
+    .trailing_options = trailing_options,
+    .trailing_option_count =
+        sizeof(trailing_options) / sizeof(trailing_options[0]),
+    .extra_examples = extra_examples,
+    .extra_example_count = sizeof(extra_examples) / sizeof(extra_examples[0]),
+    .interactive = false,
+    .metadata = metadata_groups,
+    .metadata_count = sizeof(metadata_groups) / sizeof(metadata_groups[0]),
+};
+
+const app_opencli_contract_t *app_opencli_contract(void) {
+  return &g_opencli_contract;
+}

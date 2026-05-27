@@ -1,6 +1,5 @@
 /*
- * "opencli" command - prints the checked-in OpenCLI contract from live command
- * and flag metadata.
+ * "opencli" command - prints the OpenCLI contract from shared metadata tables.
  */
 
 #include <stdio.h>
@@ -11,59 +10,9 @@
 #include "../core/types.h"
 #include "../io/output.h"
 #include "commands.h"
+#include "opencli_contract.h"
 
 app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv);
-
-static void opencli_indent(FILE *stream, int level) {
-  for (int i = 0; i < level; i++) {
-    fputs("  ", stream);
-  }
-}
-
-static void opencli_string_field(FILE *stream, int level, const char *key,
-                                 const char *value, bool comma) {
-  opencli_indent(stream, level);
-  app_json_write_string(stream, key);
-  fputs(": ", stream);
-  app_json_write_string(stream, value);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
-
-static void opencli_bool_field(FILE *stream, int level, const char *key,
-                               bool value, bool comma) {
-  opencli_indent(stream, level);
-  app_json_write_string(stream, key);
-  fputs(value ? ": true" : ": false", stream);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
-
-static void opencli_int_field(FILE *stream, int level, const char *key,
-                              int value, bool comma) {
-  opencli_indent(stream, level);
-  app_json_write_string(stream, key);
-  fprintf(stream, ": %d", value);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
-
-static void opencli_null_field(FILE *stream, int level, const char *key,
-                               bool comma) {
-  opencli_indent(stream, level);
-  app_json_write_string(stream, key);
-  fputs(": null", stream);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
 
 static const char *opencli_option_name(const char *cli_long) {
   if (!cli_long) {
@@ -85,9 +34,8 @@ static const char *opencli_short_alias(const char *cli_short) {
   return cli_short;
 }
 
-static void opencli_print_aliases(FILE *stream, int level,
-                                  const char *alias) {
-  opencli_indent(stream, level);
+static void opencli_print_aliases(FILE *stream, int level, const char *alias) {
+  app_json_write_indent(stream, level);
   fputs("\"aliases\": [", stream);
   if (alias && alias[0] != '\0') {
     app_json_write_string(stream, alias);
@@ -95,26 +43,70 @@ static void opencli_print_aliases(FILE *stream, int level,
   fputs("],\n", stream);
 }
 
-static void opencli_print_empty_args(FILE *stream, int level, bool comma) {
-  opencli_indent(stream, level);
-  fputs("\"arguments\": []", stream);
+static void opencli_print_arguments(FILE *stream, int level,
+                                    const app_command_arg_t *arguments,
+                                    size_t count, bool comma) {
+  app_json_write_indent(stream, level);
+  fputs("\"arguments\": [", stream);
+  if (count > 0) {
+    fputc('\n', stream);
+    for (size_t i = 0; i < count; i++) {
+      const app_command_arg_t *arg = &arguments[i];
+      const int item_level = level + 1;
+      app_json_write_indent(stream, item_level);
+      fputs("{\n", stream);
+      app_json_write_pretty_string_field(stream, item_level + 1, "name",
+                                         arg->name, true);
+      app_json_write_pretty_bool_field(stream, item_level + 1, "required",
+                                       arg->required, true);
+      app_json_write_pretty_int_field(stream, item_level + 1, "ordinal",
+                                      arg->ordinal, true);
+      app_json_write_indent(stream, item_level + 1);
+      fputs("\"arity\": {\n", stream);
+      app_json_write_pretty_int_field(stream, item_level + 2, "minimum",
+                                      arg->arity_minimum, true);
+      if (arg->arity_maximum == APP_ARG_ARITY_UNBOUNDED) {
+        app_json_write_pretty_null_field(stream, item_level + 2, "maximum",
+                                         false);
+      } else {
+        app_json_write_pretty_int_field(stream, item_level + 2, "maximum",
+                                        arg->arity_maximum, false);
+      }
+      app_json_write_indent(stream, item_level + 1);
+      fputs("},\n", stream);
+      app_json_write_pretty_string_field(stream, item_level + 1, "description",
+                                         arg->description, false);
+      app_json_write_indent(stream, item_level);
+      fputc('}', stream);
+      if (i + 1 < count) {
+        fputc(',', stream);
+      }
+      fputc('\n', stream);
+    }
+    app_json_write_indent(stream, level);
+  }
+  fputc(']', stream);
   if (comma) {
     fputc(',', stream);
   }
   fputc('\n', stream);
 }
 
-static void opencli_print_global_option(FILE *stream, const char *name,
-                                        const char *alias,
-                                        const char *description, bool comma) {
-  opencli_indent(stream, 2);
+static void opencli_print_option(FILE *stream, int level, const char *name,
+                                 bool required, const char *alias,
+                                 const app_command_arg_t *arguments,
+                                 size_t argument_count, const char *description,
+                                 bool comma) {
+  app_json_write_indent(stream, level);
   fputs("{\n", stream);
-  opencli_string_field(stream, 3, "name", name, true);
-  opencli_bool_field(stream, 3, "required", false, true);
-  opencli_print_aliases(stream, 3, alias);
-  opencli_print_empty_args(stream, 3, true);
-  opencli_string_field(stream, 3, "description", description, false);
-  opencli_indent(stream, 2);
+  app_json_write_pretty_string_field(stream, level + 1, "name", name, true);
+  app_json_write_pretty_bool_field(stream, level + 1, "required", required,
+                                   true);
+  opencli_print_aliases(stream, level + 1, alias);
+  opencli_print_arguments(stream, level + 1, arguments, argument_count, true);
+  app_json_write_pretty_string_field(stream, level + 1, "description",
+                                     description, false);
+  app_json_write_indent(stream, level);
   fputc('}', stream);
   if (comma) {
     fputc(',', stream);
@@ -122,119 +114,60 @@ static void opencli_print_global_option(FILE *stream, const char *name,
   fputc('\n', stream);
 }
 
-static void opencli_print_config_option(FILE *stream) {
-  opencli_indent(stream, 2);
-  fputs("{\n", stream);
-  opencli_string_field(stream, 3, "name", "config", true);
-  opencli_bool_field(stream, 3, "required", false, true);
-  opencli_print_aliases(stream, 3, "c");
-  opencli_indent(stream, 3);
-  fputs("\"arguments\": [\n", stream);
-  opencli_indent(stream, 4);
-  fputs("{\n", stream);
-  opencli_string_field(stream, 5, "name", "path", true);
-  opencli_bool_field(stream, 5, "required", true, true);
-  opencli_int_field(stream, 5, "ordinal", 1, true);
-  opencli_indent(stream, 5);
-  fputs("\"arity\": {\n", stream);
-  opencli_int_field(stream, 6, "minimum", 1, true);
-  opencli_int_field(stream, 6, "maximum", 1, false);
-  opencli_indent(stream, 5);
-  fputs("},\n", stream);
-  opencli_string_field(stream, 5, "description", "Path to configuration file",
-                       false);
-  opencli_indent(stream, 4);
-  fputs("}\n", stream);
-  opencli_indent(stream, 3);
-  fputs("],\n", stream);
-  opencli_string_field(stream, 3, "description", "Specify configuration file path",
-                       false);
-  opencli_indent(stream, 2);
-  fputs("}\n", stream);
+static void opencli_print_contract_option(FILE *stream,
+                                          const app_opencli_option_t *option,
+                                          bool comma) {
+  opencli_print_option(stream, 2, option->name, option->required, option->alias,
+                       option->arguments, option->argument_count,
+                       option->description, comma);
 }
 
-static void opencli_print_options(FILE *stream) {
+static void opencli_print_flag_option(FILE *stream, const app_flag_spec_t *flag,
+                                      bool comma) {
+  opencli_print_option(stream, 2, opencli_option_name(flag->cli_long), false,
+                       opencli_short_alias(flag->cli_short), NULL, 0,
+                       flag->description, comma);
+}
+
+static void opencli_print_options(FILE *stream,
+                                  const app_opencli_contract_t *contract) {
+  size_t flag_count = 0;
+  const app_flag_spec_t *flags = app_flag_table(&flag_count);
+  const size_t total = contract->leading_option_count + flag_count +
+                       contract->trailing_option_count;
+  size_t printed = 0;
+
   fputs("  \"options\": [\n", stream);
-  opencli_print_global_option(stream, "help", "h", "Show help message and exit",
-                              true);
-  opencli_print_global_option(stream, "version", NULL,
-                              "Show version information and exit", true);
-
-  size_t count = 0;
-  const app_flag_spec_t *flags = app_flag_table(&count);
-  for (size_t i = 0; i < count; i++) {
-    const app_flag_spec_t *flag = &flags[i];
-    opencli_print_global_option(
-        stream, opencli_option_name(flag->cli_long),
-        opencli_short_alias(flag->cli_short), flag->description, true);
+  for (size_t i = 0; i < contract->leading_option_count; i++) {
+    opencli_print_contract_option(stream, &contract->leading_options[i],
+                                  ++printed < total);
   }
-
-  opencli_print_config_option(stream);
+  for (size_t i = 0; i < flag_count; i++) {
+    opencli_print_flag_option(stream, &flags[i], ++printed < total);
+  }
+  for (size_t i = 0; i < contract->trailing_option_count; i++) {
+    opencli_print_contract_option(stream, &contract->trailing_options[i],
+                                  ++printed < total);
+  }
   fputs("  ],\n", stream);
 }
 
-static void opencli_print_command_option(FILE *stream,
-                                         const app_command_option_t *option,
-                                         bool comma) {
-  opencli_indent(stream, 4);
-  fputs("{\n", stream);
-  opencli_string_field(stream, 5, "name", option->name, true);
-  opencli_bool_field(stream, 5, "required", false, true);
-  opencli_indent(stream, 5);
-  fputs("\"aliases\": [],\n", stream);
-  opencli_print_empty_args(stream, 5, true);
-  opencli_string_field(stream, 5, "description", option->description, false);
-  opencli_indent(stream, 4);
-  fputc('}', stream);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
-
-static void opencli_print_command_arg(FILE *stream,
-                                      const app_command_arg_t *arg,
-                                      bool comma) {
-  opencli_indent(stream, 4);
-  fputs("{\n", stream);
-  opencli_string_field(stream, 5, "name", arg->name, true);
-  opencli_bool_field(stream, 5, "required", arg->required, true);
-  opencli_int_field(stream, 5, "ordinal", arg->ordinal, true);
-  opencli_indent(stream, 5);
-  fputs("\"arity\": {\n", stream);
-  opencli_int_field(stream, 6, "minimum", arg->arity_minimum, true);
-  if (arg->arity_maximum == APP_ARG_ARITY_UNBOUNDED) {
-    opencli_null_field(stream, 6, "maximum", false);
-  } else {
-    opencli_int_field(stream, 6, "maximum", arg->arity_maximum, false);
-  }
-  opencli_indent(stream, 5);
-  fputs("},\n", stream);
-  opencli_string_field(stream, 5, "description", arg->description, false);
-  opencli_indent(stream, 4);
-  fputc('}', stream);
-  if (comma) {
-    fputc(',', stream);
-  }
-  fputc('\n', stream);
-}
-
-static void opencli_print_examples(FILE *stream, int level,
-                                   const char *const *examples,
-                                   size_t count, bool comma) {
-  opencli_indent(stream, level);
+static void opencli_print_examples_array(FILE *stream, int level,
+                                         const char *const *examples,
+                                         size_t count, bool comma) {
+  app_json_write_indent(stream, level);
   fputs("\"examples\": [", stream);
   if (count > 0) {
     fputc('\n', stream);
     for (size_t i = 0; i < count; i++) {
-      opencli_indent(stream, level + 1);
+      app_json_write_indent(stream, level + 1);
       app_json_write_string(stream, examples[i]);
       if (i + 1 < count) {
         fputc(',', stream);
       }
       fputc('\n', stream);
     }
-    opencli_indent(stream, level);
+    app_json_write_indent(stream, level);
   }
   fputc(']', stream);
   if (comma) {
@@ -245,47 +178,41 @@ static void opencli_print_examples(FILE *stream, int level,
 
 static void opencli_print_command(FILE *stream, const app_command_t *command,
                                   bool comma) {
-  opencli_indent(stream, 2);
+  app_json_write_indent(stream, 2);
   fputs("{\n", stream);
-  opencli_string_field(stream, 3, "name", command->name, true);
-  opencli_string_field(stream, 3, "description", command->description, true);
+  app_json_write_pretty_string_field(stream, 3, "name", command->name, true);
+  app_json_write_pretty_string_field(
+      stream, 3, "description",
+      command->description ? command->description : command->summary, true);
 
-  opencli_indent(stream, 3);
+  app_json_write_indent(stream, 3);
   fputs("\"options\": [", stream);
   if (command->option_count > 0) {
     fputc('\n', stream);
     for (size_t i = 0; i < command->option_count; i++) {
-      opencli_print_command_option(stream, &command->options[i],
-                                   i + 1 < command->option_count);
+      const app_command_option_t *option = &command->options[i];
+      opencli_print_option(stream, 4, option->name, false, NULL, NULL, 0,
+                           option->description, i + 1 < command->option_count);
     }
-    opencli_indent(stream, 3);
+    app_json_write_indent(stream, 3);
   }
   fputs("],\n", stream);
 
-  opencli_indent(stream, 3);
-  fputs("\"arguments\": [", stream);
-  if (command->argument_count > 0) {
-    fputc('\n', stream);
-    for (size_t i = 0; i < command->argument_count; i++) {
-      opencli_print_command_arg(stream, &command->arguments[i],
-                                i + 1 < command->argument_count);
-    }
-    opencli_indent(stream, 3);
-  }
-  fputs("],\n", stream);
-
-  opencli_print_examples(stream, 3, command->examples, command->example_count,
-                         command->requires_terminal);
+  opencli_print_arguments(stream, 3, command->arguments,
+                          command->argument_count, true);
+  opencli_print_examples_array(stream, 3, command->examples,
+                               command->example_count,
+                               command->requires_terminal);
   if (command->requires_terminal) {
-    opencli_indent(stream, 3);
+    app_json_write_indent(stream, 3);
     fputs("\"metadata\": {\n", stream);
-    opencli_string_field(stream, 4, "requires", "ncurses", true);
-    opencli_bool_field(stream, 4, "interactive", true, false);
-    opencli_indent(stream, 3);
+    app_json_write_pretty_string_field(stream, 4, "requires", "ncurses", true);
+    app_json_write_pretty_bool_field(stream, 4, "interactive", true, false);
+    app_json_write_indent(stream, 3);
     fputs("}\n", stream);
   }
 
-  opencli_indent(stream, 2);
+  app_json_write_indent(stream, 2);
   fputc('}', stream);
   if (comma) {
     fputc(',', stream);
@@ -305,29 +232,19 @@ static void opencli_print_commands(FILE *stream) {
 }
 
 static void opencli_print_exit_codes(FILE *stream) {
-  fputs("  \"exitCodes\": [\n", stream);
-  const struct {
-    int code;
-    const char *description;
-  } codes[] = {
-      {0, "Success"},
-      {1, "General error"},
-      {2, "Invalid command or argument"},
-      {3, "Configuration error"},
-      {10, "Memory allocation error"},
-      {11, "I/O error"},
-      {12, "Permission denied"},
-  };
+  size_t count = 0;
+  const app_error_info_t *errors = app_error_table(&count);
 
-  for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
-    opencli_indent(stream, 2);
+  fputs("  \"exitCodes\": [\n", stream);
+  for (size_t i = 0; i < count; i++) {
+    app_json_write_indent(stream, 2);
     fputs("{\n", stream);
-    opencli_int_field(stream, 3, "code", codes[i].code, true);
-    opencli_string_field(stream, 3, "description", codes[i].description,
-                         false);
-    opencli_indent(stream, 2);
+    app_json_write_pretty_int_field(stream, 3, "code", errors[i].code, true);
+    app_json_write_pretty_string_field(stream, 3, "description",
+                                       errors[i].description, false);
+    app_json_write_indent(stream, 2);
     fputc('}', stream);
-    if (i + 1 < sizeof(codes) / sizeof(codes[0])) {
+    if (i + 1 < count) {
       fputc(',', stream);
     }
     fputc('\n', stream);
@@ -335,54 +252,110 @@ static void opencli_print_exit_codes(FILE *stream) {
   fputs("  ],\n", stream);
 }
 
-static void opencli_print_top_examples(FILE *stream) {
-  const char *const examples[] = {
-      APP_NAME " hello",       APP_NAME " hello Alice",
-      APP_NAME " echo Hello World", APP_NAME " info",
-      APP_NAME " --json info", APP_NAME " doctor",
-      APP_NAME " opencli",     APP_NAME " --help",
-      APP_NAME " --version",
-  };
-
-  opencli_print_examples(stream, 1, examples,
-                         sizeof(examples) / sizeof(examples[0]), true);
+static size_t opencli_top_example_count(
+    const app_opencli_contract_t *contract) {
+  size_t count = contract->extra_example_count;
+  size_t command_count = 0;
+  const app_command_t *commands = app_commands(&command_count);
+  for (size_t i = 0; i < command_count; i++) {
+    count += commands[i].example_count;
+  }
+  return count;
 }
 
-static void opencli_print_metadata(FILE *stream) {
+static void opencli_print_top_examples(FILE *stream,
+                                       const app_opencli_contract_t *contract) {
+  const size_t total = opencli_top_example_count(contract);
+  size_t printed = 0;
+  size_t command_count = 0;
+  const app_command_t *commands = app_commands(&command_count);
+
+  fputs("  \"examples\": [", stream);
+  if (total > 0) {
+    fputc('\n', stream);
+    for (size_t i = 0; i < command_count; i++) {
+      for (size_t j = 0; j < commands[i].example_count; j++) {
+        app_json_write_indent(stream, 2);
+        app_json_write_string(stream, commands[i].examples[j]);
+        if (++printed < total) {
+          fputc(',', stream);
+        }
+        fputc('\n', stream);
+      }
+    }
+    for (size_t i = 0; i < contract->extra_example_count; i++) {
+      app_json_write_indent(stream, 2);
+      app_json_write_string(stream, contract->extra_examples[i]);
+      if (++printed < total) {
+        fputc(',', stream);
+      }
+      fputc('\n', stream);
+    }
+    app_json_write_indent(stream, 1);
+  }
+  fputs("],\n", stream);
+}
+
+static void opencli_print_metadata(FILE *stream,
+                                   const app_opencli_contract_t *contract) {
   fputs("  \"metadata\": [\n", stream);
-  fputs("    {\n", stream);
-  opencli_string_field(stream, 3, "name", "environment", true);
-  fputs("      \"value\": {\n", stream);
-  opencli_string_field(stream, 4, "APP_LOG_LEVEL",
-                       "Set logging verbosity: ERROR, WARNING, INFO, DEBUG (default: ERROR)",
-                       true);
-  opencli_string_field(stream, 4, "NO_COLOR", "Disable colored output when set",
-                       false);
-  fputs("      }\n", stream);
-  fputs("    },\n", stream);
-  fputs("    {\n", stream);
-  opencli_string_field(stream, 3, "name", "configuration", true);
-  fputs("      \"value\": {\n", stream);
-  opencli_string_field(stream, 4, "location",
-                       "~/.config/" APP_NAME "/config.json", true);
-  opencli_string_field(
-      stream, 4, "format",
-      "Flat JSON object with boolean debug, quiet, verbose, no_color, json_output, and plain_output keys",
-      true);
-  opencli_string_field(stream, 4, "precedence",
-                       "CLI args > Environment > Config file > Defaults",
-                       false);
-  fputs("      }\n", stream);
-  fputs("    },\n", stream);
-  fputs("    {\n", stream);
-  opencli_string_field(stream, 3, "name", "build", true);
-  fputs("      \"value\": {\n", stream);
-  opencli_string_field(stream, 4, "system", "Zig build system", true);
-  opencli_string_field(stream, 4, "compiler", "Zig cc (Clang/LLVM)", true);
-  opencli_string_field(stream, 4, "standard", "C23", false);
-  fputs("      }\n", stream);
-  fputs("    }\n", stream);
+  for (size_t i = 0; i < contract->metadata_count; i++) {
+    const app_opencli_metadata_group_t *group = &contract->metadata[i];
+    app_json_write_indent(stream, 2);
+    fputs("{\n", stream);
+    app_json_write_pretty_string_field(stream, 3, "name", group->name, true);
+    app_json_write_indent(stream, 3);
+    fputs("\"value\": {\n", stream);
+    for (size_t j = 0; j < group->field_count; j++) {
+      app_json_write_pretty_string_field(stream, 4, group->fields[j].name,
+                                         group->fields[j].description,
+                                         j + 1 < group->field_count);
+    }
+    app_json_write_indent(stream, 3);
+    fputs("}\n", stream);
+    app_json_write_indent(stream, 2);
+    fputc('}', stream);
+    if (i + 1 < contract->metadata_count) {
+      fputc(',', stream);
+    }
+    fputc('\n', stream);
+  }
   fputs("  ]\n", stream);
+}
+
+static void opencli_print_info(FILE *stream,
+                               const app_opencli_contract_t *contract) {
+  fputs("  \"info\": {\n", stream);
+  app_json_write_pretty_string_field(stream, 2, "title", contract->info.title,
+                                     true);
+  app_json_write_pretty_string_field(stream, 2, "description",
+                                     contract->info.description, true);
+  app_json_write_pretty_string_field(stream, 2, "version",
+                                     contract->info.version, true);
+  fputs("    \"contact\": {\n", stream);
+  app_json_write_pretty_string_field(stream, 3, "name",
+                                     contract->info.contact.name, true);
+  app_json_write_pretty_string_field(stream, 3, "url",
+                                     contract->info.contact.url, false);
+  fputs("    },\n", stream);
+  fputs("    \"license\": {\n", stream);
+  app_json_write_pretty_string_field(stream, 3, "name",
+                                     contract->info.license.name, true);
+  app_json_write_pretty_string_field(stream, 3, "identifier",
+                                     contract->info.license.identifier, false);
+  fputs("    }\n", stream);
+  fputs("  },\n", stream);
+}
+
+static void opencli_print_conventions(FILE *stream,
+                                      const app_opencli_contract_t *contract) {
+  fputs("  \"conventions\": {\n", stream);
+  app_json_write_pretty_bool_field(stream, 2, "groupOptions",
+                                   contract->conventions.group_options, true);
+  app_json_write_pretty_string_field(
+      stream, 2, "optionArgumentSeparator",
+      contract->conventions.option_argument_separator, false);
+  fputs("  },\n", stream);
 }
 
 app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv) {
@@ -390,48 +363,22 @@ app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv) {
   (void)argc;
   (void)argv;
 
+  const app_opencli_contract_t *contract = app_opencli_contract();
+
   fputs("{\n", stdout);
-  opencli_string_field(stdout, 1, "opencli", "0.1", true);
-  fputs("  \"info\": {\n", stdout);
-  opencli_string_field(stdout, 2, "title", "C23 TUI + CLI Starter", true);
-  opencli_string_field(
-      stdout, 2, "description",
-      "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs.",
-      true);
-  opencli_string_field(stdout, 2, "version", APP_VERSION, true);
-  fputs("    \"contact\": {\n", stdout);
-  opencli_string_field(stdout, 3, "name", "Your Name", true);
-  opencli_string_field(stdout, 3, "url",
-                       "https://github.com/yourusername/yourproject", false);
-  fputs("    },\n", stdout);
-  fputs("    \"license\": {\n", stdout);
-  opencli_string_field(stdout, 3, "name", "MIT License", true);
-  opencli_string_field(stdout, 3, "identifier", "MIT", false);
-  fputs("    }\n", stdout);
-  fputs("  },\n", stdout);
-  fputs("  \"conventions\": {\n", stdout);
-  opencli_bool_field(stdout, 2, "groupOptions", false, true);
-  opencli_string_field(stdout, 2, "optionArgumentSeparator", " ", false);
-  fputs("  },\n", stdout);
-  fputs("  \"arguments\": [\n", stdout);
-  fputs("    {\n", stdout);
-  opencli_string_field(stdout, 3, "name", "command", true);
-  opencli_bool_field(stdout, 3, "required", true, true);
-  opencli_int_field(stdout, 3, "ordinal", 1, true);
-  fputs("      \"arity\": {\n", stdout);
-  opencli_int_field(stdout, 4, "minimum", 1, true);
-  opencli_int_field(stdout, 4, "maximum", 1, false);
-  fputs("      },\n", stdout);
-  opencli_string_field(stdout, 3, "description", "The command to execute",
-                       false);
-  fputs("    }\n", stdout);
-  fputs("  ],\n", stdout);
-  opencli_print_options(stdout);
+  app_json_write_pretty_string_field(stdout, 1, "opencli",
+                                     contract->opencli_version, true);
+  opencli_print_info(stdout, contract);
+  opencli_print_conventions(stdout, contract);
+  opencli_print_arguments(stdout, 1, contract->root_arguments,
+                          contract->root_argument_count, true);
+  opencli_print_options(stdout, contract);
   opencli_print_commands(stdout);
   opencli_print_exit_codes(stdout);
-  opencli_print_top_examples(stdout);
-  opencli_bool_field(stdout, 1, "interactive", false, true);
-  opencli_print_metadata(stdout);
+  opencli_print_top_examples(stdout, contract);
+  app_json_write_pretty_bool_field(stdout, 1, "interactive",
+                                   contract->interactive, true);
+  opencli_print_metadata(stdout, contract);
   fputs("}\n", stdout);
 
   return APP_SUCCESS;

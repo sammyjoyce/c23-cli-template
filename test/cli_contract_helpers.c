@@ -245,7 +245,38 @@ static char *read_entire_file(const char *path) {
 }
 
 char *cc_read_text_file(const char *path) {
-  return read_entire_file(path);
+  FILE *stream = fopen(path, "rb");
+  if (!stream) {
+    return NULL;
+  }
+  if (fseek(stream, 0, SEEK_END) != 0) {
+    fclose(stream);
+    return NULL;
+  }
+  const long size = ftell(stream);
+  if (size < 0) {
+    fclose(stream);
+    return NULL;
+  }
+  if (fseek(stream, 0, SEEK_SET) != 0) {
+    fclose(stream);
+    return NULL;
+  }
+
+  char *buf = malloc((size_t)size + 1);
+  if (!buf) {
+    fclose(stream);
+    return NULL;
+  }
+
+  const size_t read_len = fread(buf, 1, (size_t)size, stream);
+  fclose(stream);
+  if (read_len != (size_t)size) {
+    free(buf);
+    return NULL;
+  }
+  buf[read_len] = '\0';
+  return buf;
 }
 
 static command_result_t make_error_result(const char *message) {

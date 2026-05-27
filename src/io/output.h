@@ -39,3 +39,15 @@ void app_json_write_bool_field(FILE *stream, const char *key, bool value,
                                bool *needs_comma);
 void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
                               bool *needs_comma);
+
+// Pretty JSON helpers for stable, checked-in machine contract documents.
+void app_json_write_indent(FILE *stream, int level);
+void app_json_write_pretty_string_field(FILE *stream, int level,
+                                        const char *key, const char *value,
+                                        bool comma);
+void app_json_write_pretty_bool_field(FILE *stream, int level, const char *key,
+                                      bool value, bool comma);
+void app_json_write_pretty_int_field(FILE *stream, int level, const char *key,
+                                     int value, bool comma);
+void app_json_write_pretty_null_field(FILE *stream, int level, const char *key,
+                                      bool comma);

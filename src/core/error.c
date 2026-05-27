@@ -1,72 +1,50 @@
 /*
  * Error handling implementation for the application.
  *
- * Provides human-readable error messages for all error codes. We use a simple
- * switch statement rather than a lookup table to ensure compile-time
- * verification that all error codes have corresponding messages, preventing
- * oversight when adding new error codes.
+ * Provides human-readable error messages for all concrete error codes.
  */
 
 #include "error.h"
 
-const char *app_strerror(app_error error_code) {
-  switch (error_code) {
-  // Success
-  case APP_SUCCESS:
-    return "Success";
+static const app_error_info_t g_app_error_table[] = {
+    {APP_SUCCESS, "Success"},
+    {APP_ERROR_INVALID_ARG, "Invalid argument"},
+    {APP_ERROR_INVALID_COMMAND, "Invalid or unknown command"},
+    {APP_ERROR_CONFIG, "Configuration file error"},
+    {APP_ERROR_CONFIG_PARSE, "Configuration file parse error"},
+    {APP_ERROR_CONFIG_INVALID, "Configuration file has invalid values"},
+    {APP_ERROR_MISSING_ARG, "Missing required argument"},
+    {APP_ERROR_UNKNOWN_OPTION, "Unknown option"},
+    {APP_ERROR_MEMORY, "Memory allocation error"},
+    {APP_ERROR_IO, "I/O error"},
+    {APP_ERROR_PERMISSION, "Permission denied"},
+    {APP_ERROR_INTERNAL, "Internal error"},
+    {APP_ERROR_THREADING, "Thread/mutex error"},
+    {APP_ERROR_RESOURCE, "Resource exhaustion"},
+    {APP_ERROR_SIGNAL, "Signal handling error"},
+    {APP_ERROR_NOT_FOUND, "File or resource not found"},
+    {APP_ERROR_INVALID_DATA, "Invalid data format"},
+    {APP_ERROR_PARSE_ERROR, "Parse error"},
+    {APP_ERROR_VALIDATION, "Validation failed"},
+    {APP_ERROR_OVERFLOW, "Numeric overflow"},
+    {APP_ERROR_UNDERFLOW, "Numeric underflow"},
+    {APP_ERROR_OUT_OF_RANGE, "Value out of range"},
+};
 
-  // Input/configuration errors: Messages guide users to fix their input.
-  // We provide specific details about what went wrong to reduce debugging time.
-  case APP_ERROR_INVALID_ARG:
-    return "Invalid argument";
-  case APP_ERROR_INVALID_COMMAND:
-    return "Invalid or unknown command";
-  case APP_ERROR_CONFIG:
-    return "Configuration file error";
-  case APP_ERROR_CONFIG_PARSE:
-    return "Configuration file parse error";
-  case APP_ERROR_CONFIG_INVALID:
-    return "Configuration file has invalid values";
-  case APP_ERROR_MISSING_ARG:
-    return "Missing required argument";
-  case APP_ERROR_UNKNOWN_OPTION:
-    return "Unknown option";
-
-  // System errors: Messages indicate serious problems requiring system-level
-  // fixes. These are kept concise as they often appear in logs that
-  // administrators review.
-  case APP_ERROR_MEMORY:
-    return "Memory allocation error";
-  case APP_ERROR_IO:
-    return "I/O error";
-  case APP_ERROR_PERMISSION:
-    return "Permission denied";
-  case APP_ERROR_INTERNAL:
-    return "Internal error";
-  case APP_ERROR_THREADING:
-    return "Thread/mutex error";
-  case APP_ERROR_RESOURCE:
-    return "Resource exhaustion";
-  case APP_ERROR_SIGNAL:
-    return "Signal handling error";
-  case APP_ERROR_NOT_FOUND:
-    return "File or resource not found";
-
-  // Data processing errors: Messages help debug data validation issues.
-  case APP_ERROR_INVALID_DATA:
-    return "Invalid data format";
-  case APP_ERROR_PARSE_ERROR:
-    return "Parse error";
-  case APP_ERROR_VALIDATION:
-    return "Validation failed";
-  case APP_ERROR_OVERFLOW:
-    return "Numeric overflow";
-  case APP_ERROR_UNDERFLOW:
-    return "Numeric underflow";
-  case APP_ERROR_OUT_OF_RANGE:
-    return "Value out of range";
-
-  default:
-    return "Unknown error";
+const app_error_info_t *app_error_table(size_t *count) {
+  if (count) {
+    *count = sizeof(g_app_error_table) / sizeof(g_app_error_table[0]);
   }
+  return g_app_error_table;
+}
+
+const char *app_strerror(app_error error_code) {
+  size_t count = 0;
+  const app_error_info_t *errors = app_error_table(&count);
+  for (size_t i = 0; i < count; i++) {
+    if (errors[i].code == error_code) {
+      return errors[i].description;
+    }
+  }
+  return "Unknown error";
 }

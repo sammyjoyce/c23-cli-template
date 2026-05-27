@@ -18,6 +18,17 @@ myapp opencli
 
 `zig build test` fails when `myapp opencli` and `opencli.json` drift, so command
 and flag metadata must be updated in the C tables before the spec changes.
+The canonical data path is:
+
+- `src/cli/opencli_contract.c` for OpenCLI info, conventions, root arguments,
+  built-in help/config options, extra examples, and top-level metadata
+- `src/cli/commands.c` for command names, descriptions, arguments, options,
+  examples, and terminal requirements
+- `src/core/config.c` for global flag metadata
+- `src/core/error.c` for public exit codes and descriptions
+
+Regenerate the checked-in artifact with `zig build run -- opencli >
+opencli.json`, then run `zig build test`.
 
 Supported automation surface:
 

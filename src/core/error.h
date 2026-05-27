@@ -57,6 +57,14 @@ typedef enum {
   APP_ERROR_FEATURE_BASE = 30,
 } app_error;
 
+typedef struct {
+  app_error code;
+  const char *description;
+} app_error_info_t;
+
+// Return the concrete error codes that the application exposes publicly.
+const app_error_info_t *app_error_table(size_t *count);
+
 // Get human-readable error description for user-facing messages.
 // This function ensures users receive meaningful feedback instead of cryptic
 // error codes, improving the debugging experience and reducing support burden.

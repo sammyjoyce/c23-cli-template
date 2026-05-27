@@ -159,6 +159,7 @@ pub fn build(b: *std.Build) void {
         "src/cli/commands_info.c",
         "src/cli/commands_doctor.c",
         "src/cli/commands_menu.c",
+        "src/cli/opencli_contract.c",
         "src/cli/commands_opencli.c",
     };
 
