@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Community Support
-    url: https://github.com/yourusername/yourrepo/discussions
+    url: https://github.com/yourusername/myapp/discussions
     about: Please ask and answer questions here
   - name: Documentation
-    url: https://github.com/yourusername/yourrepo/wiki
+    url: https://github.com/yourusername/myapp/wiki
     about: Check our documentation for common solutions
   - name: Security Issues
-    url: https://github.com/yourusername/yourrepo/security/policy
+    url: https://github.com/yourusername/myapp/security/policy
     about: Please report security vulnerabilities here

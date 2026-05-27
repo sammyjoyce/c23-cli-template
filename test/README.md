@@ -25,10 +25,12 @@ zig build -Denable-tui=true terminal-test
 ```
 
 The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
-when `libghostty-vt` is available through `pkg-config` on POSIX hosts. CLI
-contracts always run through `cli_contract_runner.c`, so hosts without
-libghostty-vt still exercise non-interactive behavior without a fallback
-scripting runtime.
+when `libghostty-vt` is available through `pkg-config` on POSIX hosts. In the
+Nix dev shell, nixpkgs `libghostty-vt` is exported through `pkg-config`
+automatically, so `zig build -Dterminal-backend=ghostty terminal-test` works
+without extra flags. CLI contracts always run through `cli_contract_runner.c`,
+so hosts without libghostty-vt still exercise non-interactive behavior without
+a fallback scripting runtime.
 
 The Ghostty VT runner is split across `terminal_vt_*.c` files. It runs TUI
 checks in a pseudo-terminal, feeds output through libghostty-vt, snapshots the

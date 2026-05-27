@@ -32,7 +32,8 @@ fn commandOutputTrimmed(b: *std.Build, argv: []const []const u8) ?[]const u8 {
 }
 
 fn pathExists(b: *std.Build, path: []const u8) bool {
-    return commandSucceeds(b, &.{ "test", "-f", path });
+    std.Io.Dir.cwd().access(b.graph.io, path, .{}) catch return false;
+    return true;
 }
 
 fn ghosttyLibraryExists(b: *std.Build, lib_dir: []const u8) bool {
@@ -71,9 +72,15 @@ fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8)
             b.dupe(dir)
         else
             b.fmt("{s}{c}{s}", .{ dir, std.fs.path.delimiter, current });
-        env_map.put(key, value) catch @panic("OOM");
+        env_map.put(key, value) catch |err| std.debug.panic(
+            "failed to set {s}: {s}",
+            .{ key, @errorName(err) },
+        );
     } else {
-        env_map.put(key, b.dupe(dir)) catch @panic("OOM");
+        env_map.put(key, b.dupe(dir)) catch |err| std.debug.panic(
+            "failed to set {s}: {s}",
+            .{ key, @errorName(err) },
+        );
     }
 }
 
@@ -134,29 +141,39 @@ pub fn build(b: *std.Build) void {
         "src/io/output.c",
         "src/cli/help.c",
         "src/cli/args.c",
+        "src/cli/commands.c",
+        "src/cli/commands_basic.c",
+        "src/cli/commands_info.c",
+        "src/cli/commands_doctor.c",
+        "src/cli/commands_menu.c",
     };
 
-    // Base flags
+    // Base flags shared by the binary and test targets.
+    // _GNU_SOURCE pulls in the POSIX surface we need (timespec_get, mlock,
+    // forkpty etc.) without conflicting with _XOPEN_SOURCE on glibc.
     const base_flags = [_][]const u8{
         "-Wall",
         "-Wextra",
         "-std=c23",
-        "-D_DEFAULT_SOURCE",
-        "-D_XOPEN_SOURCE=700",
         "-D_GNU_SOURCE",
     };
 
     var c_flags: std.ArrayList([]const u8) = .empty;
     defer c_flags.deinit(b.allocator);
 
-    c_flags.appendSlice(b.allocator, &base_flags) catch @panic("OOM");
-    c_flags.append(b.allocator, b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch @panic("OOM");
-    c_flags.append(b.allocator, b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch @panic("OOM");
-    c_flags.append(b.allocator, b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch @panic("OOM");
-    c_flags.append(b.allocator, "-DAPP_BUILD_DATE=\"reproducible\"") catch @panic("OOM");
+    const oom = struct {
+        fn die(err: anyerror) noreturn {
+            std.debug.panic("build allocation failed: {s}", .{@errorName(err)});
+        }
+    }.die;
+    c_flags.appendSlice(b.allocator, &base_flags) catch |err| oom(err);
+    c_flags.append(b.allocator, b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch |err| oom(err);
+    c_flags.append(b.allocator, b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch |err| oom(err);
+    c_flags.append(b.allocator, b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch |err| oom(err);
+    c_flags.append(b.allocator, "-DAPP_BUILD_DATE=\"reproducible\"") catch |err| oom(err);
 
     if (enable_tui) {
-        c_flags.append(b.allocator, "-DENABLE_TUI=1") catch @panic("OOM");
+        c_flags.append(b.allocator, "-DENABLE_TUI=1") catch |err| oom(err);
     }
 
     exe.root_module.addCSourceFiles(.{
@@ -215,8 +232,13 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         }),
     });
+    test_exe.root_module.addIncludePath(b.path("test"));
     test_exe.root_module.addCSourceFiles(.{
-        .files = &.{"test/cli_contract_runner.c"},
+        .files = &.{
+            "test/cli_contract_runner.c",
+            "test/cli_contract_helpers.c",
+            "test/cli_contract_cases.c",
+        },
         .flags = &base_flags,
     });
     const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
@@ -228,12 +250,47 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run test suite");
     test_step.dependOn(&test_cmd.step);
 
+    // Unit tests link against a subset of the production sources so they can
+    // exercise pieces (error.c, config_json.c, memory.c) directly instead of
+    // through a subprocess.
+    const unit_exe = b.addExecutable(.{
+        .name = "unit-tests",
+        .root_module = b.createModule(.{
+            .root_source_file = null,
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    unit_exe.root_module.addIncludePath(b.path("src"));
+    unit_exe.root_module.addCSourceFiles(.{
+        .files = &.{
+            "test/unit_runner.c",
+            "src/core/error.c",
+            "src/core/config.c",
+            "src/core/config_json.c",
+            "src/utils/memory.c",
+            "src/utils/logging.c",
+        },
+        .flags = c_flags.items,
+    });
+    const unit_cmd = b.addRunArtifact(unit_exe);
+    const unit_step = b.step("unit-test", "Run in-process unit tests");
+    unit_step.dependOn(&unit_cmd.step);
+    test_step.dependOn(&unit_cmd.step);
+
     if (terminal_backend == .ghostty and target.result.os.tag == .windows) {
-        @panic("-Dterminal-backend=ghostty is not supported on Windows");
+        std.log.err("-Dterminal-backend=ghostty is not supported on Windows", .{});
+        std.process.exit(1);
     }
     const have_ghostty_vt = hasGhosttyTerminalApi(b, ghostty_vt_prefix);
     if (terminal_backend == .ghostty and !have_ghostty_vt) {
-        @panic("-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API via pkg-config or -Dghostty-vt-prefix=/path");
+        std.log.err(
+            "-Dterminal-backend=ghostty needs libghostty-vt with the terminal/formatter API.\n" ++
+                "  Install libghostty-vt and ensure pkg-config can find it, or pass -Dghostty-vt-prefix=/path.",
+            .{},
+        );
+        std.process.exit(1);
     }
     const ghostty_pkg_lib_dir = if (have_ghostty_vt and ghostty_vt_prefix == null)
         commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" })
@@ -252,6 +309,11 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         });
         vt_test_mod.addIncludePath(b.path("test"));
+        var vt_test_flags: std.ArrayList([]const u8) = .empty;
+        defer vt_test_flags.deinit(b.allocator);
+        vt_test_flags.appendSlice(b.allocator, &base_flags) catch |err| oom(err);
+        vt_test_flags.append(b.allocator, b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch |err| oom(err);
+
         vt_test_mod.addCSourceFiles(.{
             .files = &.{
                 "test/terminal_vt_common.c",
@@ -259,15 +321,7 @@ pub fn build(b: *std.Build) void {
                 "test/terminal_vt_scenarios.c",
                 "test/terminal_vt_runner.c",
             },
-            .flags = &.{
-                "-Wall",
-                "-Wextra",
-                "-std=c23",
-                "-D_DEFAULT_SOURCE",
-                "-D_XOPEN_SOURCE=700",
-                "-D_GNU_SOURCE",
-                b.fmt("-DAPP_NAME=\"{s}\"", .{app_name}),
-            },
+            .flags = vt_test_flags.items,
         });
 
         if (ghostty_vt_prefix) |pref| {

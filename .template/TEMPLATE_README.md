@@ -18,7 +18,7 @@ A ready-to-use C23 TUI + CLI starter.
 - A system C toolchain for libc and optional platform libraries.
 - ncurses development headers on Linux/macOS when building with `-Denable-tui=true`.
 - PDCurses on Windows when building with `-Denable-tui=true`.
-- Python `pexpect` and `pyte` for PTY-backed TUI scenario tests outside the Nix dev shell.
+- Ghostty VT library for PTY-backed terminal scenario tests (optional; tests skip without it).
 
 ## Build
 
@@ -65,7 +65,7 @@ zig build fmt-check
 
 The Zig tests keep fast build-integrated smoke coverage. The terminal scenario tests exercise non-interactive CLI contracts and, when built with `-Denable-tui=true`, drive the ncurses menu through a pseudo-terminal.
 
-PTY-backed tests skip cleanly if `pexpect`/`pyte` are not installed.
+PTY-backed TUI tests use the Ghostty VT library. They skip cleanly when Ghostty is not available.
 
 ## Project Layout
 
@@ -76,37 +76,46 @@ PTY-backed tests skip cleanly if `pexpect`/`pyte` are not installed.
 |-- opencli.json
 |-- src/
 |   |-- main.c
-|   |-- cli/
-|   |-- core/
-|   |-- io/
-|   |-- tui/
-|   `-- utils/
+|   |-- cli/            # arg parsing, help, and per-command modules
+|   |-- core/           # config, errors, shared types
+|   |-- io/             # input/output and JSON helpers
+|   |-- tui/            # optional ncurses layer
+|   `-- utils/          # logging, colors, optional secrets helpers
 |-- test/
-|   |-- main.zig
-|   |-- terminal_harness.py
-|   |-- test_cli_scenarios.py
-|   `-- test_tui_scenarios.py
+|   |-- cli_contract.h
+|   |-- cli_contract_cases.c     # individual test cases
+|   |-- cli_contract_helpers.c   # subprocess + temp file helpers
+|   |-- cli_contract_runner.c    # TAP entry point
+|   |-- unit_runner.c            # in-process unit tests
+|   |-- terminal_vt.h            # optional Ghostty-backed PTY harness
+|   |-- terminal_vt_common.c
+|   |-- terminal_vt_runner.c
+|   |-- terminal_vt_scenarios.c
+|   `-- terminal_vt_session.c
 |-- docs/
 `-- examples/
 ```
 
 ## Add A Command
 
-Add the route in `src/main.c`:
+1. Write the handler in a new file under `src/cli/`, e.g. `commands_status.c`:
 
-```c
-if (strcmp(command, "status") == 0) {
-  app_output(config, "status ok", false);
-  return APP_SUCCESS;
-}
-```
+   ```c
+   app_error app_cmd_status(const app_config_t *config, int argc, char **argv) {
+     (void)argc; (void)argv;
+     app_output(config, "status ok", false);
+     return APP_SUCCESS;
+   }
+   ```
 
-Then update:
+2. Register it in `src/cli/commands.c` (forward declaration + one row in
+   `g_app_commands`).
+3. Add the new source path to `build.zig`'s `base_sources` array.
+4. (Optional) Add an entry to `test/cli_contract_cases.c` to lock the
+   contract in place.
 
-- `src/cli/help.c` for user-facing help.
-- `opencli.json` for machine-readable CLI metadata.
-- `test/main.zig` for fast build-integrated smoke coverage.
-- `test/test_cli_scenarios.py` or `test/test_tui_scenarios.py` for end-to-end terminal behavior.
+Help text comes from the command summary; no changes to `src/cli/help.c`
+are needed.
 
 ## Customize The TUI
 

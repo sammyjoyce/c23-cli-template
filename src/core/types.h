@@ -27,22 +27,14 @@ typedef struct {
   size_t capacity;
 } app_buffer_t;
 
-// C23 compatibility macros ensure code can compile on both C23 and pre-C23
-// compilers. These allow us to use modern C23 features while maintaining
-// backward compatibility with C11/C17 toolchains that users might have
-// installed.
+// The build pins -std=c23 (see build.zig). Bare minimum shim is provided so
+// the headers remain usable from tools that probe with an older standard; do
+// not add fake polyfills for features that need real compiler support.
 #if __STDC_VERSION__ < 202311L
 #define nullptr ((void *)0)
-#define typeof_unqual(x) typeof(x)
-#define _BitInt(N) __int##N##_t
-#else
-#define auto __auto_type
 #endif
 
 // C23 attribute marks functions whose return values must be checked.
-// This catches common errors where callers forget to handle allocation failures
-// or error conditions, improving reliability by making such oversights
-// compile-time errors.
 #if __STDC_VERSION__ >= 202311L
 #define APP_NODISCARD [[nodiscard("Return value should be checked")]]
 #else

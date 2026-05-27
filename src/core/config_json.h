@@ -4,15 +4,15 @@
 
 #pragma once
 
+#include <stdbool.h>
+
+#include "config.h"
 #include "error.h"
 
+// Staged boolean state used while parsing. The order matches app_flag_id so
+// values can be indexed directly with a flag id.
 typedef struct {
-  bool quiet;
-  bool debug;
-  bool verbose;
-  bool json_output;
-  bool plain_output;
-  bool no_color;
+  bool values[APP_FLAG_COUNT];
 } app_config_json_state_t;
 
 APP_NODISCARD app_error app_config_parse_json_state(

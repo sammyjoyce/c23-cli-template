@@ -9,50 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial template structure with C/Zig build system
-- GitHub Actions CI workflow for automated testing
-- Comprehensive documentation (README, CONTRIBUTING, etc.)
-- Issue and PR templates for better collaboration
-- Code formatting configuration (.clang-format)
-- Example code structure with modular organization
-- Test framework setup
-- Template cleanup script for easy customization
-- Security policy and reporting guidelines
-- Automated dependency management with Dependabot
-- Development container configuration
-- VS Code workspace settings
+- Initial template structure with a C23 codebase driven by Zig 0.16.
+- Layered configuration (defaults -> config file -> env -> CLI flags).
+- Table-driven CLI dispatch with `hello`, `echo`, `info`, `doctor`, and
+  `menu` commands.
+- Optional ncurses/PDCurses TUI build with reusable windows, menus, dialogs,
+  and progress bars.
+- JSON output mode plus human-readable formatting helpers.
+- CLI contract tests (`zig build test`), in-process unit tests
+  (`zig build unit-test`), and optional Ghostty-backed PTY tests
+  (`zig build terminal-test`).
+- Template scaffolding (`.template/`, `.github/workflows/template-cleanup.yml`)
+  with interactive and non-interactive setup.
 
-### Changed
-
-- Nothing yet
-
-### Deprecated
-
-- Nothing yet
-
-### Removed
-
-- Nothing yet
-
-### Fixed
-
-- Nothing yet
-
-### Security
-
-- Nothing yet
-
-## [1.0.0] - 2025-01-27
-
-### Added
-
-- Initial release of the C/Zig project template
-- Basic project structure with src/, test/, docs/ directories
-- Build configuration using Zig build system
-- GitHub Actions CI/CD pipeline
-- Community health files (README, LICENSE, CONTRIBUTING)
-- Code formatting and linting setup
-- Example implementations and tests
-
-[Unreleased]: https://github.com/yourusername/yourrepo/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/yourrepo/releases/tag/v1.0.0
+[Unreleased]: https://github.com/yourusername/myapp

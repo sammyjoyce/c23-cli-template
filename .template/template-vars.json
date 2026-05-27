@@ -14,14 +14,14 @@
       "validation": "^[a-z][a-z0-9_]*$"
     },
     "PROJECT_NAME_KEBAB": {
-      "placeholders": ["myapp", "my-cli-app", "cli-starter"],
+      "placeholders": ["myapp", "my-cli-app", "cli-starter", "yourproject", "yourrepo"],
       "description": "Project name in kebab-case for CLI commands, binaries, and URLs.",
       "sources": ["repository_name"],
       "transform": "kebab_case",
       "validation": "^[a-z][a-z0-9-]*$"
     },
     "PROJECT_NAME_PASCAL": {
-      "placeholders": ["MyCliApp", "CliStarter"],
+      "placeholders": ["MyCliApp", "CliStarter", "MyApp"],
       "description": "Project name in PascalCase for types, modules, and title casing.",
       "sources": ["repository_name"],
       "transform": "pascal_case",
@@ -53,6 +53,17 @@
       "sources": ["repository_owner"],
       "validation": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$"
     },
+    "PROJECT_URL": {
+      "placeholders": [
+        "https://github.com/yourusername/yourproject",
+        "https://github.com/yourusername/yourrepo",
+        "https://github.com/yourusername/myapp"
+      ],
+      "description": "Canonical GitHub repository URL for generated-project metadata and docs.",
+      "sources": ["repository_url"],
+      "fallback": "https://github.com/yourusername/myapp",
+      "validation": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
     "CURRENT_YEAR": {
       "placeholders": ["2025"],
       "description": "Current calendar year for notices and headers.",
@@ -72,12 +83,18 @@
     "*.c",
     "*.h",
     "*.zig",
+    "*.zon",
     "*.json",
     "*.yaml",
     "*.yml",
+    "*.toml",
     "*.txt",
+    "*.sh",
     "LICENSE*",
+    "CODEOWNERS",
     "Makefile",
+    "justfile",
+    "Justfile",
     "CMakeLists.txt"
   ],
   "exclude_patterns": [
@@ -111,6 +128,9 @@
       "myapp --help": "${PROJECT_NAME_KEBAB} --help",
       "myapp --version": "${PROJECT_NAME_KEBAB} --version",
       "~/.config/myapp/config.json": "~/.config/${PROJECT_NAME_SNAKE}/config.json"
+    },
+    "SECURITY.md": {
+      "Email**: Send an email to the project maintainers with:": "Email**: Send an email to ${AUTHOR_EMAIL} with:"
     }
   }
 }

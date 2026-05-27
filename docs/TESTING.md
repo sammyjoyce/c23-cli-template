@@ -51,8 +51,8 @@ TUI-enabled terminal scenarios:
 zig build -Denable-tui=true terminal-test
 ```
 
-If you use the Nix dev shell, the required Zig and C tooling is already on
-`PATH`:
+If you use the Nix dev shell, the required Zig and C tooling plus nixpkgs
+`libghostty-vt` are already wired into `PATH` and `pkg-config`:
 
 ```bash
 nix develop

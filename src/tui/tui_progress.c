@@ -4,10 +4,10 @@
 
 #include "tui_progress.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../utils/memory.h"
 #include "tui.h"
 
 struct tui_progress {
@@ -26,15 +26,13 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
   WINDOW *win = window->win;
   tui_clear_window(window);
 
-  // Draw title
   if (progress->title) {
     tui_set_color(win, TUI_COLOR_TITLE);
     tui_print_centered(win, 1, progress->title);
     tui_unset_color(win, TUI_COLOR_TITLE);
   }
 
-  // Progress bar dimensions
-  const int bar_width = window->width - 6;  // padding
+  const int bar_width = window->width - 6;
   const int bar_y = window->height / 2;
   const int bar_x = 3;
   if (bar_width <= 0) {
@@ -42,7 +40,6 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
     return;
   }
 
-  // Calculate fill ratio and clamp to [0.0, 1.0]
   int current_value = progress->current_value;
   if (current_value < 0) {
     current_value = 0;
@@ -51,18 +48,13 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
     current_value = progress->max_value;
   }
 
+  assert(progress->max_value > 0);
   double ratio = (double)current_value / (double)progress->max_value;
-  if (ratio < 0.0)
-    ratio = 0.0;
-  if (ratio > 1.0)
-    ratio = 1.0;
 
   const int fill_width = (int)(ratio * bar_width);
 
-  // Draw progress bar background
   mvwhline(win, bar_y, bar_x, ' ', bar_width);
 
-  // Draw filled portion
   tui_set_color(win, TUI_COLOR_HIGHLIGHT);
   mvwhline(win, bar_y, bar_x, ' ', fill_width);
   tui_unset_color(win, TUI_COLOR_HIGHLIGHT);
@@ -71,15 +63,12 @@ static void tui_progress_draw(tui_progress_t *progress, const char *status) {
   snprintf(percent, sizeof(percent), "%3d%%", (int)(ratio * 100.0));
   tui_print_centered(win, bar_y, percent);
 
-  // Status text
   if (status) {
     tui_print_centered(win, bar_y + 2, status);
   }
 
   tui_refresh_window(window);
 }
-
-// Public API
 
 APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   if (max <= 0) {
@@ -103,7 +92,7 @@ APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   tui_draw_border(w);
   tui_set_window_title(w, title ? title : "Progress");
 
-  tui_progress_t *progress = app_secure_malloc(sizeof(tui_progress_t));
+  tui_progress_t *progress = calloc(1, sizeof(tui_progress_t));
   if (!progress) {
     tui_destroy_window(w);
     return NULL;
@@ -111,7 +100,7 @@ APP_NODISCARD tui_progress_t *tui_progress_create(const char *title, int max) {
   progress->window = w;
   progress->max_value = max;
   progress->current_value = 0;
-  progress->title = title ? app_secure_strdup(title) : NULL;
+  progress->title = title ? strdup(title) : NULL;
 
   tui_progress_draw(progress, NULL);
   return progress;
@@ -128,8 +117,10 @@ void tui_progress_update(tui_progress_t *progress, int current,
 void tui_progress_destroy(tui_progress_t *progress) {
   if (!progress)
     return;
-  if (progress->title)
-    app_secure_free(progress->title, strlen(progress->title) + 1);
+  free(progress->title);
   tui_destroy_window(progress->window);
-  app_secure_free(progress, sizeof(tui_progress_t));
+  free(progress);
+
+  touchwin(stdscr);
+  refresh();
 }

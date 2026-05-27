@@ -30,11 +30,15 @@ typedef enum {
   TUI_COLOR_MENU_NORMAL,
   TUI_COLOR_BORDER,
   TUI_COLOR_TITLE,
+  TUI_COLOR_ACCENT,
+  TUI_COLOR_DIM,
   TUI_COLOR_MAX
 } tui_color_pair_t;
 
+typedef struct tui_window tui_window_t;
+
 // Window wrapper for safer window management
-typedef struct {
+struct tui_window {
   WINDOW *win;
   int height;
   int width;
@@ -42,20 +46,13 @@ typedef struct {
   int x;
   bool has_border;
   char *title;
-} tui_window_t;
-
-// Menu item structure
-typedef struct {
-  const char *label;
-  const char *description;
-  int id;
-  bool enabled;
-} tui_menu_item_t;
+};
 
 // Initialization / cleanup
 APP_NODISCARD app_error tui_init(void);
 void tui_cleanup(void);
 bool tui_is_initialized(void);
+bool tui_interrupted(void);
 
 // Color management
 APP_NODISCARD app_error tui_init_colors(void);
@@ -82,17 +79,12 @@ APP_NODISCARD int tui_get_char(void);
 APP_NODISCARD app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
                                        const char *prompt);
 
-// Menu
-APP_NODISCARD int tui_show_menu(tui_window_t *window, const char *title,
-                                const tui_menu_item_t *items, int item_count,
-                                int default_selection);
-
 // Dialogs
 void tui_show_message(const char *title, const char *message);
 bool tui_confirm(const char *title, const char *question);
 APP_NODISCARD app_error tui_input_dialog(const char *title, const char *prompt,
                                          char *buffer, size_t size);
-APP_NODISCARD app_error tui_run_demo(void);
+APP_NODISCARD app_error tui_run_app(void);
 
 // Utilities
 void tui_beep(void);
@@ -101,5 +93,6 @@ int tui_get_max_x(void);
 int tui_get_max_y(void);
 bool tui_terminal_meets_minimum(void);
 
-// Progress API is declared in a dedicated header to keep tui.h lean.
+// Menu and progress APIs are declared in dedicated headers to keep tui.h lean.
+#include "tui_menu.h"
 #include "tui_progress.h"

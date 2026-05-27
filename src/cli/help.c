@@ -1,43 +1,75 @@
 /*
- * Help text display implementation.
+ * Help text display.
+ *
+ * Both concise and verbose help iterate over the command and flag tables in
+ * commands.c / config.c, so adding a command or flag automatically shows up
+ * without editing this file.
  */
 
 #include "help.h"
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "../core/config.h"
 #include "../core/types.h"
 #include "../utils/colors.h"
 #include "../utils/logging.h"
+#include "commands.h"
+
+static const char *program_or_default(const char *program_name) {
+  if (program_name == nullptr || program_name[0] == '\0') {
+    LOG_ERROR("Invalid program name");
+    return APP_NAME;
+  }
+  return program_name;
+}
+
+static void print_commands_block(void) {
+  size_t count = 0;
+  const app_command_t *commands = app_commands(&count);
+  printf("Commands:\n");
+  for (size_t i = 0; i < count; i++) {
+    printf("  %-16s%s\n", commands[i].name,
+           commands[i].summary ? commands[i].summary : "");
+  }
+}
+
+static void print_flag_options(void) {
+  size_t count = 0;
+  const app_flag_spec_t *flags = app_flag_table(&count);
+  for (size_t i = 0; i < count; i++) {
+    const app_flag_spec_t *spec = &flags[i];
+    char left[64];
+    if (spec->cli_short && spec->cli_long) {
+      snprintf(left, sizeof(left), "%s, %s", spec->cli_short, spec->cli_long);
+    } else if (spec->cli_long) {
+      snprintf(left, sizeof(left), "%s", spec->cli_long);
+    } else if (spec->cli_short) {
+      snprintf(left, sizeof(left), "%s", spec->cli_short);
+    } else {
+      continue;
+    }
+    printf("  %-20s(boolean)\n", left);
+  }
+}
 
 void app_print_concise_help(const char *program_name) {
-  if (program_name == nullptr || strlen(program_name) == 0) {
-    LOG_ERROR("Invalid program name");
-    program_name = APP_NAME;
-  }
+  program_name = program_or_default(program_name);
 
   printf("%s - A C23 TUI + CLI starter [version %s]\n\n", APP_NAME,
          APP_VERSION);
-
   printf("Usage: %s [options] <command> [arguments]\n\n", program_name);
 
-  printf("Commands:\n");
-  printf("  hello [name]    Print a greeting message\n");
-  printf("  echo [text...]  Echo the provided text\n");
-  printf("  info            Display application information\n");
-  printf("  doctor          Run starter diagnostics\n");
-#ifdef ENABLE_TUI
-  printf("  menu            Launch interactive TUI showcase\n");
-#endif
+  print_commands_block();
   printf("\n");
 
   printf("Options:\n");
-  printf("  -h, --help      Show this help message\n");
-  printf("  --version       Show version information\n");
-  printf("  -d, --debug     Enable debug output\n");
-  printf("  -q, --quiet     Suppress non-essential output\n");
-  printf("  --json          Emit a versioned JSON response\n\n");
+  printf("  -h, --help          Show this help message\n");
+  printf("      --version       Show version information\n");
+  print_flag_options();
+  printf("  -c, --config PATH   Load configuration from PATH\n\n");
 
   printf("Examples:\n");
   printf("  $ %s hello\n", program_name);
@@ -46,14 +78,11 @@ void app_print_concise_help(const char *program_name) {
   printf("  $ %s hello Alice\n", program_name);
   printf("  Hello, Alice!\n\n");
 
-  printf("For more options, use %s --help\n", program_name);
+  printf("For more options, run %s --help\n", program_name);
 }
 
 void app_print_verbose_usage(const char *program_name) {
-  if (program_name == nullptr || strlen(program_name) == 0) {
-    LOG_ERROR("Invalid program name");
-    program_name = APP_NAME;
-  }
+  program_name = program_or_default(program_name);
 
   const char *bold = app_use_colors(nullptr) ? APP_COLOR_BOLD : "";
   const char *reset = app_use_colors(nullptr) ? APP_COLOR_RESET : "";
@@ -73,75 +102,64 @@ void app_print_verbose_usage(const char *program_name) {
   printf("  tools with proper error handling, configuration, and testing.\n\n");
 
   printf("%sCOMMANDS%s\n", bold, reset);
-  printf("  hello [name]       Print a greeting message\n");
-  printf("                     If no name is provided, greets 'World'\n\n");
-
-  printf("  echo [text...]     Echo the provided text\n");
-  printf("                     Prints all arguments separated by spaces\n\n");
-
-  printf("  info               Display application information\n");
-  printf(
-      "                     Shows version, build date, and configuration\n\n");
-
-  printf("  doctor             Run starter diagnostics\n");
-  printf(
-      "                     Reports build metadata, output mode, and optional "
-      "feature status\n\n");
-
-#ifdef ENABLE_TUI
-  printf("  menu               Launch interactive TUI showcase\n");
-  printf(
-      "                     Opens reusable ncurses menus, dialogs, panels, "
-      "and progress bars\n\n");
-#endif
+  size_t cmd_count = 0;
+  const app_command_t *commands = app_commands(&cmd_count);
+  for (size_t i = 0; i < cmd_count; i++) {
+    printf("  %-18s%s\n", commands[i].name,
+           commands[i].summary ? commands[i].summary : "");
+  }
+  printf("\n");
 
   printf("%sOPTIONS%s\n", bold, reset);
-  printf("  -h, --help         Show this help message and exit\n");
-  printf("  --version          Show version information and exit\n");
-  printf("  -d, --debug        Enable debug output (DEBUG level logs)\n");
-  printf("  -q, --quiet        Suppress non-essential output\n");
-  printf("  -v, --verbose      Enable verbose output\n");
-  printf("  --json             Output in JSON format\n");
-  printf("  --plain            Output plain text without colors\n");
-  printf("  --no-color         Disable colored output\n");
-  printf("  -c, --config PATH  Specify configuration file path\n\n");
+  printf("  -h, --help          Show this help message and exit\n");
+  printf("      --version       Show version information and exit\n");
+  size_t flag_count = 0;
+  const app_flag_spec_t *flags = app_flag_table(&flag_count);
+  for (size_t i = 0; i < flag_count; i++) {
+    const app_flag_spec_t *spec = &flags[i];
+    char left[64];
+    if (spec->cli_short && spec->cli_long) {
+      snprintf(left, sizeof(left), "%s, %s", spec->cli_short, spec->cli_long);
+    } else if (spec->cli_long) {
+      snprintf(left, sizeof(left), "%s", spec->cli_long);
+    } else if (spec->cli_short) {
+      snprintf(left, sizeof(left), "%s", spec->cli_short);
+    } else {
+      continue;
+    }
+    const char *env_hint = spec->env_var ? spec->env_var : "";
+    if (env_hint[0] != '\0') {
+      printf("  %-20sboolean (env: %s)\n", left, env_hint);
+    } else {
+      printf("  %-20sboolean\n", left);
+    }
+  }
+  printf("  -c, --config PATH   Specify configuration file path\n\n");
 
   printf("%sENVIRONMENT%s\n", bold, reset);
   printf(
-      "  APP_LOG_LEVEL      Set logging level: ERROR, WARNING, INFO, DEBUG\n");
-  printf("                     Default: ERROR\n");
-  printf("  NO_COLOR           Disable colored output when set\n\n");
+      "  APP_LOG_LEVEL       Set logging level: ERROR, WARNING, INFO, DEBUG\n");
+  printf("                      Default: ERROR\n");
+  printf("  APP_CONFIG_PATH     Override the default config file lookup.\n");
+  printf("  NO_COLOR            Disable colored output when set.\n\n");
 
   printf("%sCONFIGURATION%s\n", bold, reset);
-  printf("  Configuration can be loaded from:\n");
-  printf("  - ~/.config/%s/config.json (user-specific)\n", APP_NAME);
-  printf("  - /etc/%s/config.json (system-wide)\n", APP_NAME);
-  printf("  - Custom path via --config option\n\n");
+  printf("  Loaded from (first hit wins):\n");
+  printf("    - the path passed to --config\n");
+  printf("    - $APP_CONFIG_PATH\n");
+  printf("    - ~/.config/%s/config.json\n", APP_NAME);
+  printf("    - /etc/%s/config.json\n\n", APP_NAME);
 
-  printf("  Configuration precedence (highest to lowest):\n");
-  printf("  1. Command-line arguments\n");
-  printf("  2. Environment variables\n");
-  printf("  3. Configuration file\n");
-  printf("  4. Default values\n\n");
+  printf("  Precedence (highest first):\n");
+  printf("    1. Command-line arguments\n");
+  printf("    2. Environment variables\n");
+  printf("    3. Configuration file\n");
+  printf("    4. Built-in defaults\n\n");
 
   printf("%sEXAMPLES%s\n", bold, reset);
   printf("  Basic greeting:\n");
   printf("    $ %s hello\n", program_name);
   printf("    Hello, World!\n\n");
-
-  printf("  Personalized greeting:\n");
-  printf("    $ %s hello Alice\n", program_name);
-  printf("    Hello, Alice!\n\n");
-
-  printf("  Echo multiple words:\n");
-  printf("    $ %s echo Hello from the CLI\n", program_name);
-  printf("    Hello from the CLI\n\n");
-
-  printf("  Show application info:\n");
-  printf("    $ %s info\n", program_name);
-  printf("    Application: %s\n", APP_NAME);
-  printf("    Version: %s\n", APP_VERSION);
-  printf("    Build: <timestamp>\n\n");
 
   printf("  Machine-readable info:\n");
   printf("    $ %s --json info\n", program_name);
@@ -149,14 +167,8 @@ void app_print_verbose_usage(const char *program_name) {
 
   printf("  Run diagnostics:\n");
   printf("    $ %s doctor\n", program_name);
-  printf("    %s doctor\n", APP_NAME);
-  printf("      binary        ok (%s %s)\n\n", APP_NAME, APP_VERSION);
-
-  printf("  Enable debug logging:\n");
-  printf("    $ %s -d info\n", program_name);
-  printf("    [DEBUG] Debug mode enabled\n");
-  printf("    Application: %s\n", APP_NAME);
-  printf("    ...\n\n");
+  printf("    $ %s doctor --deep    # also exercises the TUI runtime\n\n",
+         program_name);
 
   printf("%sEXIT CODES%s\n", bold, reset);
   printf("  0    Success\n");

@@ -191,14 +191,14 @@ const c_sources = [_][]const u8{
   - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
-- **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional; enables the C Ghostty VT backend for PTY-backed terminal tests
+- **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional outside Nix; enables the C Ghostty VT backend for PTY-backed terminal tests
 
 ### Development Environment
 
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **Nix Dev Shell** - Includes Zig, C tooling, and markdown lint tooling
+- **Nix Dev Shell** - Includes Zig, C tooling, nixpkgs `libghostty-vt` for terminal tests, and markdown lint tooling
 - **CI Quality Checks** - Automated build, test, lint, security, and release checks
 
 ### Commands

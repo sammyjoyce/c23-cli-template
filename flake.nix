@@ -24,6 +24,10 @@
           lib = pkgs.lib;
           ncursesDev = lib.getDev pkgs.ncurses;
           ncursesLib = lib.getLib pkgs.ncurses;
+          libcDev = lib.getDev pkgs.stdenv.cc.libc;
+          ghosttyVt = pkgs.libghostty-vt;
+          ghosttyVtDev = lib.getDev ghosttyVt;
+          ghosttyVtLib = lib.getLib ghosttyVt;
           zig = pkgs.zig_0_16 or pkgs.zig;
           projectTooling = [
             # Build and day-to-day workflow.
@@ -81,16 +85,38 @@
             buildInputs = [
               ncursesDev
               ncursesLib
+              ghosttyVtDev
+              ghosttyVtLib
             ];
 
-            # Zig's linkSystemLibrary("ncurses", .{}) consults pkg-config first.
-            # Keep the paths explicit so default `zig build run` also works
-            # on NixOS, where system libraries are not visible under /lib or /usr.
-            PKG_CONFIG_PATH = "${ncursesDev}/lib/pkgconfig";
-            CPATH = "${ncursesDev}/include";
-            LIBRARY_PATH = "${ncursesLib}/lib";
-            LD_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isLinux "${ncursesLib}/lib";
-            DYLD_FALLBACK_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isDarwin "${ncursesLib}/lib";
+            # Zig's linkSystemLibrary(...) consults pkg-config first.
+            # Keep ncurses and libghostty-vt explicit so `zig build run`
+            # and `zig build terminal-test` work on NixOS without extra flags.
+            PKG_CONFIG_PATH = lib.concatStringsSep ":" [
+              "${ncursesDev}/lib/pkgconfig"
+              "${ghosttyVtDev}/share/pkgconfig"
+            ];
+            CPATH = lib.concatStringsSep ":" [
+              "${libcDev}/include"
+              "${ncursesDev}/include"
+              "${ghosttyVtDev}/include"
+            ];
+            LIBRARY_PATH = lib.concatStringsSep ":" [
+              "${ncursesLib}/lib"
+              "${ghosttyVtLib}/lib"
+            ];
+            LD_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isLinux (
+              lib.concatStringsSep ":" [
+                "${ncursesLib}/lib"
+                "${ghosttyVtLib}/lib"
+              ]
+            );
+            DYLD_FALLBACK_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isDarwin (
+              lib.concatStringsSep ":" [
+                "${ncursesLib}/lib"
+                "${ghosttyVtLib}/lib"
+              ]
+            );
             TERMINFO_DIRS = "${ncursesLib}/share/terminfo";
           };
         }

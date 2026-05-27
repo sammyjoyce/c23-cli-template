@@ -101,6 +101,7 @@ Cleanup removes files that are useful only while instantiating the template:
 
 - `.template/`
 - `.templatesyncignore`
+- `.agents/`
 - `.github/template.yml`
 - `.github/workflows/template-cleanup.yml`
 

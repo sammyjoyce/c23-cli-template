@@ -1,9 +1,13 @@
 /*
  * Command-line argument parsing implementation.
+ *
+ * Bool flags are looked up against g_app_flag_table (see config.c) so adding a
+ * new flag does not require a change here.
  */
 
 #include "args.h"
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +20,24 @@ typedef struct {
   const char *config_path;
   int command_index;
 } app_global_args_t;
+
+static bool app_args_try_bool_flag(const char *arg, app_config_t *config) {
+  size_t count = 0;
+  const app_flag_spec_t *specs = app_flag_table(&count);
+  for (size_t i = 0; i < count; i++) {
+    const app_flag_spec_t *spec = &specs[i];
+    const bool short_match =
+        spec->cli_short && strcmp(arg, spec->cli_short) == 0;
+    const bool long_match = spec->cli_long && strcmp(arg, spec->cli_long) == 0;
+    if (short_match || long_match) {
+      if (config) {
+        app_config_set_flag(config, spec->id, true);
+      }
+      return true;
+    }
+  }
+  return false;
+}
 
 static app_error app_scan_global_args(int argc, char *argv[],
                                       app_config_t *config,
@@ -35,32 +57,11 @@ static app_error app_scan_global_args(int argc, char *argv[],
       break;
     }
 
-    if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--debug") == 0) {
-      if (config) {
-        app_config_set_debug(config, true);
-      }
-    } else if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
-      if (config) {
-        app_config_set_quiet(config, true);
-      }
-    } else if (strcmp(argv[i], "-v") == 0 ||
-               strcmp(argv[i], "--verbose") == 0) {
-      if (config) {
-        app_config_set_verbose(config, true);
-      }
-    } else if (strcmp(argv[i], "--json") == 0) {
-      if (config) {
-        app_config_set_json_output(config, true);
-      }
-    } else if (strcmp(argv[i], "--plain") == 0) {
-      if (config) {
-        app_config_set_plain_output(config, true);
-      }
-    } else if (strcmp(argv[i], "--no-color") == 0) {
-      if (config) {
-        app_config_set_no_color(config, true);
-      }
-    } else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
+    if (app_args_try_bool_flag(argv[i], config)) {
+      continue;
+    }
+
+    if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
       if (i + 1 >= argc) {
         fprintf(stderr, "Error: %s requires an argument\n", argv[i]);
         return APP_ERROR_MISSING_ARG;
@@ -73,11 +74,12 @@ static app_error app_scan_global_args(int argc, char *argv[],
       if (config) {
         app_config_set_config_file(config, config_path);
       }
-    } else {
-      fprintf(stderr, "Error: Unknown option '%s'\n", argv[i]);
-      fprintf(stderr, "Run '%s --help' for usage information\n", argv[0]);
-      return APP_ERROR_UNKNOWN_OPTION;
+      continue;
     }
+
+    fprintf(stderr, "Error: Unknown option '%s'\n", argv[i]);
+    fprintf(stderr, "Run '%s --help' for usage information\n", argv[0]);
+    return APP_ERROR_UNKNOWN_OPTION;
   }
 
   return APP_SUCCESS;

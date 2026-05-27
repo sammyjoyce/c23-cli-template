@@ -1,0 +1,149 @@
+/*
+ * Unit tests for pieces of the codebase that don't need a subprocess:
+ *   - app_strerror coverage (one entry per error code)
+ *   - JSON config parser error paths
+ *   - app_secret_zero behaviour
+ *
+ * Output is TAP so it slots into the same harness as the contract tests.
+ */
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../src/core/config_json.h"
+#include "../src/core/error.h"
+#include "../src/utils/memory.h"
+
+typedef struct {
+  int passed;
+  int failed;
+} unit_stats_t;
+
+static void unit_record(unit_stats_t *stats, bool ok, const char *name) {
+  if (ok) {
+    stats->passed++;
+    printf("ok %d - %s\n", stats->passed + stats->failed, name);
+  } else {
+    stats->failed++;
+    printf("not ok %d - %s\n", stats->passed + stats->failed, name);
+  }
+}
+
+static bool test_strerror_covers_every_code(void) {
+  // Iterate every defined enum value. APP_ERROR_FEATURE_BASE marks the start
+  // of the reserved range for user-defined codes, so we stop just before it.
+  const int codes[] = {
+      APP_SUCCESS,
+      APP_ERROR_INVALID_ARG,
+      APP_ERROR_INVALID_COMMAND,
+      APP_ERROR_CONFIG,
+      APP_ERROR_CONFIG_PARSE,
+      APP_ERROR_CONFIG_INVALID,
+      APP_ERROR_MISSING_ARG,
+      APP_ERROR_UNKNOWN_OPTION,
+      APP_ERROR_MEMORY,
+      APP_ERROR_IO,
+      APP_ERROR_PERMISSION,
+      APP_ERROR_INTERNAL,
+      APP_ERROR_THREADING,
+      APP_ERROR_RESOURCE,
+      APP_ERROR_SIGNAL,
+      APP_ERROR_NOT_FOUND,
+      APP_ERROR_INVALID_DATA,
+      APP_ERROR_PARSE_ERROR,
+      APP_ERROR_VALIDATION,
+      APP_ERROR_OVERFLOW,
+      APP_ERROR_UNDERFLOW,
+      APP_ERROR_OUT_OF_RANGE,
+  };
+
+  for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
+    const char *msg = app_strerror((app_error)codes[i]);
+    if (!msg || msg[0] == '\0') {
+      fprintf(stderr, "app_strerror returned empty for code %d\n", codes[i]);
+      return false;
+    }
+    if (strcmp(msg, "Unknown error") == 0 &&
+        codes[i] != APP_ERROR_FEATURE_BASE) {
+      fprintf(stderr, "code %d hit the default branch\n", codes[i]);
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool test_config_json_parses_valid_input(void) {
+  app_config_json_state_t state = {0};
+  const char *input = "{\"debug\":true,\"quiet\":false}";
+  if (app_config_parse_json_state(&state, input) != APP_SUCCESS) {
+    return false;
+  }
+  return state.values[APP_FLAG_DEBUG] && !state.values[APP_FLAG_QUIET];
+}
+
+static bool test_config_json_rejects_unicode_escape(void) {
+  // \uXXXX escapes used to be silently replaced with '?'. They should now
+  // cleanly fail parsing.
+  app_config_json_state_t state = {0};
+  const char *input = "{\"debug\":\"\\u00e9\"}";
+  return app_config_parse_json_state(&state, input) != APP_SUCCESS;
+}
+
+static bool test_config_json_rejects_trailing_garbage(void) {
+  app_config_json_state_t state = {0};
+  const char *input = "{}garbage";
+  return app_config_parse_json_state(&state, input) != APP_SUCCESS;
+}
+
+static bool test_config_json_exclusivity(void) {
+  // Setting json_output should turn off plain_output, even if plain_output
+  // was set earlier in the same object.
+  app_config_json_state_t state = {0};
+  const char *input = "{\"plain_output\":true,\"json_output\":true}";
+  if (app_config_parse_json_state(&state, input) != APP_SUCCESS) {
+    return false;
+  }
+  return state.values[APP_FLAG_JSON_OUTPUT] &&
+         !state.values[APP_FLAG_PLAIN_OUTPUT];
+}
+
+static bool test_secret_zero_clears_buffer(void) {
+  unsigned char buf[16];
+  for (size_t i = 0; i < sizeof(buf); i++) {
+    buf[i] = (unsigned char)(i + 1);
+  }
+  app_secret_zero(buf, sizeof(buf));
+  for (size_t i = 0; i < sizeof(buf); i++) {
+    if (buf[i] != 0) {
+      return false;
+    }
+  }
+  // Null/zero-length calls must be no-ops, not segfaults.
+  app_secret_zero(NULL, 0);
+  app_secret_zero(buf, 0);
+  return true;
+}
+
+int main(void) {
+  unit_stats_t stats = {0};
+  printf("TAP version 13\n");
+
+  unit_record(&stats, test_strerror_covers_every_code(),
+              "app_strerror covers every code");
+  unit_record(&stats, test_config_json_parses_valid_input(),
+              "config_json parses valid input");
+  unit_record(&stats, test_config_json_rejects_unicode_escape(),
+              "config_json rejects \\uXXXX escapes");
+  unit_record(&stats, test_config_json_rejects_trailing_garbage(),
+              "config_json rejects trailing garbage");
+  unit_record(&stats, test_config_json_exclusivity(),
+              "config_json enforces flag exclusivity");
+  unit_record(&stats, test_secret_zero_clears_buffer(),
+              "app_secret_zero clears buffer");
+
+  printf("1..%d\n", stats.passed + stats.failed);
+  fprintf(stderr, "%d passed, %d failed\n", stats.passed, stats.failed);
+  return stats.failed == 0 ? 0 : 1;
+}

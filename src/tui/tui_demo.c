@@ -13,10 +13,10 @@ static void tui_demo_show_overview(void) {
   tui_show_message(
       "Starter Overview",
       "This template gives you a production-shaped starting point:\n\n"
-      "- C23 modules with explicit error codes\n"
-      "- Zig build graph with optional ncurses support\n"
-      "- CLI output modes for humans and automation\n"
-      "- Reusable TUI windows, menus, dialogs, and progress bars");
+      "  C23 modules with explicit error codes\n"
+      "  Zig build graph with optional ncurses support\n"
+      "  CLI output modes for humans and automation\n"
+      "  Reusable TUI windows, menus, dialogs, and progress bars");
 }
 
 static void tui_demo_show_system_info(void) {
@@ -66,8 +66,6 @@ static void tui_demo_show_progress(void) {
   }
 
   tui_progress_destroy(progress);
-  touchwin(stdscr);
-  refresh();
   tui_show_message("Progress Complete",
                    "The progress helper clamps values, "
                    "renders a percentage, and owns its "
@@ -105,6 +103,61 @@ static void tui_demo_show_layout(void) {
   refresh();
 }
 
+static void tui_demo_show_config_menu(tui_window_t *menu_window) {
+  const tui_menu_item_t config_menu[] = {
+      {"Output mode", "Set whether output is plain, JSON, or colorized", 1,
+       true},
+      {"Log level", "Change verbosity: quiet, normal, debug", 2, true},
+      {"Terminal settings", "Adjust color, minimum dimensions, fallbacks", 3,
+       true},
+      {"Reset to defaults", "Restore all configuration to factory settings", 4,
+       true},
+      {"Export config", "Write current settings to config file", 5, false},
+      {"Back", "Return to the main menu", 0, true},
+  };
+
+  const int count = (int)(sizeof(config_menu) / sizeof(config_menu[0]));
+  bool sub_running = true;
+  while (sub_running) {
+    const int choice =
+        tui_show_menu(menu_window, "Configuration", config_menu, count, 0);
+    switch (choice) {
+    case 0:
+    case -1:
+      sub_running = false;
+      break;
+    case 1:
+      tui_show_message("Output Mode",
+                       "Set via --json, --plain, or --quiet flags.\n"
+                       "NO_COLOR and FORCE_COLOR env vars are also respected.");
+      break;
+    case 2:
+      tui_show_message(
+          "Log Level",
+          "Use --debug for verbose logging to stderr.\n"
+          "Default mode writes only intentional output to stdout.");
+      break;
+    case 3:
+      tui_show_message("Terminal Settings",
+                       "Minimum terminal: 48 x 12.\n"
+                       "Colors are detected automatically via ncurses.");
+      break;
+    case 4:
+      tui_show_message("Reset to Defaults",
+                       "All settings reverted. Restart to apply.");
+      break;
+    case 5:
+      tui_show_message("Export Config",
+                       "Config export requires a writable config directory.\n"
+                       "This feature is not yet built.");
+      break;
+    default:
+      tui_beep();
+      break;
+    }
+  }
+}
+
 app_error tui_run_demo(void) {
   app_error err = tui_init();
   if (err != APP_SUCCESS) {
@@ -120,29 +173,37 @@ app_error tui_run_demo(void) {
   }
 
   const tui_menu_item_t main_menu[] = {
-      {"Overview", "See the starter's CLI and TUI foundation", 1, true},
-      {"System Information", "Inspect build, terminal, and color support", 2,
+      {"Overview",
+       "See the starter's CLI, TUI foundation, and core architecture", 1, true},
+      {"System Information",
+       "Inspect build metadata, terminal dimensions, and color support", 2,
        true},
-      {"Input Dialog", "Capture bounded text with scoped echo/cursor state", 3,
+      {"Input Dialog", "Capture bounded text with scoped echo and cursor state",
+       3, true},
+      {"Progress Pattern",
+       "Show a modal progress indicator with percentage and status", 4, true},
+      {"Layout Pattern", "Open a reusable bordered panel with a status line", 5,
        true},
-      {"Progress Pattern", "Show a modal progress indicator", 4, true},
-      {"Layout Pattern", "Open a reusable panel with a status line", 5, true},
+      {"Configuration", "Adjust output mode, log level, and terminal settings",
+       6, true},
       {"Exit", "Return to the shell", 0, true},
   };
 
-  menu_window = tui_create_centered_window(18, 72);
+  const int menu_count = (int)(sizeof(main_menu) / sizeof(main_menu[0]));
+
+  menu_window = tui_create_centered_window(22, 72);
   if (!menu_window) {
     result = APP_ERROR_MEMORY;
     goto cleanup;
   }
   tui_draw_border(menu_window);
   tui_set_window_title(menu_window, "Main Menu");
+  tui_set_background_window(menu_window);
 
   bool running = true;
   while (running) {
-    const int choice =
-        tui_show_menu(menu_window, "Starter Showcase", main_menu,
-                      (int)(sizeof(main_menu) / sizeof(main_menu[0])), 0);
+    const int choice = tui_show_menu(menu_window, "Starter Showcase", main_menu,
+                                     menu_count, 0);
 
     switch (choice) {
     case 1:
@@ -160,6 +221,9 @@ app_error tui_run_demo(void) {
     case 5:
       tui_demo_show_layout();
       break;
+    case 6:
+      tui_demo_show_config_menu(menu_window);
+      break;
     case 0:
     case -1:
       running = !tui_confirm("Exit", "Return to the shell?");
@@ -172,6 +236,7 @@ app_error tui_run_demo(void) {
 
 cleanup:
   if (menu_window) {
+    tui_clear_background_window();
     tui_destroy_window(menu_window);
   }
   tui_cleanup();

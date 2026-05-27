@@ -10,11 +10,49 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "error.h"
 #include "types.h"
 
 // The opaque app_config_t type is declared in types.h.
+
+// Identifiers for every boolean flag the application understands.
+// Adding a new flag is a three-step operation:
+//   1. add an enum value here
+//   2. add a row in g_app_flag_table (config.c)
+//   3. add a getter via the APP_FLAG_GETTERS macro pattern, if needed
+typedef enum {
+  APP_FLAG_DEBUG,
+  APP_FLAG_QUIET,
+  APP_FLAG_VERBOSE,
+  APP_FLAG_JSON_OUTPUT,
+  APP_FLAG_PLAIN_OUTPUT,
+  APP_FLAG_NO_COLOR,
+  APP_FLAG_COUNT,
+} app_flag_id;
+
+// Metadata about a flag: how it appears on the command line, in env vars,
+// in JSON config files, and which other flag (if any) it should reset when
+// set to true.
+typedef struct {
+  app_flag_id id;
+  const char *json_key;
+  const char *env_var;    // NULL when no env override is supported
+  const char *env_match;  // NULL means any non-empty value enables the flag
+  const char *cli_short;  // NULL when there is no short option
+  const char *cli_long;   // long option, including leading "--"
+  app_flag_id exclusive_with;  // set to id itself when there is no conflict
+} app_flag_spec_t;
+
+// Iterate over every flag spec. count is non-NULL on return.
+const app_flag_spec_t *app_flag_table(size_t *count);
+
+// Look up a flag spec by id. Returns NULL for an out-of-range id.
+const app_flag_spec_t *app_flag_lookup(app_flag_id id);
+
+// Look up by JSON key (used while loading config files).
+const app_flag_spec_t *app_flag_find_by_json_key(const char *key);
 
 // Create and destroy configuration objects with proper lifecycle management.
 // The create function allocates and initializes with defaults, while destroy
@@ -41,6 +79,8 @@ const char *app_config_get_program_name(const app_config_t *config);
 const char *app_config_get_command(const app_config_t *config);
 char **app_config_get_command_args(const app_config_t *config, int *count);
 const char *app_config_get_config_file(const app_config_t *config);
+bool app_config_get_flag(const app_config_t *config, app_flag_id id);
+
 bool app_config_is_quiet(const app_config_t *config);
 bool app_config_is_debug(const app_config_t *config);
 bool app_config_is_json_output(const app_config_t *config);
@@ -48,10 +88,11 @@ bool app_config_is_plain_output(const app_config_t *config);
 bool app_config_is_no_color(const app_config_t *config);
 bool app_config_is_verbose(const app_config_t *config);
 
-// Configuration setters for programmatic use during initialization.
-// These are primarily used by the load functions and testing code.
-// Application code should prefer using the load functions to ensure
-// proper validation and consistent behavior.
+// Generic flag setter that also enforces exclusivity (e.g. setting json
+// clears plain). Prefer this from new code; the named setters below remain
+// for source compatibility.
+void app_config_set_flag(app_config_t *config, app_flag_id id, bool value);
+
 void app_config_set_debug(app_config_t *config, bool debug);
 void app_config_set_quiet(app_config_t *config, bool quiet);
 void app_config_set_verbose(app_config_t *config, bool verbose);

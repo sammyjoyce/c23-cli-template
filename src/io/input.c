@@ -15,7 +15,6 @@
 #include <unistd.h>
 
 #include "../utils/logging.h"
-#include "../utils/memory.h"
 
 // Compile-time assertions
 static_assert(INPUT_MAX_SIZE >= 512 * 1024, "Input max size too small");
@@ -41,7 +40,7 @@ char *app_read_input_from_stdin(void) {
     return nullptr;
   }
 
-  char *buffer = app_secure_malloc(capacity);
+  char *buffer = malloc(capacity);
   if (buffer == NULL) {
     errno = ENOMEM;
     return nullptr;
@@ -52,7 +51,7 @@ char *app_read_input_from_stdin(void) {
     if (total_size >= INPUT_MAX_SIZE) {
       LOG_ERROR("Input exceeds maximum size of %zu bytes",
                 (size_t)INPUT_MAX_SIZE);
-      app_secure_free(buffer, capacity);
+      free(buffer);
       errno = E2BIG;
       return nullptr;
     }
@@ -64,9 +63,9 @@ char *app_read_input_from_stdin(void) {
         new_capacity = INPUT_MAX_SIZE;
       }
 
-      char *new_buffer = app_secure_realloc(buffer, capacity, new_capacity);
+      char *new_buffer = realloc(buffer, new_capacity);
       if (new_buffer == NULL) {
-        app_secure_free(buffer, capacity);
+        free(buffer);
         errno = ENOMEM;
         return nullptr;
       }
@@ -86,14 +85,14 @@ char *app_read_input_from_stdin(void) {
       }
       if (ferror(stdin)) {
         LOG_ERROR("Error reading from stdin: %s", strerror(errno));
-        app_secure_free(buffer, capacity);
+        free(buffer);
         return nullptr;
       }
     }
     if (bytes_read > bytes_to_read ||
         bytes_read > INPUT_MAX_SIZE - total_size) {
       LOG_ERROR("Input read exceeded expected bounds");
-      app_secure_free(buffer, capacity);
+      free(buffer);
       errno = EIO;
       return nullptr;
     }
@@ -105,7 +104,7 @@ char *app_read_input_from_stdin(void) {
 
   // Shrink buffer to actual size to save memory
   if (total_size + 1 < capacity) {
-    char *final_buffer = app_secure_realloc(buffer, capacity, total_size + 1);
+    char *final_buffer = realloc(buffer, total_size + 1);
     if (final_buffer != NULL) {
       buffer = final_buffer;
     }
@@ -144,7 +143,7 @@ char *app_read_input_from_file(const char *filename) {
   }
 
   size_t file_size = st.st_size;
-  char *buffer = app_secure_malloc(file_size + 1);
+  char *buffer = malloc(file_size + 1);
   if (buffer == NULL) {
     fclose(file);
     errno = ENOMEM;
@@ -154,7 +153,7 @@ char *app_read_input_from_file(const char *filename) {
   size_t bytes_read = fread(buffer, 1, file_size, file);
   if (bytes_read != file_size) {
     LOG_ERROR("Failed to read entire file %s", filename);
-    app_secure_free(buffer, file_size + 1);
+    free(buffer);
     fclose(file);
     return nullptr;
   }
@@ -165,11 +164,3 @@ char *app_read_input_from_file(const char *filename) {
   LOG_DEBUG("Read %zu bytes from file %s", file_size, filename);
   return buffer;
 }
-
-#if __STDC_VERSION__ >= 202311L
-char *app_read_input_from_stdin_async(void) {
-  // For now, just call the synchronous version
-  // In a real implementation, this would use C23 thread features
-  return app_read_input_from_stdin();
-}
-#endif
