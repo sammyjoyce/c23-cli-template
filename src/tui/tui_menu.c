@@ -99,6 +99,63 @@ static bool tui_menu_layout_compute(tui_menu_layout_t *L, const tui_window_t *w,
   return L->item_area_h >= MENU_MIN_ITEM_ROWS;
 }
 
+static void tui_menu_render_title(const tui_menu_layout_t *L,
+                                  const char *title) {
+  if (!title || !L->frame)
+    return;
+  tui_set_color(L->frame->win, TUI_COLOR_TITLE);
+  tui_print_centered(L->frame->win, 1, title);
+  tui_unset_color(L->frame->win, TUI_COLOR_TITLE);
+  tui_set_color(L->frame->win, TUI_COLOR_BORDER);
+  mvwhline(L->frame->win, 2, 2, ACS_HLINE, L->frame->width - 4);
+  tui_unset_color(L->frame->win, TUI_COLOR_BORDER);
+}
+
+static void tui_menu_render_items(const tui_menu_layout_t *L,
+                                  const tui_menu_state_t *s) {
+  WINDOW *win = L->frame->win;
+  const int visible = tui_menu_state_visible_count(s);
+  const int top = tui_menu_state_top_visible(s);
+  const int sel_v = tui_menu_state_selected_visible(s);
+  const int rows = L->item_area_h;
+
+  for (int row = 0; row < rows; row++) {
+    const int v = top + row;
+    if (v >= visible)
+      break;
+    const int y = L->item_area_y + row;
+    const bool is_selected = (v == sel_v);
+
+    if (is_selected) {
+      tui_set_color(win, TUI_COLOR_MENU_SELECTED);
+      mvwhline(win, y, 1, ' ', L->frame->width - 2);
+      tui_unset_color(win, TUI_COLOR_MENU_SELECTED);
+      tui_set_color(win, TUI_COLOR_ACCENT);
+      tui_menu_write_wcs(win, y, 2, 2, L"\u25B8 "); /* ▸ */
+      tui_unset_color(win, TUI_COLOR_ACCENT);
+    }
+  }
+}
+
+static void tui_menu_render_scrollbar(const tui_menu_layout_t *L,
+                                      const tui_menu_state_t *s) {
+  WINDOW *win = L->frame->win;
+  const int visible = tui_menu_state_visible_count(s);
+  const int top = tui_menu_state_top_visible(s);
+  const int rows = L->item_area_h;
+  const int x = L->frame->width - 3;
+  if (top > 0) {
+    tui_set_color(win, TUI_COLOR_INFO);
+    tui_menu_write_wcs(win, L->item_area_y, x, 1, L"\u25B2"); /* ▲ */
+    tui_unset_color(win, TUI_COLOR_INFO);
+  }
+  if (top + rows < visible) {
+    tui_set_color(win, TUI_COLOR_INFO);
+    tui_menu_write_wcs(win, L->item_area_y + rows - 1, x, 1, L"\u25BC"); /* ▼ */
+    tui_unset_color(win, TUI_COLOR_INFO);
+  }
+}
+
 /* Stub - implemented in Task 16. */
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {
@@ -106,5 +163,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
   (void)config;
   (void)tui_menu_write_wcs;
   (void)tui_menu_layout_compute;
+  (void)tui_menu_render_title;
+  (void)tui_menu_render_items;
+  (void)tui_menu_render_scrollbar;
   return (tui_menu_result_t){.status = TUI_MENU_INVALID_ARG};
 }
