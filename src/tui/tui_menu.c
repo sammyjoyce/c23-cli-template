@@ -554,14 +554,19 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     }
     if (ch == KEY_RESIZE) {
       if (L.owns_frame) {
-        if (tui_get_background_window() == L.frame)
-          tui_set_background_window(NULL);
-        tui_destroy_window(L.frame);
-        L.frame = tui_create_centered_window(L.desired_h, L.desired_w);
-        if (!L.frame) {
+        tui_window_t *old_frame = L.frame;
+        tui_window_t *new_frame =
+            tui_create_centered_window(L.desired_h, L.desired_w);
+        if (!new_frame) {
+          tui_replace_background(old_frame, NULL);
+          tui_destroy_window(old_frame);
+          L.frame = NULL;
           result.status = TUI_MENU_TOO_SMALL;
           break;
         }
+        L.frame = new_frame;
+        tui_replace_background(old_frame, L.frame);
+        tui_destroy_window(old_frame);
         tui_draw_border(L.frame);
         if (config->title)
           tui_set_window_title(L.frame, config->title);
@@ -571,7 +576,6 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
       }
       clear();
       refresh();
-      tui_set_background_window(L.frame);
       continue;
     }
 #ifdef NCURSES_MOUSE_VERSION

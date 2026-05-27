@@ -32,10 +32,6 @@ static tui_window_t *tui_background_win = NULL;
 static tui_window_t *tui_background_stack[TUI_BACKGROUND_STACK_MAX];
 static size_t tui_background_stack_depth = 0;
 
-void tui_set_background_window(tui_window_t *window) {
-  tui_background_win = window;
-}
-
 void tui_clear_background_window(void) {
   tui_background_win = NULL;
   for (size_t i = 0; i < tui_background_stack_depth; i++) {
@@ -69,6 +65,18 @@ void tui_pop_background(void) {
   tui_background_stack_depth--;
   tui_background_win = tui_background_stack[tui_background_stack_depth];
   tui_background_stack[tui_background_stack_depth] = NULL;
+}
+
+void tui_replace_background(tui_window_t *old_window,
+                            tui_window_t *new_window) {
+  if (tui_background_win == old_window) {
+    tui_background_win = new_window;
+  }
+  for (size_t i = 0; i < tui_background_stack_depth; i++) {
+    if (tui_background_stack[i] == old_window) {
+      tui_background_stack[i] = new_window;
+    }
+  }
 }
 
 /* ---- signal handling ---------------------------------------------------- */
