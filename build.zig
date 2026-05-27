@@ -330,7 +330,7 @@ pub fn build(b: *std.Build) void {
     fmt_check_step.dependOn(&fmt_check.step);
 
     // Check command
-    const check_step = b.step("check", "Run all checks");
+    const check_step = b.step("check", "Run baseline checks");
     check_step.dependOn(fmt_check_step);
-    check_step.dependOn(terminal_test_step);
+    check_step.dependOn(test_step);
 }
