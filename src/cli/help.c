@@ -36,6 +36,29 @@ static void print_commands_block(void) {
   }
 }
 
+static void format_option_label(char *buf, size_t buf_size, const char *alias,
+                                const char *name) {
+  if (alias && name) {
+    snprintf(buf, buf_size, "-%s, --%s", alias, name);
+  } else if (name) {
+    snprintf(buf, buf_size, "--%s", name);
+  } else if (alias) {
+    snprintf(buf, buf_size, "-%s", alias);
+  } else {
+    buf[0] = '\0';
+  }
+}
+
+static void print_builtin_options(void) {
+  size_t count = 0;
+  const app_builtin_option_t *options = app_builtin_options(&count);
+  for (size_t i = 0; i < count; i++) {
+    char left[64];
+    format_option_label(left, sizeof(left), options[i].alias, options[i].name);
+    printf("  %-20s%s\n", left, options[i].description);
+  }
+}
+
 static void print_flag_options(void) {
   size_t count = 0;
   const app_flag_spec_t *flags = app_flag_table(&count);
@@ -66,8 +89,7 @@ void app_print_concise_help(const char *program_name) {
   printf("\n");
 
   printf("Options:\n");
-  printf("  -h, --help          Show this help message\n");
-  printf("      --version       Show version information\n");
+  print_builtin_options();
   print_flag_options();
   printf("  -c, --config PATH   Load configuration from PATH\n\n");
 
@@ -111,8 +133,7 @@ void app_print_verbose_usage(const char *program_name) {
   printf("\n");
 
   printf("%sOPTIONS%s\n", bold, reset);
-  printf("  -h, --help          Show this help message and exit\n");
-  printf("      --version       Show version information and exit\n");
+  print_builtin_options();
   size_t flag_count = 0;
   const app_flag_spec_t *flags = app_flag_table(&flag_count);
   for (size_t i = 0; i < flag_count; i++) {

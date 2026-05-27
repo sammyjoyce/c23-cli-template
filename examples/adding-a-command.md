@@ -53,7 +53,6 @@ static const app_command_t g_app_commands[] = {
     /* existing commands... */
     {.name = "greet",
      .summary = "Greet multiple people.",
-     .description = "Greet multiple people with a friendly message",
      .handler = app_cmd_greet,
      .arguments = greet_args,
      .argument_count = sizeof(greet_args) / sizeof(greet_args[0]),
@@ -73,7 +72,7 @@ Your command should appear in the `commands` array like this:
 ```json
 {
   "name": "greet",
-  "description": "Greet multiple people with a friendly message",
+  "description": "Greet multiple people.",
   "options": [],
   "arguments": [
     {

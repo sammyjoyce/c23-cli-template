@@ -108,7 +108,7 @@
   "commands": [
     {
       "name": "hello",
-      "description": "Print a greeting message",
+      "description": "Print a greeting message.",
       "options": [],
       "arguments": [
         {
@@ -129,7 +129,7 @@
     },
     {
       "name": "echo",
-      "description": "Echo the provided text",
+      "description": "Echo the provided text.",
       "options": [],
       "arguments": [
         {
@@ -150,7 +150,7 @@
     },
     {
       "name": "info",
-      "description": "Display application information",
+      "description": "Display application metadata.",
       "options": [],
       "arguments": [],
       "examples": [
@@ -160,7 +160,7 @@
     },
     {
       "name": "doctor",
-      "description": "Run starter diagnostics for build metadata, output mode, and optional features",
+      "description": "Run starter diagnostics (add --deep for the TUI smoke test).",
       "options": [
         {
           "name": "deep",
@@ -178,7 +178,7 @@
     },
     {
       "name": "menu",
-      "description": "Launch interactive TUI showcase (requires an ncurses-enabled build)",
+      "description": "Launch the interactive TUI main menu (requires --enable-tui).",
       "options": [],
       "arguments": [],
       "examples": [
@@ -191,7 +191,7 @@
     },
     {
       "name": "opencli",
-      "description": "Print the OpenCLI specification as JSON",
+      "description": "Print the OpenCLI contract as JSON.",
       "options": [],
       "arguments": [],
       "examples": [

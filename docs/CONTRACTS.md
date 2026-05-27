@@ -21,9 +21,9 @@ and flag metadata must be updated in the C tables before the spec changes.
 The canonical data path is:
 
 - `src/cli/opencli_contract.c` for OpenCLI info, conventions, root arguments,
-  built-in help/config options, extra examples, and top-level metadata
-- `src/cli/commands.c` for command names, descriptions, arguments, options,
-  examples, and terminal requirements
+  the config option, extra examples, and top-level metadata
+- `src/cli/commands.c` for built-in `--help`/`--version` metadata, command
+  names, summaries, arguments, options, examples, and terminal requirements
 - `src/core/config.c` for global flag metadata
 - `src/core/error.c` for public exit codes and descriptions
 

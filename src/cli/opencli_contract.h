@@ -58,8 +58,6 @@ typedef struct {
   app_opencli_conventions_t conventions;
   const app_command_arg_t *root_arguments;
   size_t root_argument_count;
-  const app_opencli_option_t *leading_options;
-  size_t leading_option_count;
   const app_opencli_option_t *trailing_options;
   size_t trailing_option_count;
   const char *const *extra_examples;

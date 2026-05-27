@@ -122,6 +122,13 @@ static void opencli_print_contract_option(FILE *stream,
                        option->description, comma);
 }
 
+static void opencli_print_builtin_option(FILE *stream,
+                                         const app_builtin_option_t *option,
+                                         bool comma) {
+  opencli_print_option(stream, 2, option->name, false, option->alias, NULL, 0,
+                       option->description, comma);
+}
+
 static void opencli_print_flag_option(FILE *stream, const app_flag_spec_t *flag,
                                       bool comma) {
   opencli_print_option(stream, 2, opencli_option_name(flag->cli_long), false,
@@ -131,16 +138,17 @@ static void opencli_print_flag_option(FILE *stream, const app_flag_spec_t *flag,
 
 static void opencli_print_options(FILE *stream,
                                   const app_opencli_contract_t *contract) {
+  size_t builtin_count = 0;
+  const app_builtin_option_t *builtins = app_builtin_options(&builtin_count);
   size_t flag_count = 0;
   const app_flag_spec_t *flags = app_flag_table(&flag_count);
-  const size_t total = contract->leading_option_count + flag_count +
-                       contract->trailing_option_count;
+  const size_t total =
+      builtin_count + flag_count + contract->trailing_option_count;
   size_t printed = 0;
 
   fputs("  \"options\": [\n", stream);
-  for (size_t i = 0; i < contract->leading_option_count; i++) {
-    opencli_print_contract_option(stream, &contract->leading_options[i],
-                                  ++printed < total);
+  for (size_t i = 0; i < builtin_count; i++) {
+    opencli_print_builtin_option(stream, &builtins[i], ++printed < total);
   }
   for (size_t i = 0; i < flag_count; i++) {
     opencli_print_flag_option(stream, &flags[i], ++printed < total);
@@ -182,8 +190,7 @@ static void opencli_print_command(FILE *stream, const app_command_t *command,
   fputs("{\n", stream);
   app_json_write_pretty_string_field(stream, 3, "name", command->name, true);
   app_json_write_pretty_string_field(
-      stream, 3, "description",
-      command->description ? command->description : command->summary, true);
+      stream, 3, "description", command->summary ? command->summary : "", true);
 
   app_json_write_indent(stream, 3);
   fputs("\"options\": [", stream);

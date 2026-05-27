@@ -22,16 +22,6 @@ static const app_command_arg_t config_arguments[] = {
      .description = "Path to configuration file"},
 };
 
-static const app_opencli_option_t leading_options[] = {
-    {.name = "help",
-     .required = false,
-     .alias = "h",
-     .description = "Show help message and exit"},
-    {.name = "version",
-     .required = false,
-     .description = "Show version information and exit"},
-};
-
 static const app_opencli_option_t trailing_options[] = {
     {.name = "config",
      .required = false,
@@ -109,9 +99,6 @@ static const app_opencli_contract_t g_opencli_contract = {
         },
     .root_arguments = root_arguments,
     .root_argument_count = sizeof(root_arguments) / sizeof(root_arguments[0]),
-    .leading_options = leading_options,
-    .leading_option_count =
-        sizeof(leading_options) / sizeof(leading_options[0]),
     .trailing_options = trailing_options,
     .trailing_option_count =
         sizeof(trailing_options) / sizeof(trailing_options[0]),

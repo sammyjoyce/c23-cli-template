@@ -279,6 +279,80 @@ char *cc_read_text_file(const char *path) {
   return buf;
 }
 
+static const char *cc_path_basename(const char *path) {
+  const char *base = path;
+  for (const char *p = path; p && *p; p++) {
+    if (*p == '/' || *p == '\\') {
+      base = p + 1;
+    }
+  }
+  return base;
+}
+
+char *cc_binary_name(const char *path) {
+  const char *base = cc_path_basename(path);
+  char *name = cc_copy_string(base);
+  if (!name) {
+    return NULL;
+  }
+  size_t len = strlen(name);
+  if (len > 4 && strcmp(name + len - 4, ".exe") == 0) {
+    name[len - 4] = '\0';
+  }
+  return name;
+}
+
+char *cc_replace_all(const char *input, const char *needle,
+                     const char *replacement) {
+  const size_t needle_len = strlen(needle);
+  if (needle_len == 0) {
+    return cc_copy_string(input);
+  }
+  const size_t replacement_len = strlen(replacement);
+  size_t count = 0;
+
+  for (const char *p = input; (p = strstr(p, needle)) != NULL;
+       p += needle_len) {
+    count++;
+  }
+
+  const size_t input_len = strlen(input);
+  const size_t output_len =
+      replacement_len >= needle_len
+          ? input_len + count * (replacement_len - needle_len)
+          : input_len - count * (needle_len - replacement_len);
+  char *output = malloc(output_len + 1);
+  if (!output) {
+    return NULL;
+  }
+
+  char *dst = output;
+  const char *src = input;
+  const char *match = NULL;
+  while ((match = strstr(src, needle)) != NULL) {
+    const size_t prefix_len = (size_t)(match - src);
+    memcpy(dst, src, prefix_len);
+    dst += prefix_len;
+    memcpy(dst, replacement, replacement_len);
+    dst += replacement_len;
+    src = match + needle_len;
+  }
+  strcpy(dst, src);
+  return output;
+}
+
+void cc_strip_carriage_returns(char *text) {
+  char *dst = text;
+  for (const char *src = text; src && *src; src++) {
+    if (*src != '\r') {
+      *dst++ = *src;
+    }
+  }
+  if (dst) {
+    *dst = '\0';
+  }
+}
+
 static command_result_t make_error_result(const char *message) {
   return (command_result_t){
       .exit_code = -1,

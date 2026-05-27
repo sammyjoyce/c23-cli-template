@@ -14,6 +14,7 @@
 
 #include "../core/config.h"
 #include "../utils/logging.h"
+#include "commands.h"
 #include "help.h"
 
 typedef struct {
@@ -89,14 +90,15 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
   CHECK_NULL(argv, APP_ERROR_INVALID_ARG);
 
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+    const app_builtin_option_t *option = app_builtin_option_find(argv[i]);
+    if (!option) {
+      continue;
+    }
+    switch (option->id) {
+    case APP_BUILTIN_OPTION_HELP:
       app_print_verbose_usage(argv[0]);
       exit(0);
-    }
-  }
-
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--version") == 0) {
+    case APP_BUILTIN_OPTION_VERSION:
       printf("%s %s\n", APP_NAME, APP_VERSION);
       printf("A C23 TUI + CLI starter application\n");
       printf("Built with: Zig, C23, ncurses/PDCurses\n");

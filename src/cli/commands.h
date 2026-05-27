@@ -30,10 +30,21 @@ typedef struct {
   const char *description;
 } app_command_option_t;
 
+typedef enum {
+  APP_BUILTIN_OPTION_HELP,
+  APP_BUILTIN_OPTION_VERSION,
+} app_builtin_option_id_t;
+
+typedef struct {
+  app_builtin_option_id_t id;
+  const char *name;
+  const char *alias;
+  const char *description;
+} app_builtin_option_t;
+
 typedef struct {
   const char *name;
-  const char *summary;  // one-line description for help output
-  const char *description;
+  const char *summary;
   app_command_fn handler;
   const app_command_option_t *options;
   size_t option_count;
@@ -46,6 +57,12 @@ typedef struct {
 
 // Return the registered command list. count is set to the number of entries.
 const app_command_t *app_commands(size_t *count);
+
+// Return global built-in options such as --help and --version.
+const app_builtin_option_t *app_builtin_options(size_t *count);
+
+// Look up a built-in option by CLI spelling, for example "-h" or "--help".
+const app_builtin_option_t *app_builtin_option_find(const char *arg);
 
 // Look up a command by name. Returns NULL when no command matches.
 const app_command_t *app_command_find(const char *name);
