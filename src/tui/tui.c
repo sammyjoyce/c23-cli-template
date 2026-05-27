@@ -1,5 +1,10 @@
 /*
  * Terminal UI (TUI) implementation using ncurses.
+ *
+ * Module map:
+ *   - lifecycle, signal, and color setup
+ *   - window allocation, drawing, and bounded text helpers
+ *   - shared modal runner plus message/confirm/input dialogs
  */
 
 #include "tui.h"

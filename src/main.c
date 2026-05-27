@@ -10,6 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
 
 #include "cli/args.h"
 #include "cli/commands.h"
@@ -26,6 +33,10 @@ static int64_t app_now_millis(void) {
   }
 
   return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+static bool app_has_interactive_terminal(void) {
+  return isatty(fileno(stdin)) && isatty(fileno(stdout));
 }
 
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
@@ -118,6 +129,13 @@ int main(int argc, char *argv[]) {
                       app_config_get_program_name(config));
     app_config_destroy(config);
     return APP_ERROR_INVALID_COMMAND;
+  }
+
+  if (entry->requires_terminal && !app_has_interactive_terminal()) {
+    app_output_format(config, true,
+                      "Command '%s' requires an interactive terminal", command);
+    app_config_destroy(config);
+    return APP_ERROR_IO;
   }
 
   err = entry->handler(config, cmd_argc, cmd_argv);

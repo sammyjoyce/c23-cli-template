@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../src/core/error.h"
 #include "cli_contract.h"
 
 #ifdef _WIN32
@@ -222,6 +223,16 @@ static bool test_unknown_command_reports_actionable_error(test_context_t *ctx) {
   return ok;
 }
 
+static bool test_terminal_command_requires_tty(test_context_t *ctx) {
+  const char *args[] = {"menu"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  const bool ok =
+      cc_expect_exit(&result, APP_ERROR_IO) &&
+      cc_expect_stderr_contains(&result, "requires an interactive terminal");
+  cc_command_result_free(&result);
+  return ok;
+}
+
 const test_case_t cli_contract_cases[] = {
     {"installed binary starts", test_installed_binary_starts},
     {"help is human readable", test_help_is_human_readable},
@@ -244,6 +255,7 @@ const test_case_t cli_contract_cases[] = {
      test_valid_flat_config_skips_unknown_scalar_keys},
     {"unknown command reports actionable error",
      test_unknown_command_reports_actionable_error},
+    {"terminal commands require a tty", test_terminal_command_requires_tty},
 };
 
 const size_t cli_contract_cases_count = ARRAY_LEN(cli_contract_cases);

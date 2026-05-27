@@ -3,6 +3,11 @@
  *
  * The model lives in tui_menu_model.c (no ncurses). This file calls into
  * the model through tui_menu_internal.h.
+ *
+ * Module map:
+ *   - wide-character rendering and layout helpers
+ *   - keyboard/mouse input adapters over the pure menu model
+ *   - blocking tui_show_menu loop with resize/background handling
  */
 #ifdef _WIN32
 #include <curses.h>

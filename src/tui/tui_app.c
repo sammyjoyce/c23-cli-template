@@ -322,6 +322,7 @@ app_error tui_run_app(void) {
       break;
     case TUI_MENU_INTERRUPTED:
       running = false;
+      err = APP_ERROR_SIGNAL;
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:
