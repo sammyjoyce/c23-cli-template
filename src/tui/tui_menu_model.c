@@ -173,16 +173,45 @@ void tui_menu_state_step(tui_menu_state_t *s, int direction) {
   }
   /* All non-selectable; leave selection in place. */
 }
-void tui_menu_state_page(tui_menu_state_t *s, int direction, int page_size) {
-  (void)s;
-  (void)direction;
-  (void)page_size;
-}
 void tui_menu_state_home(tui_menu_state_t *s) {
-  (void)s;
+  if (!s || s->visible_count == 0)
+    return;
+  for (int v = 0; v < s->visible_count; v++) {
+    if (menu_item_selectable(&s->cfg->items[s->visible[v]])) {
+      s->selected_visible = v;
+      return;
+    }
+  }
 }
 void tui_menu_state_end(tui_menu_state_t *s) {
-  (void)s;
+  if (!s || s->visible_count == 0)
+    return;
+  for (int v = s->visible_count - 1; v >= 0; v--) {
+    if (menu_item_selectable(&s->cfg->items[s->visible[v]])) {
+      s->selected_visible = v;
+      return;
+    }
+  }
+}
+void tui_menu_state_page(tui_menu_state_t *s, int direction, int page_size) {
+  if (!s || page_size <= 0 || direction == 0)
+    return;
+  for (int i = 0; i < page_size; i++) {
+    const int prev = s->selected_visible;
+    tui_menu_state_step(s, direction);
+    /* Stop if we wrapped (step is wrap-around but page is clamped) or
+     * couldn't move. */
+    if (s->selected_visible == prev)
+      break;
+    if (direction > 0 && s->selected_visible < prev) {
+      s->selected_visible = prev;
+      break;
+    }
+    if (direction < 0 && s->selected_visible > prev) {
+      s->selected_visible = prev;
+      break;
+    }
+  }
 }
 void tui_menu_state_search_open(tui_menu_state_t *s) {
   (void)s;

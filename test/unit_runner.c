@@ -202,6 +202,48 @@ static bool test_menu_step_wraps(void) {
   return ok;
 }
 
+static bool test_menu_home_end(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2},
+      {.label = "c", .id = 3},
+      {.label = "d", .id = 4},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 4};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_end(s);
+  if (tui_menu_state_selected_index(s) != 3) {
+    tui_menu_state_destroy(s);
+    return false;
+  }
+  tui_menu_state_home(s);
+  bool ok = tui_menu_state_selected_index(s) == 0;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_page_clamps(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1}, {.label = "b", .id = 2}, {.label = "c", .id = 3},
+      {.label = "d", .id = 4}, {.label = "e", .id = 5},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 5};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_page(s, 1, 3); /* expect selection moves to index 3 */
+  if (tui_menu_state_selected_index(s) != 3) {
+    tui_menu_state_destroy(s);
+    return false;
+  }
+  tui_menu_state_page(s, 1, 3); /* clamps to last selectable */
+  bool ok = tui_menu_state_selected_index(s) == 4;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -271,6 +313,9 @@ int main(void) {
               "tui_menu_state_step skips disabled");
   unit_record(&stats, test_menu_step_wraps(),
               "tui_menu_state_step wraps at ends");
+  unit_record(&stats, test_menu_home_end(),
+              "tui_menu home/end land on first/last");
+  unit_record(&stats, test_menu_page_clamps(), "tui_menu page clamps at ends");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 
