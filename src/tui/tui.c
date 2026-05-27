@@ -555,10 +555,6 @@ static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
     height = max_y - 2;
   }
 
-  touchwin(stdscr);
-  werase(stdscr);
-  wnoutrefresh(stdscr);
-
   tui_window_t *window = tui_create_centered_window(height, width);
   if (!window) {
     return NULL;

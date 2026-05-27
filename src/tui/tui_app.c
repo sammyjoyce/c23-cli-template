@@ -233,21 +233,30 @@ app_error tui_run_app(void) {
   if (err != APP_SUCCESS)
     return err;
 
+  /* Own the menu frame here so it remains visible behind dialog modals
+   * that handlers may open. Recreated on KEY_RESIZE inside the loop. */
+  tui_window_t *menu_frame = tui_create_centered_window(22, 72);
+  if (!menu_frame) {
+    tui_cleanup();
+    return APP_ERROR_OUT_OF_RANGE;
+  }
+  tui_draw_border(menu_frame);
+  tui_set_window_title(menu_frame, "Starter Showcase");
+
   bool running = true;
   while (running) {
     tui_menu_result_t r = tui_show_menu(
-        NULL, &(tui_menu_config_t){
-                  .title = "Starter Showcase",
-                  .items = main_menu,
-                  .item_count = (int)(sizeof(main_menu) / sizeof(main_menu[0])),
-                  .default_index = 0,
-                  .frame_height = 22,
-                  .frame_width = 72,
-                  .enable_search = true,
-                  .enable_mouse = true,
-                  .show_detail_pane = true,
-                  .show_numeric_keys = true,
-              });
+        menu_frame,
+        &(tui_menu_config_t){
+            .title = "Starter Showcase",
+            .items = main_menu,
+            .item_count = (int)(sizeof(main_menu) / sizeof(main_menu[0])),
+            .default_index = 0,
+            .enable_search = true,
+            .enable_mouse = true,
+            .show_detail_pane = true,
+            .show_numeric_keys = true,
+        });
     switch (r.status) {
     case TUI_MENU_OK:
       if (r.selected_id == 0) {
@@ -270,6 +279,7 @@ app_error tui_run_app(void) {
     }
   }
 
+  tui_destroy_window(menu_frame);
   tui_cleanup();
   return err;
 }

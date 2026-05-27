@@ -318,7 +318,7 @@ static tui_menu_event_t menu_handle_key_in_search(tui_menu_state_t *s, int ch) {
 }
 
 static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
-                                        int *out_confirm_id) {
+                                        int *out_confirm_index) {
   const tui_menu_config_t *cfg = tui_menu_state_config(s);
   if (tui_menu_state_search_active(s)) {
     return menu_handle_key_in_search(s, ch);
@@ -363,7 +363,7 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
       bool beep = false;
       int auto_idx = tui_menu_state_mnemonic_jump(s, (wchar_t)ch, &beep);
       if (auto_idx >= 0) {
-        *out_confirm_id = cfg->items[auto_idx].id;
+        *out_confirm_index = auto_idx;
         return TUI_MENU_EV_CONFIRM;
       }
       if (beep)
@@ -376,7 +376,7 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
 #ifdef NCURSES_MOUSE_VERSION
 static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
                                           const tui_menu_layout_t *L,
-                                          int *out_confirm_id) {
+                                          int *out_confirm_index) {
   MEVENT ev;
   if (getmouse(&ev) != OK)
     return TUI_MENU_EV_NONE;
@@ -419,7 +419,7 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
     return TUI_MENU_EV_NONE;
   }
   if (ev.bstate & BUTTON1_DOUBLE_CLICKED) {
-    *out_confirm_id = it->id;
+    *out_confirm_index = idx;
     return TUI_MENU_EV_CONFIRM;
   }
   return TUI_MENU_EV_NONE;
@@ -500,7 +500,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     doupdate();
 
     const int ch = wgetch(L.frame->win);
-    int confirm_id = 0;
+    int confirm_index = -1;
     tui_menu_event_t ev = TUI_MENU_EV_NONE;
 
     if (ch == ERR) {
@@ -529,21 +529,18 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     }
 #ifdef NCURSES_MOUSE_VERSION
     if (ch == KEY_MOUSE) {
-      ev = menu_handle_mouse(state, &L, &confirm_id);
+      ev = menu_handle_mouse(state, &L, &confirm_index);
     } else
 #endif
     {
-      ev = menu_handle_key(state, ch, &confirm_id);
+      ev = menu_handle_key(state, ch, &confirm_index);
     }
 
     switch (ev) {
     case TUI_MENU_EV_CONFIRM: {
-      const int idx = tui_menu_state_selected_index(state);
-      if (confirm_id != 0) {
-        result.status = TUI_MENU_OK;
-        result.selected_id = confirm_id;
-        result.selected_index = idx;
-      } else if (idx >= 0) {
+      const int idx = confirm_index >= 0 ? confirm_index
+                                         : tui_menu_state_selected_index(state);
+      if (idx >= 0) {
         const tui_menu_item_t *it = &config->items[idx];
         if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
           tui_beep();
@@ -575,9 +572,11 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     mousemask(prev_mask, NULL);
 #endif
 
-  tui_clear_background_window();
-  if (L.owns_frame && L.frame)
-    tui_destroy_window(L.frame);
+  if (L.owns_frame) {
+    tui_clear_background_window();
+    if (L.frame)
+      tui_destroy_window(L.frame);
+  }
   tui_menu_state_destroy(state);
   return result;
 }
