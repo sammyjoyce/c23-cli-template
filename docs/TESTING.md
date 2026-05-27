@@ -79,9 +79,10 @@ skips PTY/TUI coverage unless `-Dterminal-backend=ghostty` was requested.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
 `zig build check`; these CLI contracts live in `test/main.zig` and run
-regardless of whether Ghostty is installed. Linux CI also runs
-`zig build -Denable-tui=true terminal-test` after the TUI build; that step adds
-PTY-backed TUI coverage when libghostty-vt is available. macOS and Windows still
+regardless of whether Ghostty is installed. Linux CI builds libghostty-vt from
+the Ghostty flake, then runs
+`zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test` after the
+TUI build so PTY-backed TUI coverage is required there. macOS and Windows still
 build the TUI binary and run the `--json info` smoke check, but they do not run
 PTY-backed scenarios by default.
 
