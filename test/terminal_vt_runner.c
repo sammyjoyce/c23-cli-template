@@ -1,4 +1,10 @@
-#include "terminal_vt.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#include "terminal_vt_scenarios.h"
+#include "test_harness.h"
 
 static bool parse_bool_arg(const char *value) {
   return strcmp(value, "1") == 0 || strcmp(value, "true") == 0 ||

@@ -36,6 +36,22 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # Maintain dependencies for pip (if using Python)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    reviewers:
+      - "yourusername"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
   # Maintain dependencies for cargo (if using Rust)
   - package-ecosystem: "cargo"
     directory: "/"

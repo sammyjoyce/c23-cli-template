@@ -1,4 +1,9 @@
-#include "terminal_vt.h"
+#include "terminal_vt_scenarios.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "terminal_vt_session.h"
 
 static bool vt_select_menu_index(vt_session_t *session, int index) {
   for (int i = 0; i < index; i++) {

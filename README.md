@@ -94,8 +94,8 @@ your-cli/
 │   └── utils/              # Utilities
 ├── test/                   # C23 CLI tests + Ghostty VT terminal scenarios
 │   ├── cli_contract_runner.c # C23 CLI contract tests
-│   ├── terminal_vt_*.c     # C PTY/TUI scenario harness
-│   └── terminal_vt.h
+│   ├── test_harness.*      # Shared C integration-test helpers
+│   └── terminal_vt_*       # C PTY/TUI scenario harness
 ├── build.zig               # Build config
 └── opencli.json            # CLI specification
 ```

@@ -216,7 +216,10 @@ pub fn build(b: *std.Build) void {
         }),
     });
     test_exe.root_module.addCSourceFiles(.{
-        .files = &.{"test/cli_contract_runner.c"},
+        .files = &.{
+            "test/test_harness.c",
+            "test/cli_contract_runner.c",
+        },
         .flags = &base_flags,
     });
     const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
@@ -254,6 +257,7 @@ pub fn build(b: *std.Build) void {
         vt_test_mod.addIncludePath(b.path("test"));
         vt_test_mod.addCSourceFiles(.{
             .files = &.{
+                "test/test_harness.c",
                 "test/terminal_vt_common.c",
                 "test/terminal_vt_session.c",
                 "test/terminal_vt_scenarios.c",

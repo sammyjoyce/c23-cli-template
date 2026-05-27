@@ -1,4 +1,4 @@
-#include "terminal_vt.h"
+#include "terminal_vt_session.h"
 
 static void ghostty_write_pty(GhosttyTerminal terminal, void *userdata,
                               const uint8_t *data, size_t len) {
