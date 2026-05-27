@@ -20,6 +20,20 @@
 #include "tui_menu.h"
 #include "tui_menu_internal.h"
 
+/* Background-window registry: shared between the menu (which sets it on
+ * entry) and tui.c's modal helpers (which redraw it underneath dialogs). */
+static tui_window_t *tui_menu_background_win = NULL;
+
+void tui_set_background_window(tui_window_t *window) {
+  tui_menu_background_win = window;
+}
+void tui_clear_background_window(void) {
+  tui_menu_background_win = NULL;
+}
+tui_window_t *tui_get_background_window(void) {
+  return tui_menu_background_win;
+}
+
 /* Column-correct wide-string write: budgets `cols` display columns,
  * truncates at glyph boundaries using wcwidth, never emits partial glyphs.
  */
@@ -411,11 +425,6 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
   return TUI_MENU_EV_NONE;
 }
 #endif
-
-/* Forward declarations for the background-window helpers - currently
- * defined in tui.c. Task 17 moves them here. */
-void tui_set_background_window(tui_window_t *window);
-void tui_clear_background_window(void);
 
 tui_menu_result_t tui_show_menu(tui_window_t *window,
                                 const tui_menu_config_t *config) {

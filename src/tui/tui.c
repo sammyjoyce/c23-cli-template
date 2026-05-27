@@ -20,11 +20,15 @@
 
 #include "../utils/logging.h"
 
+/* Background-window registry lives in tui_menu.c. */
+extern tui_window_t *tui_get_background_window(void);
+extern void tui_set_background_window(tui_window_t *window);
+extern void tui_clear_background_window(void);
+
 static bool tui_initialized = false;
 static bool tui_default_colors = false;
 static volatile sig_atomic_t tui_interrupted_flag = 0;
 static int tui_saved_cursor_state = 0;
-static tui_window_t *tui_background_win = NULL;
 
 /* ---- signal handling ---------------------------------------------------- */
 
@@ -152,7 +156,7 @@ void tui_cleanup(void) {
 
   tui_initialized = false;
   tui_default_colors = false;
-  tui_background_win = NULL;
+  tui_clear_background_window();
   tui_interrupted_flag = 0;
   LOG_DEBUG("TUI cleaned up");
 }
@@ -163,13 +167,6 @@ bool tui_is_initialized(void) {
 
 bool tui_interrupted(void) {
   return tui_interrupted_flag != 0;
-}
-
-void tui_set_background_window(tui_window_t *window) {
-  tui_background_win = window;
-}
-void tui_clear_background_window(void) {
-  tui_background_win = NULL;
 }
 
 /* ---- color management --------------------------------------------------- */
@@ -518,255 +515,6 @@ app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
   return APP_SUCCESS;
 }
 
-static int tui_menu_next_enabled(const tui_menu_item_t *items, int item_count,
-                                 int selected, int direction) {
-  if (!items || item_count <= 0 || direction == 0) {
-    return -1;
-  }
-
-  int next = selected;
-  for (int i = 0; i < item_count; i++) {
-    next += direction;
-    if (next < 0) {
-      next = item_count - 1;
-    } else if (next >= item_count) {
-      next = 0;
-    }
-
-    if (items[next].enabled) {
-      return next;
-    }
-  }
-
-  return selected;
-}
-
-int tui_show_menu(tui_window_t *window, const char *title,
-                  const tui_menu_item_t *items, int item_count,
-                  int default_selection) {
-  if (!window || !items || item_count <= 0) {
-    return -1;
-  }
-
-  int selected = -1;
-  if (default_selection >= 0 && default_selection < item_count &&
-      items[default_selection].enabled) {
-    selected = default_selection;
-  } else {
-    for (int i = 0; i < item_count; i++) {
-      if (items[i].enabled) {
-        selected = i;
-        break;
-      }
-    }
-  }
-
-  if (selected < 0) {
-    return -1;
-  }
-
-  const bool has_title = (title != nullptr);
-  const int separator_y = has_title ? 2 : 0;
-  const int start_y = has_title ? 4 : 2;
-  const int footer_y = window->height - 2;
-  const int available_rows = footer_y - start_y;
-  const int visible_count = available_rows > 1 ? (available_rows + 1) / 2 : 0;
-  const int inner_w = window->width - 2;
-
-  if (visible_count <= 0 || window->width < 16) {
-    return -1;
-  }
-
-  int top = 0;
-
-  while (1) {
-    if (tui_interrupted()) {
-      return -1;
-    }
-    tui_clear_window(window);
-
-    if (has_title) {
-      tui_set_color(window->win, TUI_COLOR_TITLE);
-      tui_print_centered(window->win, 1, title);
-      tui_unset_color(window->win, TUI_COLOR_TITLE);
-
-      tui_set_color(window->win, TUI_COLOR_BORDER);
-      mvwhline(window->win, separator_y, 2, ACS_HLINE, window->width - 4);
-      tui_unset_color(window->win, TUI_COLOR_BORDER);
-    }
-
-    if (selected < top) {
-      top = selected;
-    } else if (selected >= top + visible_count) {
-      top = selected - visible_count + 1;
-    }
-    if (top < 0) {
-      top = 0;
-    }
-
-    const bool can_scroll_up = (top > 0);
-    const bool can_scroll_down = (top + visible_count < item_count);
-
-    for (int row = 0; row < visible_count && top + row < item_count; row++) {
-      const int idx = top + row;
-      const int y = start_y + row * 2;
-      const bool is_selected = (idx == selected);
-      const bool row_shows_up = (row == 0 && can_scroll_up);
-      const bool row_shows_down = (row == visible_count - 1 && can_scroll_down);
-
-      const int label_x = 4;
-      const int label_text_x = label_x + 3;
-      const int label_max_w = window->width - label_text_x - 3;
-      const int desc_max_w = window->width - label_text_x - 3;
-
-      if (is_selected) {
-        tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-        mvwhline(window->win, y, 1, ' ', window->width - 2);
-        tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-
-        tui_set_color(window->win, TUI_COLOR_ACCENT);
-        tui_write_clamped(window->win, y, 2, 2, "▶ ");
-        tui_unset_color(window->win, TUI_COLOR_ACCENT);
-
-        if (row_shows_up || row_shows_down) {
-          const char *arrow = row_shows_up ? "▲" : "▼";
-          tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-          tui_write_clamped(window->win, y, window->width - 5, 3, arrow);
-          tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-        }
-      } else {
-        if (row_shows_up || row_shows_down) {
-          const char *arrow = row_shows_up ? "▲" : "▼";
-          tui_set_color(window->win, TUI_COLOR_INFO);
-          tui_write_clamped(window->win, y, window->width - 5, 3, arrow);
-          tui_unset_color(window->win, TUI_COLOR_INFO);
-        }
-      }
-
-      if (idx < 9) {
-        char num_buf[4];
-        snprintf(num_buf, sizeof(num_buf), "%d.", idx + 1);
-        if (is_selected) {
-          tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-          tui_write_clamped(window->win, y, label_x, 3, num_buf);
-          tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-        } else {
-          tui_set_color(window->win, TUI_COLOR_INFO);
-          tui_write_clamped(window->win, y, label_x, 3, num_buf);
-          tui_unset_color(window->win, TUI_COLOR_INFO);
-        }
-      } else if (idx < 35) {
-        char num_buf[4];
-        char letter = (char)('a' + (idx - 9));
-        snprintf(num_buf, sizeof(num_buf), "%c.", letter);
-        if (is_selected) {
-          tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-          tui_write_clamped(window->win, y, label_x, 3, num_buf);
-          tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-        } else {
-          tui_set_color(window->win, TUI_COLOR_INFO);
-          tui_write_clamped(window->win, y, label_x, 3, num_buf);
-          tui_unset_color(window->win, TUI_COLOR_INFO);
-        }
-      }
-
-      if (is_selected) {
-        tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-      }
-      tui_write_clamped(window->win, y, label_text_x, label_max_w,
-                        items[idx].label ? items[idx].label : "(untitled)");
-      if (is_selected) {
-        tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-      }
-
-      if (items[idx].description) {
-        if (is_selected) {
-          tui_set_color(window->win, TUI_COLOR_INFO);
-        }
-        tui_write_clamped(window->win, y + 1, label_text_x, desc_max_w,
-                          items[idx].description);
-        if (is_selected) {
-          tui_unset_color(window->win, TUI_COLOR_INFO);
-        }
-      }
-    }
-
-    char footer[128];
-    snprintf(footer, sizeof(footer),
-             "  j/k navigate  1-%d select  Enter=ok  q/Esc=quit",
-             item_count < 10 ? item_count : 9);
-    tui_set_color(window->win, TUI_COLOR_HIGHLIGHT);
-    mvwhline(window->win, footer_y, 1, ' ', window->width - 2);
-    tui_write_clamped(window->win, footer_y, 3, window->width - 6, footer);
-    tui_unset_color(window->win, TUI_COLOR_HIGHLIGHT);
-
-    tui_refresh_window(window);
-
-    int ch = wgetch(window->win);
-    switch (ch) {
-    case KEY_UP:
-    case 'k':
-      selected = tui_menu_next_enabled(items, item_count, selected, -1);
-      break;
-
-    case KEY_DOWN:
-    case 'j':
-      selected = tui_menu_next_enabled(items, item_count, selected, 1);
-      break;
-
-    case KEY_HOME:
-      selected = tui_menu_next_enabled(items, item_count, item_count - 1, 1);
-      break;
-
-    case KEY_END:
-      selected = tui_menu_next_enabled(items, item_count, 0, -1);
-      break;
-
-    case KEY_NPAGE:
-      for (int i = 0; i < visible_count; i++) {
-        selected = tui_menu_next_enabled(items, item_count, selected, 1);
-      }
-      break;
-
-    case KEY_PPAGE:
-      for (int i = 0; i < visible_count; i++) {
-        selected = tui_menu_next_enabled(items, item_count, selected, -1);
-      }
-      break;
-
-    case '\n':
-    case KEY_ENTER:
-      return items[selected].id;
-
-    case 'q':
-    case 27:
-      return -1;
-
-    case KEY_RESIZE:
-      touchwin(stdscr);
-      refresh();
-      break;
-
-    case ERR:
-      break;
-
-    default:
-      if (ch >= '1' && ch <= '9') {
-        int num = ch - '1';
-        if (num < item_count && items[num].enabled) {
-          selected = num;
-        }
-      } else if (ch >= 'a' && ch <= 'z') {
-        int num = 9 + (ch - 'a');
-        if (num < item_count && items[num].enabled) {
-          selected = num;
-        }
-      }
-      break;
-    }
-  }
-}
-
 static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
                                     const char *title) {
   if (!tui_initialized) {
@@ -814,15 +562,16 @@ static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
 static void tui_modal_close(tui_window_t *window) {
   tui_destroy_window(window);
   touchwin(stdscr);
-  if (tui_background_win && tui_background_win->win) {
-    tui_clear_window(tui_background_win);
-    if (tui_background_win->has_border) {
-      tui_draw_border(tui_background_win);
+  tui_window_t *bg = tui_get_background_window();
+  if (bg && bg->win) {
+    tui_clear_window(bg);
+    if (bg->has_border) {
+      tui_draw_border(bg);
     }
-    if (tui_background_win->title) {
-      tui_set_window_title(tui_background_win, tui_background_win->title);
+    if (bg->title) {
+      tui_set_window_title(bg, bg->title);
     }
-    tui_refresh_window(tui_background_win);
+    tui_refresh_window(bg);
   }
   refresh();
 }
@@ -881,15 +630,16 @@ static bool tui_modal_run(int height, int width, const char *title,
 static void tui_modal_redraw_background(void) {
   touchwin(stdscr);
   refresh();
-  if (tui_background_win && tui_background_win->win) {
-    tui_clear_window(tui_background_win);
-    if (tui_background_win->has_border) {
-      tui_draw_border(tui_background_win);
+  tui_window_t *bg = tui_get_background_window();
+  if (bg && bg->win) {
+    tui_clear_window(bg);
+    if (bg->has_border) {
+      tui_draw_border(bg);
     }
-    if (tui_background_win->title) {
-      tui_set_window_title(tui_background_win, tui_background_win->title);
+    if (bg->title) {
+      tui_set_window_title(bg, bg->title);
     }
-    tui_refresh_window(tui_background_win);
+    tui_refresh_window(bg);
   }
 }
 
