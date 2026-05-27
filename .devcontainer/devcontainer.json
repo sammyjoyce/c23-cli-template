@@ -23,10 +23,7 @@
     "ghcr.io/devcontainers/features/zig:1": {
       "version": "0.16.0"
     },
-    "ghcr.io/devcontainers/features/nix:1": {
-      "packages": "libghostty-vt.dev,libghostty-vt.out",
-      "useAttributePath": true
-    }
+    "ghcr.io/devcontainers/features/nix:1": {}
   },
 
   // Configure tool-specific properties
@@ -74,8 +71,7 @@
 
   // Environment variables
   "containerEnv": {
-    "SHELL": "/bin/zsh",
-    "PKG_CONFIG_PATH": "/nix/var/nix/profiles/default/share/pkgconfig"
+    "SHELL": "/bin/zsh"
   },
 
   // Mounts
