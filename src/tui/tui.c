@@ -4,6 +4,7 @@
 
 #include "tui.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <signal.h>
@@ -35,21 +36,33 @@ static int tui_saved_cursor_state = 0;
 #ifndef _WIN32
 static void tui_signal_handler(int signum) {
   (void)signum;
+  const int saved_errno = errno;
   tui_interrupted_flag = 1;
+  errno = saved_errno;
 }
 #endif
 
 static void tui_install_signal_handlers(void) {
 #ifndef _WIN32
-  signal(SIGINT, tui_signal_handler);
-  signal(SIGTERM, tui_signal_handler);
+  struct sigaction sa_int = {.sa_handler = tui_signal_handler};
+  sigemptyset(&sa_int.sa_mask);
+  /* Clear SA_RESTART so wgetch returns ERR and the menu loop can react. */
+  sa_int.sa_flags = 0;
+  sigaction(SIGINT, &sa_int, NULL);
+
+  struct sigaction sa_term = {.sa_handler = tui_signal_handler};
+  sigemptyset(&sa_term.sa_mask);
+  sa_term.sa_flags = SA_RESTART;
+  sigaction(SIGTERM, &sa_term, NULL);
 #endif
 }
 
 static void tui_uninstall_signal_handlers(void) {
 #ifndef _WIN32
-  signal(SIGINT, SIG_DFL);
-  signal(SIGTERM, SIG_DFL);
+  struct sigaction sa = {.sa_handler = SIG_DFL};
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGTERM, &sa, NULL);
 #endif
 }
 
