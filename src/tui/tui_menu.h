@@ -66,7 +66,8 @@ typedef struct {
 } tui_menu_result_t;
 
 /* If window == NULL, the menu owns its frame and recreates it on KEY_RESIZE.
- * If window != NULL, the menu draws into the caller's window and returns
- * TUI_MENU_TOO_SMALL on a resize the caller's window can't host. */
+ * If window != NULL, the menu draws into and recenters the caller's window on
+ * KEY_RESIZE. It returns TUI_MENU_TOO_SMALL when the resized terminal cannot
+ * host the requested frame dimensions. */
 APP_NODISCARD tui_menu_result_t tui_show_menu(tui_window_t *window,
                                               const tui_menu_config_t *config);

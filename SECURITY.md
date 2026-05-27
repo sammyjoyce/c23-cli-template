@@ -17,14 +17,21 @@ We take the security of our software seriously. If you believe you have found a 
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via:
+Instead, please report them via one of the following methods:
 
-1. **GitHub Security Advisories**: You can report a vulnerability privately through GitHub's Security Advisories feature:
+1. **Email**: Send an email to <security@yourorganization.com> with:
+   - Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
+   - Full paths of source file(s) related to the manifestation of the issue
+   - The location of the affected source code (tag/branch/commit or direct URL)
+   - Any special configuration required to reproduce the issue
+   - Step-by-step instructions to reproduce the issue
+   - Proof-of-concept or exploit code (if possible)
+   - Impact of the issue, including how an attacker might exploit the issue
+
+2. **GitHub Security Advisories**: You can report a vulnerability privately through GitHub's Security Advisories feature:
    - Navigate to the Security tab of this repository
    - Click on "Report a vulnerability"
    - Fill out the form with details about the vulnerability
-
-2. **Email**: Send an email to the project maintainers with:
 
 ### What to Expect
 
@@ -54,7 +61,7 @@ When using this template, please ensure you:
 
 For any security-related questions or concerns, please contact:
 
+- Security Team: <security@yourorganization.com>
 - Project Maintainers: See CODEOWNERS file
-- Use GitHub Security Advisories for confidential reports
 
 Thank you for helping keep this project and its users safe!

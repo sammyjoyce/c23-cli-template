@@ -234,7 +234,8 @@ app_error tui_run_app(void) {
     return err;
 
   /* Own the menu frame here so it remains visible behind dialog modals
-   * that handlers may open. Recreated on KEY_RESIZE inside the loop. */
+   * that handlers may open. tui_show_menu recenters this caller-owned frame
+   * on KEY_RESIZE and reports TUI_MENU_TOO_SMALL if it no longer fits. */
   tui_window_t *menu_frame = tui_create_centered_window(22, 72);
   if (!menu_frame) {
     tui_cleanup();

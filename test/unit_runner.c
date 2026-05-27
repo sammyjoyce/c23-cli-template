@@ -405,6 +405,41 @@ static bool test_search_backspace_removes_one_wchar(void) {
   return ok;
 }
 
+static bool test_select_visible_rejects_disabled(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2, .disabled = true},
+      {.label = "c", .id = 3},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 3};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  const bool rejected = !tui_menu_state_select_visible(s, 1);
+  const bool selected = tui_menu_state_select_visible(s, 2);
+  bool ok = rejected && selected && tui_menu_state_selected_index(s) == 2;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_ensure_selection_visible_updates_top(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2},
+      {.label = "c", .id = 3},
+      {.label = "d", .id = 4},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 4};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  (void)tui_menu_state_select_visible(s, 3);
+  tui_menu_state_ensure_selection_visible(s, 2);
+  bool ok = tui_menu_state_top_visible(s) == 2;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_numeric_jump(void) {
   const tui_menu_item_t items[] = {
       {.label = "a", .id = 1},
@@ -519,6 +554,10 @@ int main(void) {
               "tui_menu search_close clears the query");
   unit_record(&stats, test_search_backspace_removes_one_wchar(),
               "tui_menu search backspace pops one wchar");
+  unit_record(&stats, test_select_visible_rejects_disabled(),
+              "tui_menu select_visible rejects disabled rows");
+  unit_record(&stats, test_ensure_selection_visible_updates_top(),
+              "tui_menu keeps selected row in viewport");
   unit_record(&stats, test_numeric_jump(),
               "tui_menu numeric jump targets visible row, skips disabled");
   unit_record(&stats, test_secret_zero_clears_buffer(),

@@ -1,152 +1,332 @@
-#!/usr/bin/env bash
-# create-demo.sh - Record terminal demos for the CLI.
-#
-# Records short asciinema casts of the actual commands the binary supports and
-# converts them to GIFs. Customise the demo functions below as you add features.
-#
-# Requirements:
-#   asciinema  - install with your OS package manager
-#   agg        - cargo install --git https://github.com/asciinema/agg
-#
-# The binary name is taken from build.zig.zon so the script keeps working after
-# the template is renamed.
+#!/bin/bash
+# create-demo.sh - Create animated demos of the TUI
+# Requires: asciinema, agg (asciinema gif generator)
 
 set -euo pipefail
 
-repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-cd "$repo_root"
+# Configuration
+DEMO_DIR="docs/demos"
+BINARY="./zig-out/bin/myapp"
 
-demo_dir="docs/demos"
-recordings_dir="$demo_dir/recordings"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-binary_name=$(awk '
-    /\.name = / {
-        gsub(/.*\.name = /, "")
-        gsub(/[,.]/, "")
-        gsub(/"/, "")
-        print
-    }
-' build.zig.zon)
+# Ensure dependencies are installed
+check_dependencies() {
+    local deps=("asciinema" "agg")
+    local missing=()
 
-binary="./zig-out/bin/${binary_name}"
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            missing+=("$dep")
+        fi
+    done
 
-red='\033[0;31m'
-green='\033[0;32m'
-blue='\033[0;34m'
-nc='\033[0m'
-
-require_tools() {
-  local missing=()
-  for tool in asciinema agg zig; do
-    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
-  done
-  if ((${#missing[@]})); then
-    printf "${red}Missing dependencies: %s${nc}\n" "${missing[*]}" >&2
-    cat <<'EOF' >&2
-
-Install with:
-  asciinema  - your OS package manager (apt/brew/pacman/nix...)
-  agg        - cargo install --git https://github.com/asciinema/agg
-  zig        - https://ziglang.org/download/
-EOF
-    exit 1
-  fi
+    if [ ${#missing[@]} -ne 0 ]; then
+        echo -e "${RED}Missing dependencies: ${missing[*]}${NC}"
+        echo "Install with:"
+        echo "  install asciinema with your OS package manager"
+        echo "  cargo install --git https://github.com/asciinema/agg"
+        exit 1
+    fi
 }
 
-build_binary() {
-  printf "${blue}Building %s with TUI enabled...${nc}\n" "$binary_name"
-  zig build -Denable-tui=true
-  if [[ ! -x $binary ]]; then
-    printf "${red}Binary not found at %s${nc}\n" "$binary" >&2
-    exit 1
-  fi
+# Build the project
+build_project() {
+    echo -e "${BLUE}Building project...${NC}"
+    zig build
+
+    if [ ! -f "$BINARY" ]; then
+        echo -e "${RED}Binary not found at $BINARY${NC}"
+        exit 1
+    fi
 }
 
+# Create demo directory
+setup_demo_dir() {
+    mkdir -p "$DEMO_DIR"
+    mkdir -p "$DEMO_DIR/recordings"
+}
+
+# Record a demo
 record_demo() {
-  local name="$1"
-  local title="$2"
-  local script="$3"
+    local name="$1"
+    local title="$2"
+    local script="$3"
 
-  printf "${blue}Recording: %s${nc}\n" "$title"
-  mkdir -p "$recordings_dir"
+    echo -e "${BLUE}Recording demo: $title${NC}"
 
-  local script_file
-  script_file=$(mktemp -t "demo-${name}.XXXXXX.sh")
-  trap 'rm -f "$script_file"' RETURN
+    # Create a temporary script file
+    local script_file="/tmp/demo-$name.sh"
+    cat > "$script_file" << EOF
+#!/bin/bash
+# Demo: $title
 
-  cat >"$script_file" <<EOF
-#!/usr/bin/env bash
-set -e
+# Clear screen and show title
 clear
-printf '${green}Demo: %s${nc}\n\n' "$title"
-sleep 1
+echo -e "${GREEN}Demo: $title${NC}"
+echo ""
+sleep 2
+
+# Run the demo commands
 $script
-echo
-printf '${green}Demo complete.${nc}\n'
-sleep 1
+
+# Show completion
+echo ""
+echo -e "${GREEN}Demo complete!${NC}"
+sleep 2
 EOF
-  chmod +x "$script_file"
 
-  asciinema rec \
-    --title "$title" \
-    --command "$script_file" \
-    --overwrite \
-    "$recordings_dir/${name}.cast"
+    chmod +x "$script_file"
 
-  printf "${blue}Converting to GIF...${nc}\n"
-  agg \
-    --theme monokai \
-    --font-size 14 \
-    --line-height 1.4 \
-    "$recordings_dir/${name}.cast" \
-    "$demo_dir/${name}.gif"
+    # Record with asciinema
+    asciinema rec \
+        --title "$title" \
+        --command "$script_file" \
+        --overwrite \
+        "$DEMO_DIR/recordings/$name.cast"
 
-  printf "${green}Wrote %s/%s.gif${nc}\n" "$demo_dir" "$name"
+    # Convert to GIF
+    echo -e "${BLUE}Converting to GIF...${NC}"
+    agg \
+        --theme monokai \
+        --font-size 14 \
+        --line-height 1.4 \
+        "$DEMO_DIR/recordings/$name.cast" \
+        "$DEMO_DIR/$name.gif"
+
+    # Clean up
+    rm -f "$script_file"
+
+    echo -e "${GREEN}Created $DEMO_DIR/$name.gif${NC}"
 }
 
-demo_help_and_version() {
-  record_demo "help-and-version" "Help and version" "
-$binary --help | head -40
+# Demo 1: Basic Usage
+demo_basic_usage() {
+    record_demo "basic-usage" "Basic Command Usage" '
+# Show help
+'$BINARY' --help
+sleep 3
+
+# Show version
+'$BINARY' --version
 sleep 2
-$binary --version
-sleep 1
-"
+
+# Run hello command
+'$BINARY' hello
+sleep 2
+
+# Run hello with name
+'$BINARY' hello "Demo User"
+sleep 2
+
+# Run echo command
+'$BINARY' echo "This is a test message"
+sleep 2
+'
 }
 
-demo_hello_and_echo() {
-  record_demo "hello-and-echo" "Hello and echo commands" "
-$binary hello
-sleep 1
-$binary hello Alice
-sleep 1
-$binary echo This is a CLI starter template.
-sleep 1
-"
+# Demo 2: TUI Progress Bar
+demo_progress_bar() {
+    record_demo "progress-bar" "TUI Progress Bar Demo" '
+# Create a test script that shows progress
+cat > /tmp/progress-demo.sh << '\''SCRIPT'\''
+#!/bin/bash
+echo "Starting long operation..."
+'$BINARY' progress --steps 10 --delay 500
+echo "Operation complete!"
+SCRIPT
+
+chmod +x /tmp/progress-demo.sh
+/tmp/progress-demo.sh
+rm -f /tmp/progress-demo.sh
+'
 }
 
-demo_info_and_doctor() {
-  record_demo "info-and-doctor" "Info and doctor commands" "
-$binary info
+# Demo 3: Interactive Mode
+demo_interactive() {
+    record_demo "interactive" "Interactive TUI Mode" '
+# Note: This is a simulated demo since we cannot automate interactive input
+echo "Starting interactive mode..."
+echo "(Simulated demo - actual interactive mode requires user input)"
+sleep 1
+
+# Show what the interactive mode would look like
+cat << '\''DEMO'\''
+┌─────────────────────────────────────┐
+│        MyApp Interactive Mode       │
+├─────────────────────────────────────┤
+│                                     │
+│  1. Process File                    │
+│  2. View Status                     │
+│  3. Configure Settings              │
+│  4. Exit                            │
+│                                     │
+│  Select option: _                   │
+│                                     │
+└─────────────────────────────────────┘
+DEMO
+sleep 3
+
+echo ""
+echo "User selects option 1..."
 sleep 2
-$binary --json info
-sleep 2
-$binary doctor
-sleep 2
-"
+
+cat << '\''DEMO'\''
+┌─────────────────────────────────────┐
+│          Process File               │
+├─────────────────────────────────────┤
+│                                     │
+│  Enter filename: data.txt           │
+│                                     │
+│  [████████████████████░░░░] 75%     │
+│                                     │
+│  Processing... Please wait          │
+│                                     │
+└─────────────────────────────────────┘
+DEMO
+sleep 3
+'
 }
 
-# Add a recorder for the interactive TUI menu when you have a deterministic
-# input sequence you want to demonstrate (e.g. driving via asciinema's
-# scripting or a pre-recorded cast). Left as a TODO so it doesn't block the
-# rest of the demo workflow.
+# Demo 4: Configuration
+demo_config() {
+    record_demo "configuration" "Configuration Management" '
+# Show current configuration
+'$BINARY' config show
+sleep 3
 
+# Set a configuration value
+'$BINARY' config set output.format json
+sleep 2
+
+# Get a specific configuration value
+'$BINARY' config get output.format
+sleep 2
+
+# Reset configuration
+'$BINARY' config reset
+sleep 2
+'
+}
+
+# Demo 5: Error Handling
+demo_error_handling() {
+    record_demo "error-handling" "Error Handling Demo" '
+# Try to process a non-existent file
+'$BINARY' process /tmp/nonexistent.txt || true
+sleep 3
+
+# Show validation error
+echo "Invalid data" > /tmp/invalid.txt
+'$BINARY' validate /tmp/invalid.txt || true
+rm -f /tmp/invalid.txt
+sleep 3
+
+# Show helpful error recovery
+'$BINARY' --invalid-option || true
+sleep 2
+'
+}
+
+# Create README for demos
+create_demo_readme() {
+    cat > "$DEMO_DIR/README.md" << 'EOF'
+# Demo Gallery
+
+This directory contains animated demonstrations of the CLI application's features.
+
+## Available Demos
+
+### Basic Usage
+![Basic Usage Demo](basic-usage.gif)
+
+Demonstrates basic command-line usage including help, version, and simple commands.
+
+### Progress Bar
+![Progress Bar Demo](progress-bar.gif)
+
+Shows the TUI progress bar in action during long-running operations.
+
+### Interactive Mode
+![Interactive Mode Demo](interactive.gif)
+
+Demonstrates the interactive TUI mode for menu-driven operations.
+
+### Configuration
+![Configuration Demo](configuration.gif)
+
+Shows how to manage application configuration through the CLI.
+
+### Error Handling
+![Error Handling Demo](error-handling.gif)
+
+Demonstrates graceful error handling and helpful error messages.
+
+## Creating New Demos
+
+To create new demos, use the `scripts/create-demo.sh` script:
+
+```bash
+./scripts/create-demo.sh
+```
+
+### Requirements
+
+- asciinema: install with your OS package manager
+- agg: `cargo install --git https://github.com/asciinema/agg`
+
+### Adding a New Demo
+
+1. Add a new demo function in `create-demo.sh`
+2. Call `record_demo` with appropriate parameters
+3. Add the demo to the main execution flow
+4. Update this README with the new demo
+
+## Embedding Demos
+
+To embed these demos in documentation:
+
+```markdown
+![Demo Name](docs/demos/demo-name.gif)
+```
+
+Or with HTML for more control:
+
+```html
+<p align="center">
+  <img src="docs/demos/demo-name.gif" alt="Demo Name" width="600">
+</p>
+```
+EOF
+
+    echo -e "${GREEN}Created $DEMO_DIR/README.md${NC}"
+}
+
+# Main execution
 main() {
-  require_tools
-  build_binary
-  demo_help_and_version
-  demo_hello_and_echo
-  demo_info_and_doctor
-  printf "${green}All demos written to %s/${nc}\n" "$demo_dir"
+    echo -e "${GREEN}Creating TUI demos...${NC}"
+
+    check_dependencies
+    build_project
+    setup_demo_dir
+
+    # Create all demos
+    demo_basic_usage
+    demo_progress_bar
+    demo_interactive
+    demo_config
+    demo_error_handling
+
+    # Create README
+    create_demo_readme
+
+    echo -e "${GREEN}All demos created successfully!${NC}"
+    echo -e "View demos in: ${BLUE}$DEMO_DIR/${NC}"
 }
 
+# Run main function
 main "$@"

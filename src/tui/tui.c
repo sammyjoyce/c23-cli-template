@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "tui_internal.h"
 #ifdef _WIN32
 #include <io.h>
 #define isatty _isatty
@@ -20,11 +22,6 @@
 #endif
 
 #include "../utils/logging.h"
-
-/* Background-window registry lives in tui_menu.c. */
-extern tui_window_t *tui_get_background_window(void);
-extern void tui_set_background_window(tui_window_t *window);
-extern void tui_clear_background_window(void);
 
 static bool tui_initialized = false;
 static bool tui_default_colors = false;

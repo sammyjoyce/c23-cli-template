@@ -17,11 +17,26 @@
 
 #include "../utils/logging.h"
 #include "tui.h"
+#include "tui_internal.h"
 #include "tui_menu.h"
 #include "tui_menu_internal.h"
 
 /* Background-window registry: shared between the menu (which sets it on
  * entry) and tui.c's modal helpers (which redraw it underneath dialogs). */
+#ifdef _WIN32
+static int tui_wcwidth(wchar_t wc) {
+  if (wc == 0)
+    return 0;
+  if (wc < 32 || (wc >= 0x7f && wc < 0xa0))
+    return -1;
+  return wc >= 0x1100 ? 2 : 1;
+}
+#else
+static int tui_wcwidth(wchar_t wc) {
+  return wcwidth(wc);
+}
+#endif
+
 static tui_window_t *tui_menu_background_win = NULL;
 
 void tui_set_background_window(tui_window_t *window) {
@@ -54,7 +69,7 @@ static void tui_menu_write_wcs(WINDOW *w, int y, int x, int cols,
   int used = 0;
   size_t count = 0;
   for (; s[count]; count++) {
-    int w_cols = wcwidth(s[count]);
+    int w_cols = tui_wcwidth(s[count]);
     if (w_cols < 0)
       w_cols = 1; /* non-printable: best effort */
     if (used + w_cols > cols)
@@ -73,6 +88,8 @@ typedef struct {
   int detail_h;
   int footer_y;
   int inner_w;
+  int desired_h;
+  int desired_w;
   bool detail_pane_visible;
 } tui_menu_layout_t;
 
@@ -113,6 +130,36 @@ static bool tui_menu_layout_compute(tui_menu_layout_t *L, const tui_window_t *w,
   return L->item_area_h >= MENU_MIN_ITEM_ROWS;
 }
 
+static bool tui_menu_recenter_frame(tui_menu_layout_t *L) {
+  if (!L || !L->frame || !L->frame->win)
+    return false;
+
+  const int max_y = getmaxy(stdscr);
+  const int max_x = getmaxx(stdscr);
+  int height = L->desired_h > 0 ? L->desired_h : L->frame->height;
+  int width = L->desired_w > 0 ? L->desired_w : L->frame->width;
+  if (height > max_y)
+    height = max_y;
+  if (width > max_x)
+    width = max_x;
+  if (height < 6 + MENU_FOOTER_ROWS + MENU_MIN_ITEM_ROWS || width < 24)
+    return false;
+
+  const int y = (max_y - height) / 2;
+  const int x = (max_x - width) / 2;
+  if (wresize(L->frame->win, height, width) == ERR)
+    return false;
+  if (mvwin(L->frame->win, y, x) == ERR)
+    return false;
+
+  L->frame->height = height;
+  L->frame->width = width;
+  L->frame->y = y;
+  L->frame->x = x;
+  touchwin(stdscr);
+  return true;
+}
+
 static void tui_menu_render_title(const tui_menu_layout_t *L,
                                   const char *title) {
   /* The window border (drawn separately) already shows the title at row 0
@@ -135,7 +182,6 @@ static void tui_menu_render_items(const tui_menu_layout_t *L,
   const int rows = L->item_area_h;
   const int label_x = 4;
   const int label_text_x = label_x + 3;
-  const int label_max_w = L->frame->width - label_text_x - 4;
 
   for (int row = 0; row < rows; row++) {
     const int v = top + row;
@@ -145,6 +191,9 @@ static void tui_menu_render_items(const tui_menu_layout_t *L,
     const tui_menu_item_t *it = &cfg->items[idx];
     const int y = L->item_area_y + row;
     const bool is_selected = (v == sel_v);
+    const int disabled_suffix_cols = it->disabled ? 13 : 0;
+    const int label_max_w =
+        L->frame->width - label_text_x - 4 - disabled_suffix_cols;
 
     if (it->kind == TUI_MENU_ITEM_SEPARATOR) {
       tui_set_color(win, TUI_COLOR_BORDER);
@@ -191,7 +240,7 @@ static void tui_menu_render_items(const tui_menu_layout_t *L,
     int budget = label_max_w;
     bool underlined = (mn == 0);
     for (size_t k = 0; lab[k] && budget > 0; k++) {
-      int cw = wcwidth(lab[k]);
+      int cw = tui_wcwidth(lab[k]);
       if (cw < 0)
         cw = 1;
       if (cw > budget)
@@ -294,7 +343,6 @@ typedef enum {
   TUI_MENU_EV_CONFIRM,
   TUI_MENU_EV_CANCEL,
   TUI_MENU_EV_INTERRUPT,
-  TUI_MENU_EV_REDRAW,
 } tui_menu_event_t;
 
 static tui_menu_event_t menu_handle_key_in_search(tui_menu_state_t *s, int ch) {
@@ -359,7 +407,7 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
       tui_menu_state_numeric_jump(s, ch - '1');
       return TUI_MENU_EV_NONE;
     }
-    if (iswalnum((wint_t)ch)) {
+    if (ch > 0 && ch < KEY_MIN && iswalnum((wint_t)ch)) {
       bool beep = false;
       int auto_idx = tui_menu_state_mnemonic_jump(s, (wchar_t)ch, &beep);
       if (auto_idx >= 0) {
@@ -410,15 +458,12 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
   }
   if (ev.bstate & BUTTON1_CLICKED) {
     /* Set selection but don't confirm. */
-    const int sel_v = tui_menu_state_selected_visible(s);
-    if (v != sel_v) {
-      /* step to v using the model API by walking */
-      const int delta = v - sel_v;
-      tui_menu_state_step(s, delta > 0 ? 1 : -1);
-    }
+    (void)tui_menu_state_select_visible(s, v);
     return TUI_MENU_EV_NONE;
   }
   if (ev.bstate & BUTTON1_DOUBLE_CLICKED) {
+    if (!tui_menu_state_select_visible(s, v))
+      return TUI_MENU_EV_NONE;
     *out_confirm_index = idx;
     return TUI_MENU_EV_CONFIRM;
   }
@@ -443,9 +488,13 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
   tui_menu_layout_t L = {0};
   L.frame = window;
   L.owns_frame = (window == NULL);
+  L.desired_h = config->frame_height > 0 ? config->frame_height
+                                         : (window ? window->height : 22);
+  L.desired_w = config->frame_width > 0 ? config->frame_width
+                                        : (window ? window->width : 72);
   if (L.owns_frame) {
-    const int h = config->frame_height > 0 ? config->frame_height : 22;
-    const int w = config->frame_width > 0 ? config->frame_width : 72;
+    const int h = L.desired_h;
+    const int w = L.desired_w;
     L.frame = tui_create_centered_window(h, w);
     if (!L.frame) {
       tui_menu_state_destroy(state);
@@ -479,16 +528,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     if (config->title)
       tui_menu_render_title(&L, config->title);
 
-    /* Adjust top_visible so selection stays in view. */
-    const int sel_v = tui_menu_state_selected_visible(state);
-    int top = tui_menu_state_top_visible(state);
-    if (sel_v < top)
-      top = sel_v;
-    else if (sel_v >= top + L.item_area_h)
-      top = sel_v - L.item_area_h + 1;
-    if (top < 0)
-      top = 0;
-    tui_menu_state_set_top_visible(state, top);
+    tui_menu_state_ensure_selection_visible(state, L.item_area_h);
 
     tui_menu_render_items(&L, state);
     tui_menu_render_scrollbar(&L, state);
@@ -513,9 +553,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     if (ch == KEY_RESIZE) {
       if (L.owns_frame) {
         tui_destroy_window(L.frame);
-        const int h = config->frame_height > 0 ? config->frame_height : 22;
-        const int w = config->frame_width > 0 ? config->frame_width : 72;
-        L.frame = tui_create_centered_window(h, w);
+        L.frame = tui_create_centered_window(L.desired_h, L.desired_w);
         if (!L.frame) {
           result.status = TUI_MENU_TOO_SMALL;
           break;
@@ -523,8 +561,11 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
         tui_draw_border(L.frame);
         if (config->title)
           tui_set_window_title(L.frame, config->title);
-        tui_set_background_window(L.frame);
+      } else if (!tui_menu_recenter_frame(&L)) {
+        result.status = TUI_MENU_TOO_SMALL;
+        break;
       }
+      tui_set_background_window(L.frame);
       continue;
     }
 #ifdef NCURSES_MOUSE_VERSION
@@ -562,7 +603,6 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
       exit_loop = true;
       break;
     case TUI_MENU_EV_NONE:
-    case TUI_MENU_EV_REDRAW:
       break;
     }
   }

@@ -40,7 +40,7 @@ static void menu_state_parse_labels(struct tui_menu_state *s) {
   for (int i = 0; i < s->cfg->item_count; i++) {
     const char *src = s->cfg->items[i].label;
     if (!src) {
-      s->label_w[i] = wcsdup(L"");
+      s->label_w[i] = calloc(1, sizeof(wchar_t));
       s->mnemonics[i] = 0;
       continue;
     }
@@ -208,6 +208,29 @@ int tui_menu_state_top_visible(const tui_menu_state_t *s) {
 void tui_menu_state_set_top_visible(tui_menu_state_t *s, int top) {
   if (s && top >= 0)
     s->top_visible = top;
+}
+
+void tui_menu_state_ensure_selection_visible(tui_menu_state_t *s,
+                                             int viewport_rows) {
+  if (!s || viewport_rows <= 0)
+    return;
+  if (s->selected_visible < s->top_visible) {
+    s->top_visible = s->selected_visible;
+  } else if (s->selected_visible >= s->top_visible + viewport_rows) {
+    s->top_visible = s->selected_visible - viewport_rows + 1;
+  }
+  if (s->top_visible < 0)
+    s->top_visible = 0;
+}
+
+bool tui_menu_state_select_visible(tui_menu_state_t *s, int visible_row) {
+  if (!s || visible_row < 0 || visible_row >= s->visible_count)
+    return false;
+  const int item_idx = s->visible[visible_row];
+  if (!menu_item_selectable(&s->cfg->items[item_idx]))
+    return false;
+  s->selected_visible = visible_row;
+  return true;
 }
 
 bool tui_menu_state_search_active(const tui_menu_state_t *s) {

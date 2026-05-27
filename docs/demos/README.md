@@ -1,67 +1,142 @@
 # Demo Gallery
 
-Animated demonstrations of the CLI starter. Recorded with
-[asciinema](https://asciinema.org/) and converted to GIFs with
-[agg](https://github.com/asciinema/agg).
+This directory contains animated demonstrations of the CLI application's features.
 
-> Run `./scripts/create-demo.sh` to (re)generate the GIFs after building.
+> **Note**: To generate the actual demo GIFs, run `./scripts/create-demo.sh` after building the project.
 
 ## Available Demos
 
-### Help and Version
-<!-- ![Help and Version](help-and-version.gif) -->
+### Basic Usage
+<!-- ![Basic Usage Demo](basic-usage.gif) -->
+*Demo showing basic command-line usage including help, version, and simple commands.*
 
 ```bash
+# Show help
 myapp --help
+
+# Show version
 myapp --version
-```
 
-### Hello and Echo
-<!-- ![Hello and Echo](hello-and-echo.gif) -->
-
-```bash
+# Run commands
 myapp hello
-myapp hello Alice
-myapp echo This is a CLI starter template.
+myapp hello "Demo User"
+myapp echo "Test message"
 ```
 
-### Info and Doctor
-<!-- ![Info and Doctor](info-and-doctor.gif) -->
+### Progress Bar
+<!-- ![Progress Bar Demo](progress-bar.gif) -->
+*Demo showing the TUI progress bar during long-running operations.*
 
 ```bash
-myapp info
-myapp --json info
-myapp doctor
+# Show progress for a 10-step operation
+myapp progress --steps 10 --delay 500
 ```
 
-## Adding More Demos
+### Interactive Mode
+<!-- ![Interactive Mode Demo](interactive.gif) -->
+*Demo showing the interactive TUI mode for menu-driven operations.*
 
-Open `scripts/create-demo.sh` and add a function modelled on the existing
-`demo_*` helpers. Each helper calls `record_demo NAME TITLE SCRIPT`, where
-`SCRIPT` is a shell snippet that runs against the freshly built `myapp` binary.
+```
+┌─────────────────────────────────────┐
+│        MyApp Interactive Mode       │
+├─────────────────────────────────────┤
+│                                     │
+│  1. Process File                    │
+│  2. View Status                     │
+│  3. Configure Settings              │
+│  4. Exit                            │
+│                                     │
+│  Select option: _                   │
+│                                     │
+└─────────────────────────────────────┘
+```
 
-For the interactive TUI menu, drive a pre-recorded asciinema cast rather than
-typing live - automated recordings give consistent timing and avoid leaking
-your shell prompt.
-
-## Generating GIFs
+### Configuration Management
+<!-- ![Configuration Demo](configuration.gif) -->
+*Demo showing configuration management through the CLI.*
 
 ```bash
-# Install dependencies
-#   asciinema  - your OS package manager
-#   agg        - cargo install --git https://github.com/asciinema/agg
+# Show configuration
+myapp config show
 
-zig build -Denable-tui=true
-./scripts/create-demo.sh
+# Set values
+myapp config set output.format json
+
+# Get specific values
+myapp config get output.format
+
+# Reset to defaults
+myapp config reset
 ```
 
-## Embedding
+### Error Handling
+<!-- ![Error Handling Demo](error-handling.gif) -->
+*Demo showing graceful error handling and helpful error messages.*
+
+```bash
+# Non-existent file
+myapp process /tmp/nonexistent.txt
+
+# Invalid data
+myapp validate invalid-data.txt
+
+# Invalid options
+myapp --invalid-option
+```
+
+## Creating Demo GIFs
+
+To generate the actual animated GIFs:
+
+1. **Install dependencies**:
+
+   ```bash
+   # Install asciinema with your OS package manager
+
+   # Install agg (asciinema gif generator)
+   cargo install --git https://github.com/asciinema/agg
+   ```
+
+2. **Build the project**:
+
+   ```bash
+   zig build
+   ```
+
+3. **Run the demo script**:
+
+   ```bash
+   ./scripts/create-demo.sh
+   ```
+
+This will create all the demo GIFs in this directory.
+
+## Manual Demo Recording
+
+To record a custom demo:
+
+```bash
+# Start recording
+asciinema rec docs/demos/custom-demo.cast
+
+# Perform your demo actions
+myapp [commands...]
+
+# Stop recording (Ctrl+D)
+
+# Convert to GIF
+agg docs/demos/custom-demo.cast docs/demos/custom-demo.gif
+```
+
+## Embedding Demos
+
+To embed these demos in documentation:
 
 ```markdown
 ![Demo Name](docs/demos/demo-name.gif)
 ```
 
-Or with HTML for sizing:
+Or with HTML for more control:
 
 ```html
 <p align="center">
@@ -69,8 +144,10 @@ Or with HTML for sizing:
 </p>
 ```
 
-## Demo Tips
+## Demo Best Practices
 
-- Keep each cast under ~30 seconds.
-- Use clear titles and realistic flags.
-- Record at a consistent terminal size (e.g. 100x30).
+1. **Keep demos short** - Under 30 seconds
+2. **Use clear titles** - Explain what's being demonstrated
+3. **Show realistic usage** - Use practical examples
+4. **Include errors** - Show how the app handles mistakes
+5. **Use consistent styling** - Same terminal theme and size
