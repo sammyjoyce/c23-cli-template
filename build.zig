@@ -319,6 +319,7 @@ pub fn build(b: *std.Build) void {
 
         vt_test_mod.addCSourceFiles(.{
             .files = &.{
+                "test/test_harness.c",
                 "test/terminal_vt_common.c",
                 "test/terminal_vt_session.c",
                 "test/terminal_vt_scenarios.c",

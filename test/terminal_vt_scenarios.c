@@ -1,4 +1,9 @@
-#include "terminal_vt.h"
+#include "terminal_vt_scenarios.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "terminal_vt_session.h"
 
 typedef enum {
   TUI_STEP_EXPECT,

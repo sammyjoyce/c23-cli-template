@@ -1,4 +1,14 @@
-#include "terminal_vt.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "terminal_vt_support.h"
 
 void buffer_free(buffer_t *buf) {
   if (!buf) {
