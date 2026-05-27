@@ -281,6 +281,59 @@ static bool test_menu_label_mnemonic_mid_word(void) {
   return ok;
 }
 
+static bool test_mnemonic_unique_returns_index(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "&Foo", .id = 1},
+      {.label = "&Bar", .id = 2},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 2};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  bool beep = false;
+  int r = tui_menu_state_mnemonic_jump(s, L'b', &beep);
+  bool ok = (r == 1) && !beep;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_mnemonic_duplicate_cycles_no_confirm(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "F&oo", .id = 1},
+      {.label = "B&ar", .id = 2},
+      {.label = "B&az", .id = 3},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 3};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  bool beep = false;
+  /* Two items share mnemonic 'a' - calling it twice should cycle. */
+  int r1 = tui_menu_state_mnemonic_jump(s, L'a', &beep);
+  int idx1 = tui_menu_state_selected_index(s);
+  int r2 = tui_menu_state_mnemonic_jump(s, L'a', &beep);
+  int idx2 = tui_menu_state_selected_index(s);
+  bool ok = r1 < 0 && r2 < 0 && idx1 != idx2 && beep;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_mnemonic_disabled_beeps(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "&Foo", .id = 1, .disabled = true},
+      {.label = "&Bar", .id = 2},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 2};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  bool beep = false;
+  int r = tui_menu_state_mnemonic_jump(s, L'f', &beep);
+  bool ok = r < 0 && beep;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -359,6 +412,12 @@ int main(void) {
               "tui_menu label '&&' renders as literal '&'");
   unit_record(&stats, test_menu_label_mnemonic_mid_word(),
               "tui_menu mnemonic can be mid-word");
+  unit_record(&stats, test_mnemonic_unique_returns_index(),
+              "tui_menu unique mnemonic returns the items[] index");
+  unit_record(&stats, test_mnemonic_duplicate_cycles_no_confirm(),
+              "tui_menu duplicate mnemonic cycles selection");
+  unit_record(&stats, test_mnemonic_disabled_beeps(),
+              "tui_menu disabled mnemonic beeps, no confirm");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 

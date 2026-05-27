@@ -271,11 +271,72 @@ void tui_menu_state_search_append(tui_menu_state_t *s, wchar_t ch) {
 void tui_menu_state_search_backspace(tui_menu_state_t *s) {
   (void)s;
 }
-int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t k, bool *b) {
-  (void)s;
-  (void)k;
-  if (b)
-    *b = false;
+int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
+                                 bool *out_beep) {
+  if (out_beep)
+    *out_beep = false;
+  if (!s || key == 0)
+    return -1;
+  const wchar_t target = (wchar_t)towlower(key);
+
+  int matches[2] = {-1, -1};
+  int match_count = 0;
+  bool has_disabled_match = false;
+  for (int i = 0; i < s->cfg->item_count; i++) {
+    if (s->mnemonics[i] != target)
+      continue;
+    const tui_menu_item_t *it = &s->cfg->items[i];
+    if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
+      has_disabled_match = true;
+      continue;
+    }
+    if (match_count < 2)
+      matches[match_count] = i;
+    match_count++;
+  }
+
+  if (match_count == 0) {
+    if (has_disabled_match && out_beep)
+      *out_beep = true;
+    return -1;
+  }
+  if (match_count == 1) {
+    return matches[0]; /* caller should auto-confirm */
+  }
+
+  /* Multiple matches - cycle selection through them, beep, no confirm. */
+  const int current = tui_menu_state_selected_index(s);
+  int target_visible = -1;
+  bool past_current = false;
+  for (int v = 0; v < s->visible_count; v++) {
+    const int idx = s->visible[v];
+    if (idx == current) {
+      past_current = true;
+      continue;
+    }
+    if (!past_current)
+      continue;
+    if (s->mnemonics[idx] == target &&
+        menu_item_selectable(&s->cfg->items[idx])) {
+      target_visible = v;
+      break;
+    }
+  }
+  if (target_visible < 0) {
+    /* wrap to first match before current */
+    for (int v = 0; v < s->visible_count; v++) {
+      const int idx = s->visible[v];
+      if (s->mnemonics[idx] == target &&
+          menu_item_selectable(&s->cfg->items[idx])) {
+        target_visible = v;
+        break;
+      }
+    }
+  }
+  if (target_visible >= 0)
+    s->selected_visible = target_visible;
+  if (out_beep)
+    *out_beep = true;
   return -1;
 }
 void tui_menu_state_numeric_jump(tui_menu_state_t *s, int row) {
