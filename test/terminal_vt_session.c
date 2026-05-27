@@ -178,7 +178,16 @@ void vt_drain(vt_session_t *session, int idle_ms) {
 
     struct pollfd fd = {.fd = session->master_fd, .events = POLLIN};
     const int polled = poll(&fd, 1, wait_ms);
-    if (polled <= 0) {
+    if (polled < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      break;
+    }
+    if (polled == 0) {
+      if (idle_ms > 0 && monotonic_ms() < deadline) {
+        continue;
+      }
       break;
     }
 
