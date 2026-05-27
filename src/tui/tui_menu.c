@@ -114,17 +114,30 @@ static void tui_menu_render_title(const tui_menu_layout_t *L,
 static void tui_menu_render_items(const tui_menu_layout_t *L,
                                   const tui_menu_state_t *s) {
   WINDOW *win = L->frame->win;
+  const tui_menu_config_t *cfg = tui_menu_state_config(s);
   const int visible = tui_menu_state_visible_count(s);
   const int top = tui_menu_state_top_visible(s);
   const int sel_v = tui_menu_state_selected_visible(s);
   const int rows = L->item_area_h;
+  const int label_x = 4;
+  const int label_text_x = label_x + 3;
+  const int label_max_w = L->frame->width - label_text_x - 4;
 
   for (int row = 0; row < rows; row++) {
     const int v = top + row;
     if (v >= visible)
       break;
+    const int idx = tui_menu_state_visible_at(s, v);
+    const tui_menu_item_t *it = &cfg->items[idx];
     const int y = L->item_area_y + row;
     const bool is_selected = (v == sel_v);
+
+    if (it->kind == TUI_MENU_ITEM_SEPARATOR) {
+      tui_set_color(win, TUI_COLOR_BORDER);
+      mvwhline(win, y, 3, ACS_HLINE, L->frame->width - 6);
+      tui_unset_color(win, TUI_COLOR_BORDER);
+      continue;
+    }
 
     if (is_selected) {
       tui_set_color(win, TUI_COLOR_MENU_SELECTED);
@@ -133,6 +146,62 @@ static void tui_menu_render_items(const tui_menu_layout_t *L,
       tui_set_color(win, TUI_COLOR_ACCENT);
       tui_menu_write_wcs(win, y, 2, 2, L"\u25B8 "); /* ▸ */
       tui_unset_color(win, TUI_COLOR_ACCENT);
+    }
+
+    /* Numeric prefix shown when numeric keys are enabled and row < 9 in
+     * the *visible* slice. */
+    if (cfg->show_numeric_keys && v < 9) {
+      char num[4];
+      snprintf(num, sizeof(num), "%d.", v + 1);
+      if (is_selected)
+        tui_set_color(win, TUI_COLOR_MENU_SELECTED);
+      else
+        tui_set_color(win, TUI_COLOR_INFO);
+      mvwaddnstr(win, y, label_x, num, 3);
+      if (is_selected)
+        tui_unset_color(win, TUI_COLOR_MENU_SELECTED);
+      else
+        tui_unset_color(win, TUI_COLOR_INFO);
+    }
+
+    /* Label, with mnemonic underline. */
+    if (is_selected)
+      tui_set_color(win, TUI_COLOR_MENU_SELECTED);
+    else if (it->disabled)
+      tui_set_color(win, TUI_COLOR_DIM);
+    const wchar_t *lab = tui_menu_state_label_wcs(s, idx);
+    const wchar_t mn = tui_menu_state_mnemonic(s, idx);
+    /* Render the label, applying A_UNDERLINE to the first wchar matching
+     * mn (case-insensitive) - single pass. */
+    int cur_x = label_text_x;
+    int budget = label_max_w;
+    bool underlined = (mn == 0);
+    for (size_t k = 0; lab[k] && budget > 0; k++) {
+      int cw = wcwidth(lab[k]);
+      if (cw < 0)
+        cw = 1;
+      if (cw > budget)
+        break;
+      const bool here = !underlined && (wchar_t)towlower(lab[k]) == mn;
+      if (here)
+        wattron(win, A_UNDERLINE);
+      mvwaddnwstr(win, y, cur_x, &lab[k], 1);
+      if (here) {
+        wattroff(win, A_UNDERLINE);
+        underlined = true;
+      }
+      cur_x += cw;
+      budget -= cw;
+    }
+    if (is_selected)
+      tui_unset_color(win, TUI_COLOR_MENU_SELECTED);
+    else if (it->disabled)
+      tui_unset_color(win, TUI_COLOR_DIM);
+
+    if (it->disabled) {
+      tui_set_color(win, TUI_COLOR_DIM);
+      tui_menu_write_wcs(win, y, L->frame->width - 13, 11, L"(disabled) ");
+      tui_unset_color(win, TUI_COLOR_DIM);
     }
   }
 }

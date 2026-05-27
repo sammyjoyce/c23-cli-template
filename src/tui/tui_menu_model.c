@@ -401,3 +401,13 @@ void tui_menu_state_numeric_jump(tui_menu_state_t *s, int visible_row) {
     s->selected_visible = visible_row;
   }
 }
+
+int tui_menu_state_visible_at(const tui_menu_state_t *s, int v) {
+  if (!s || v < 0 || v >= s->visible_count)
+    return -1;
+  return s->visible[v];
+}
+
+const tui_menu_config_t *tui_menu_state_config(const tui_menu_state_t *s) {
+  return s ? s->cfg : NULL;
+}

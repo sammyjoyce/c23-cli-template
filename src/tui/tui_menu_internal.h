@@ -55,3 +55,7 @@ int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
 
 /* Numeric accelerator: jump to visible row 0..8 (no auto-confirm). */
 void tui_menu_state_numeric_jump(tui_menu_state_t *s, int visible_row);
+
+/* Return the items[] index at the given visible row, or -1. */
+int tui_menu_state_visible_at(const tui_menu_state_t *s, int visible_row);
+const tui_menu_config_t *tui_menu_state_config(const tui_menu_state_t *s);
