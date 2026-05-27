@@ -334,6 +334,77 @@ static bool test_mnemonic_disabled_beeps(void) {
   return ok;
 }
 
+static bool test_search_filters_matches_to_front_of_selection(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "&Overview", .id = 1},
+      {.label = "&System Information", .id = 2},
+      {.label = "&Input Dialog", .id = 3},
+      {.label = "&Progress Pattern", .id = 4},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 4};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+
+  tui_menu_state_search_open(s);
+  tui_menu_state_search_append(s, L'p');
+  tui_menu_state_search_append(s, L'r');
+  tui_menu_state_search_append(s, L'o');
+
+  /* "Progress Pattern" is the only "pro" substring match */
+  bool ok =
+      tui_menu_state_search_active(s) && tui_menu_state_selected_index(s) == 3;
+
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_search_case_insensitive(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "Overview", .id = 1},
+      {.label = "System", .id = 2},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 2};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_search_open(s);
+  tui_menu_state_search_append(s, L'S');
+  bool ok = tui_menu_state_selected_index(s) == 1;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_search_close_clears_query(void) {
+  const tui_menu_item_t items[] = {{.label = "Foo", .id = 1}};
+  const tui_menu_config_t cfg = {.items = items, .item_count = 1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_search_open(s);
+  tui_menu_state_search_append(s, L'f');
+  tui_menu_state_search_close(s);
+  bool ok = !tui_menu_state_search_active(s) &&
+            wcslen(tui_menu_state_search_query(s)) == 0;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_search_backspace_removes_one_wchar(void) {
+  const tui_menu_item_t items[] = {{.label = "Foo", .id = 1}};
+  const tui_menu_config_t cfg = {.items = items, .item_count = 1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_search_open(s);
+  tui_menu_state_search_append(s, L'a');
+  tui_menu_state_search_append(s, L'b');
+  tui_menu_state_search_backspace(s);
+  bool ok = wcscmp(tui_menu_state_search_query(s), L"a") == 0;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -418,6 +489,14 @@ int main(void) {
               "tui_menu duplicate mnemonic cycles selection");
   unit_record(&stats, test_mnemonic_disabled_beeps(),
               "tui_menu disabled mnemonic beeps, no confirm");
+  unit_record(&stats, test_search_filters_matches_to_front_of_selection(),
+              "tui_menu search snaps selection to first match");
+  unit_record(&stats, test_search_case_insensitive(),
+              "tui_menu search is case-insensitive");
+  unit_record(&stats, test_search_close_clears_query(),
+              "tui_menu search_close clears the query");
+  unit_record(&stats, test_search_backspace_removes_one_wchar(),
+              "tui_menu search backspace pops one wchar");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 

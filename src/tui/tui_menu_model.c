@@ -85,11 +85,43 @@ static void menu_state_parse_labels(struct tui_menu_state *s) {
     s->mnemonics[i] = mnemonic;
   }
 }
+static bool wcs_contains_icase(const wchar_t *hay, const wchar_t *needle) {
+  if (!needle || needle[0] == 0)
+    return true;
+  const size_t nlen = wcslen(needle);
+  for (const wchar_t *p = hay; *p; p++) {
+    size_t k = 0;
+    while (k < nlen && p[k] != 0 && towlower(p[k]) == towlower(needle[k]))
+      k++;
+    if (k == nlen)
+      return true;
+  }
+  return false;
+}
+
 static void menu_state_apply_filter(struct tui_menu_state *s) {
-  /* Default visible set: every item, no filter. */
   s->visible_count = 0;
+  if (!s->search_active || s->search_len == 0) {
+    for (int i = 0; i < s->cfg->item_count; i++)
+      s->visible[s->visible_count++] = i;
+    return;
+  }
+  s->search_buf[s->search_len] = 0;
   for (int i = 0; i < s->cfg->item_count; i++) {
-    s->visible[s->visible_count++] = i;
+    if (s->cfg->items[i].kind == TUI_MENU_ITEM_SEPARATOR)
+      continue;
+    const wchar_t *lab = s->label_w[i] ? s->label_w[i] : L"";
+    if (wcs_contains_icase(lab, s->search_buf)) {
+      s->visible[s->visible_count++] = i;
+    }
+  }
+  /* Snap selection to first selectable visible. */
+  s->selected_visible = 0;
+  for (int v = 0; v < s->visible_count; v++) {
+    if (menu_item_selectable(&s->cfg->items[s->visible[v]])) {
+      s->selected_visible = v;
+      return;
+    }
   }
 }
 
@@ -259,17 +291,40 @@ void tui_menu_state_page(tui_menu_state_t *s, int direction, int page_size) {
   }
 }
 void tui_menu_state_search_open(tui_menu_state_t *s) {
-  (void)s;
+  if (!s)
+    return;
+  s->search_active = true;
+  s->search_len = 0;
+  s->search_buf[0] = 0;
+  menu_state_apply_filter(s);
 }
+
 void tui_menu_state_search_close(tui_menu_state_t *s) {
-  (void)s;
+  if (!s)
+    return;
+  s->search_active = false;
+  s->search_len = 0;
+  s->search_buf[0] = 0;
+  menu_state_apply_filter(s);
 }
+
 void tui_menu_state_search_append(tui_menu_state_t *s, wchar_t ch) {
-  (void)s;
-  (void)ch;
+  if (!s || !s->search_active)
+    return;
+  const size_t cap = (sizeof(s->search_buf) / sizeof(s->search_buf[0])) - 1;
+  if (s->search_len >= cap)
+    return;
+  s->search_buf[s->search_len++] = ch;
+  s->search_buf[s->search_len] = 0;
+  menu_state_apply_filter(s);
 }
+
 void tui_menu_state_search_backspace(tui_menu_state_t *s) {
-  (void)s;
+  if (!s || !s->search_active || s->search_len == 0)
+    return;
+  s->search_len--;
+  s->search_buf[s->search_len] = 0;
+  menu_state_apply_filter(s);
 }
 int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
                                  bool *out_beep) {
