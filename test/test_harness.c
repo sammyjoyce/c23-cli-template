@@ -171,7 +171,7 @@ static bool make_temp_file(temp_file_t *file, const char *label) {
 #ifdef _WIN32
   if (_mktemp_s(file->path, strlen(file->path) + 1) != 0) {
     free(file->path);
-    *file = (temp_file_t){0};
+    *file = (temp_file_t){.fd = -1};
     return false;
   }
   file->fd = open(file->path, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY,
@@ -182,7 +182,7 @@ static bool make_temp_file(temp_file_t *file, const char *label) {
 
   if (file->fd < 0) {
     free(file->path);
-    *file = (temp_file_t){0};
+    *file = (temp_file_t){.fd = -1};
     return false;
   }
   return true;
@@ -201,7 +201,7 @@ static void cleanup_temp_file(temp_file_t *file) {
     (void)unlink(file->path);
     free(file->path);
   }
-  *file = (temp_file_t){0};
+  *file = (temp_file_t){.fd = -1};
 }
 
 static char *read_entire_file(const char *path) {

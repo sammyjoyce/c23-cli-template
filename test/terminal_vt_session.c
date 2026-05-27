@@ -270,9 +270,6 @@ bool vt_expect_text(vt_session_t *session, const char *needle, int timeout_ms,
   const int64_t deadline = monotonic_ms() + timeout_ms;
   while (monotonic_ms() <= deadline) {
     vt_drain(session, 50);
-    if (session->io_failed) {
-      break;
-    }
     char *snapshot = vt_snapshot_text(session);
     if (snapshot && contains_text(snapshot, needle)) {
       if (last_snapshot) {
@@ -288,6 +285,9 @@ bool vt_expect_text(vt_session_t *session, const char *needle, int timeout_ms,
       *last_snapshot = snapshot;
     } else {
       free(snapshot);
+    }
+    if (session->io_failed) {
+      break;
     }
     if (session->child_exited) {
       break;
@@ -340,11 +340,11 @@ int vt_wait_for_exit(vt_session_t *session, int timeout_ms) {
   const int64_t deadline = monotonic_ms() + timeout_ms;
   while (monotonic_ms() <= deadline) {
     vt_drain(session, 50);
-    if (session->io_failed) {
-      return -1;
-    }
     if (session->child_exited) {
       return session->exit_code;
+    }
+    if (session->io_failed) {
+      return -1;
     }
   }
   return -1;

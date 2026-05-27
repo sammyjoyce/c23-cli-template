@@ -227,9 +227,8 @@ zig build test -Doptimize=ReleaseFast
 
 #### Writing Tests
 
-- Put fast build-integrated smoke coverage in `test/cli_contract_runner.c`
-- Put end-to-end CLI behavior in `test/cli_contract_runner.c`
-- Put PTY-backed TUI behavior in `test/terminal_vt_scenarios.c`
+- Put fast build-integrated smoke and CLI contract coverage in `test/cli_contract_runner.c`
+- Put PTY-backed TUI and end-to-end terminal behavior in `test/terminal_vt_scenarios.c`
 - Prefer JSON-field assertions for automation-facing output
 - Ensure all existing tests pass
 - Test on multiple platforms if possible
