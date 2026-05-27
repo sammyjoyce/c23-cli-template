@@ -36,9 +36,54 @@ static int menu_first_enabled(const tui_menu_config_t *cfg) {
   return -1;
 }
 
-/* Defined later in this task chain. Stub now. */
 static void menu_state_parse_labels(struct tui_menu_state *s) {
-  (void)s; /* Task 6 fills this in */
+  for (int i = 0; i < s->cfg->item_count; i++) {
+    const char *src = s->cfg->items[i].label;
+    if (!src) {
+      s->label_w[i] = wcsdup(L"");
+      s->mnemonics[i] = 0;
+      continue;
+    }
+    const size_t src_bytes = strlen(src);
+    wchar_t *dst = calloc(src_bytes + 1, sizeof(wchar_t));
+    if (!dst) {
+      s->label_w[i] = NULL;
+      s->mnemonics[i] = 0;
+      continue;
+    }
+
+    size_t out = 0;
+    wchar_t mnemonic = 0;
+    const char *p = src;
+    while (*p) {
+      if (p[0] == '&' && p[1] == '&') {
+        dst[out++] = L'&';
+        p += 2;
+        continue;
+      }
+      if (p[0] == '&' && p[1] != '\0' && mnemonic == 0) {
+        wchar_t wc = 0;
+        const int n = mbtowc(&wc, p + 1, MB_CUR_MAX);
+        if (n > 0 && iswalnum(wc)) {
+          mnemonic = (wchar_t)towlower(wc);
+          dst[out++] = wc;
+          p += 1 + (size_t)n;
+          continue;
+        }
+      }
+      wchar_t wc = 0;
+      const int n = mbtowc(&wc, p, MB_CUR_MAX);
+      if (n <= 0) {
+        p++;
+        continue;
+      }
+      dst[out++] = wc;
+      p += n;
+    }
+    dst[out] = 0;
+    s->label_w[i] = dst;
+    s->mnemonics[i] = mnemonic;
+  }
 }
 static void menu_state_apply_filter(struct tui_menu_state *s) {
   /* Default visible set: every item, no filter. */

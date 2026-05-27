@@ -244,6 +244,43 @@ static bool test_menu_page_clamps(void) {
   return ok;
 }
 
+static bool test_menu_label_strips_ampersand(void) {
+  const tui_menu_item_t items[] = {{.label = "&Overview", .id = 1}};
+  const tui_menu_config_t cfg = {.items = items, .item_count = 1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  const wchar_t *w = tui_menu_state_label_wcs(s, 0);
+  bool ok =
+      wcscmp(w, L"Overview") == 0 && tui_menu_state_mnemonic(s, 0) == L'o';
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_label_literal_ampersand(void) {
+  const tui_menu_item_t items[] = {{.label = "AT&&T", .id = 1}};
+  const tui_menu_config_t cfg = {.items = items, .item_count = 1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  const wchar_t *w = tui_menu_state_label_wcs(s, 0);
+  bool ok = wcscmp(w, L"AT&T") == 0 && tui_menu_state_mnemonic(s, 0) == 0;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_label_mnemonic_mid_word(void) {
+  const tui_menu_item_t items[] = {{.label = "E&xit", .id = 0}};
+  const tui_menu_config_t cfg = {.items = items, .item_count = 1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  const wchar_t *w = tui_menu_state_label_wcs(s, 0);
+  bool ok = wcscmp(w, L"Exit") == 0 && tui_menu_state_mnemonic(s, 0) == L'x';
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -316,6 +353,12 @@ int main(void) {
   unit_record(&stats, test_menu_home_end(),
               "tui_menu home/end land on first/last");
   unit_record(&stats, test_menu_page_clamps(), "tui_menu page clamps at ends");
+  unit_record(&stats, test_menu_label_strips_ampersand(),
+              "tui_menu label strips '&' and records mnemonic");
+  unit_record(&stats, test_menu_label_literal_ampersand(),
+              "tui_menu label '&&' renders as literal '&'");
+  unit_record(&stats, test_menu_label_mnemonic_mid_word(),
+              "tui_menu mnemonic can be mid-word");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 
