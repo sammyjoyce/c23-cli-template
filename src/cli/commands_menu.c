@@ -25,7 +25,7 @@ app_error app_cmd_menu(const app_config_t *config, int argc, char **argv) {
   }
 
 #ifdef ENABLE_TUI
-  const app_error tui_err = tui_run_demo();
+  const app_error tui_err = tui_run_app();
   if (tui_err == APP_ERROR_OUT_OF_RANGE) {
     app_output_format(config, true,
                       "TUI failed: terminal is too small (minimum %dx%d).",

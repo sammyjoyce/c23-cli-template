@@ -32,7 +32,7 @@ static const app_command_t g_app_commands[] = {
      .handler = app_cmd_doctor,
      .requires_terminal = false},
     {.name = "menu",
-     .summary = "Launch the interactive TUI showcase (requires --enable-tui).",
+     .summary = "Launch the interactive TUI main menu (requires --enable-tui).",
      .handler = app_cmd_menu,
      .requires_terminal = true},
 };
