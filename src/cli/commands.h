@@ -42,6 +42,19 @@ typedef struct {
   const char *description;
 } app_builtin_option_t;
 
+typedef enum {
+  APP_GLOBAL_VALUE_OPTION_CONFIG,
+} app_global_value_option_id_t;
+
+typedef struct {
+  app_global_value_option_id_t id;
+  const char *name;
+  const char *alias;
+  const app_command_arg_t *arguments;
+  size_t argument_count;
+  const char *description;
+} app_global_value_option_t;
+
 typedef struct {
   const char *name;
   const char *summary;
@@ -63,6 +76,12 @@ const app_builtin_option_t *app_builtin_options(size_t *count);
 
 // Look up a built-in option by CLI spelling, for example "-h" or "--help".
 const app_builtin_option_t *app_builtin_option_find(const char *arg);
+
+// Return global options that consume a following value, such as --config PATH.
+const app_global_value_option_t *app_global_value_options(size_t *count);
+
+// Look up a value-taking global option by CLI spelling.
+const app_global_value_option_t *app_global_value_option_find(const char *arg);
 
 // Look up a command by name. Returns NULL when no command matches.
 const app_command_t *app_command_find(const char *name);

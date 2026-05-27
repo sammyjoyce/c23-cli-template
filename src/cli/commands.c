@@ -38,6 +38,15 @@ static const app_command_arg_t echo_args[] = {
      .description = "Text to echo"},
 };
 
+static const app_command_arg_t config_option_args[] = {
+    {.name = "path",
+     .required = true,
+     .ordinal = 1,
+     .arity_minimum = 1,
+     .arity_maximum = 1,
+     .description = "Path to configuration file"},
+};
+
 static const char *const echo_examples[] = {
     APP_NAME " echo Hello World",
     APP_NAME " echo",
@@ -76,6 +85,16 @@ static const app_builtin_option_t g_app_builtin_options[] = {
      .name = "version",
      .alias = NULL,
      .description = "Show version information and exit"},
+};
+
+static const app_global_value_option_t g_app_global_value_options[] = {
+    {.id = APP_GLOBAL_VALUE_OPTION_CONFIG,
+     .name = "config",
+     .alias = "c",
+     .arguments = config_option_args,
+     .argument_count =
+         sizeof(config_option_args) / sizeof(config_option_args[0]),
+     .description = "Specify configuration file path"},
 };
 
 static const app_command_t g_app_commands[] = {
@@ -127,6 +146,8 @@ static const app_command_t g_app_commands[] = {
   (sizeof(g_app_commands) / sizeof(g_app_commands[0]))
 #define G_APP_BUILTIN_OPTIONS_COUNT \
   (sizeof(g_app_builtin_options) / sizeof(g_app_builtin_options[0]))
+#define G_APP_GLOBAL_VALUE_OPTIONS_COUNT \
+  (sizeof(g_app_global_value_options) / sizeof(g_app_global_value_options[0]))
 
 const app_command_t *app_commands(size_t *count) {
   if (count) {
@@ -149,6 +170,31 @@ const app_builtin_option_t *app_builtin_option_find(const char *arg) {
 
   for (size_t i = 0; i < G_APP_BUILTIN_OPTIONS_COUNT; i++) {
     const app_builtin_option_t *option = &g_app_builtin_options[i];
+    const bool long_match =
+        strncmp(arg, "--", 2) == 0 && strcmp(arg + 2, option->name) == 0;
+    const bool short_match = option->alias && arg[0] == '-' && arg[1] != '-' &&
+                             strcmp(arg + 1, option->alias) == 0;
+    if (long_match || short_match) {
+      return option;
+    }
+  }
+  return NULL;
+}
+
+const app_global_value_option_t *app_global_value_options(size_t *count) {
+  if (count) {
+    *count = G_APP_GLOBAL_VALUE_OPTIONS_COUNT;
+  }
+  return g_app_global_value_options;
+}
+
+const app_global_value_option_t *app_global_value_option_find(const char *arg) {
+  if (!arg) {
+    return NULL;
+  }
+
+  for (size_t i = 0; i < G_APP_GLOBAL_VALUE_OPTIONS_COUNT; i++) {
+    const app_global_value_option_t *option = &g_app_global_value_options[i];
     const bool long_match =
         strncmp(arg, "--", 2) == 0 && strcmp(arg + 2, option->name) == 0;
     const bool short_match = option->alias && arg[0] == '-' && arg[1] != '-' &&

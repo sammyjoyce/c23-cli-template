@@ -13,24 +13,6 @@ static const app_command_arg_t root_arguments[] = {
      .description = "The command to execute"},
 };
 
-static const app_command_arg_t config_arguments[] = {
-    {.name = "path",
-     .required = true,
-     .ordinal = 1,
-     .arity_minimum = 1,
-     .arity_maximum = 1,
-     .description = "Path to configuration file"},
-};
-
-static const app_opencli_option_t trailing_options[] = {
-    {.name = "config",
-     .required = false,
-     .alias = "c",
-     .arguments = config_arguments,
-     .argument_count = sizeof(config_arguments) / sizeof(config_arguments[0]),
-     .description = "Specify configuration file path"},
-};
-
 static const char *const extra_examples[] = {
     APP_NAME " --help",
     APP_NAME " --version",
@@ -99,9 +81,6 @@ static const app_opencli_contract_t g_opencli_contract = {
         },
     .root_arguments = root_arguments,
     .root_argument_count = sizeof(root_arguments) / sizeof(root_arguments[0]),
-    .trailing_options = trailing_options,
-    .trailing_option_count =
-        sizeof(trailing_options) / sizeof(trailing_options[0]),
     .extra_examples = extra_examples,
     .extra_example_count = sizeof(extra_examples) / sizeof(extra_examples[0]),
     .interactive = false,

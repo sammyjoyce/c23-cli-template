@@ -114,18 +114,17 @@ static void opencli_print_option(FILE *stream, int level, const char *name,
   fputc('\n', stream);
 }
 
-static void opencli_print_contract_option(FILE *stream,
-                                          const app_opencli_option_t *option,
-                                          bool comma) {
-  opencli_print_option(stream, 2, option->name, option->required, option->alias,
-                       option->arguments, option->argument_count,
-                       option->description, comma);
-}
-
 static void opencli_print_builtin_option(FILE *stream,
                                          const app_builtin_option_t *option,
                                          bool comma) {
   opencli_print_option(stream, 2, option->name, false, option->alias, NULL, 0,
+                       option->description, comma);
+}
+
+static void opencli_print_global_value_option(
+    FILE *stream, const app_global_value_option_t *option, bool comma) {
+  opencli_print_option(stream, 2, option->name, false, option->alias,
+                       option->arguments, option->argument_count,
                        option->description, comma);
 }
 
@@ -142,10 +141,13 @@ static void opencli_print_options(FILE *stream,
   const app_builtin_option_t *builtins = app_builtin_options(&builtin_count);
   size_t flag_count = 0;
   const app_flag_spec_t *flags = app_flag_table(&flag_count);
-  const size_t total =
-      builtin_count + flag_count + contract->trailing_option_count;
+  size_t value_option_count = 0;
+  const app_global_value_option_t *value_options =
+      app_global_value_options(&value_option_count);
+  const size_t total = builtin_count + flag_count + value_option_count;
   size_t printed = 0;
 
+  (void)contract;
   fputs("  \"options\": [\n", stream);
   for (size_t i = 0; i < builtin_count; i++) {
     opencli_print_builtin_option(stream, &builtins[i], ++printed < total);
@@ -153,9 +155,9 @@ static void opencli_print_options(FILE *stream,
   for (size_t i = 0; i < flag_count; i++) {
     opencli_print_flag_option(stream, &flags[i], ++printed < total);
   }
-  for (size_t i = 0; i < contract->trailing_option_count; i++) {
-    opencli_print_contract_option(stream, &contract->trailing_options[i],
-                                  ++printed < total);
+  for (size_t i = 0; i < value_option_count; i++) {
+    opencli_print_global_value_option(stream, &value_options[i],
+                                      ++printed < total);
   }
   fputs("  ],\n", stream);
 }
@@ -366,9 +368,15 @@ static void opencli_print_conventions(FILE *stream,
 }
 
 app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv) {
-  (void)config;
   (void)argc;
   (void)argv;
+
+  if (app_config_is_json_output(config)) {
+    app_output(
+        "The opencli command always writes the schema document; remove --json.",
+        config, true);
+    return APP_ERROR_INVALID_ARG;
+  }
 
   const app_opencli_contract_t *contract = app_opencli_contract();
 

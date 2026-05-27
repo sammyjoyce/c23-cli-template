@@ -244,6 +244,7 @@ pub fn build(b: *std.Build) void {
             "src/tui/tui.c",
             "src/tui/tui_menu.c",
             "src/tui/tui_menu_model.c",
+            "src/tui/tui_progress.c",
         },
         .flags = tui_menu_lib_flags.items,
     });

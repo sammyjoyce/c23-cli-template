@@ -37,11 +37,17 @@ static void print_commands_block(void) {
 }
 
 static void format_option_label(char *buf, size_t buf_size, const char *alias,
-                                const char *name) {
-  if (alias && name) {
+                                const char *name, const char *argument_name) {
+  if (alias && name && argument_name) {
+    snprintf(buf, buf_size, "-%s, --%s %s", alias, name, argument_name);
+  } else if (alias && name) {
     snprintf(buf, buf_size, "-%s, --%s", alias, name);
+  } else if (name && argument_name) {
+    snprintf(buf, buf_size, "--%s %s", name, argument_name);
   } else if (name) {
     snprintf(buf, buf_size, "--%s", name);
+  } else if (alias && argument_name) {
+    snprintf(buf, buf_size, "-%s %s", alias, argument_name);
   } else if (alias) {
     snprintf(buf, buf_size, "-%s", alias);
   } else {
@@ -54,7 +60,21 @@ static void print_builtin_options(void) {
   const app_builtin_option_t *options = app_builtin_options(&count);
   for (size_t i = 0; i < count; i++) {
     char left[64];
-    format_option_label(left, sizeof(left), options[i].alias, options[i].name);
+    format_option_label(left, sizeof(left), options[i].alias, options[i].name,
+                        NULL);
+    printf("  %-20s%s\n", left, options[i].description);
+  }
+}
+
+static void print_global_value_options(void) {
+  size_t count = 0;
+  const app_global_value_option_t *options = app_global_value_options(&count);
+  for (size_t i = 0; i < count; i++) {
+    const char *argument_name =
+        options[i].argument_count > 0 ? options[i].arguments[0].name : NULL;
+    char left[64];
+    format_option_label(left, sizeof(left), options[i].alias, options[i].name,
+                        argument_name);
     printf("  %-20s%s\n", left, options[i].description);
   }
 }
@@ -91,7 +111,8 @@ void app_print_concise_help(const char *program_name) {
   printf("Options:\n");
   print_builtin_options();
   print_flag_options();
-  printf("  -c, --config PATH   Load configuration from PATH\n\n");
+  print_global_value_options();
+  printf("\n");
 
   printf("Examples:\n");
   printf("  $ %s hello\n", program_name);
@@ -155,7 +176,8 @@ void app_print_verbose_usage(const char *program_name) {
       printf("  %-20sboolean\n", left);
     }
   }
-  printf("  -c, --config PATH   Specify configuration file path\n\n");
+  print_global_value_options();
+  printf("\n");
 
   printf("%sENVIRONMENT%s\n", bold, reset);
   printf(
@@ -192,13 +214,12 @@ void app_print_verbose_usage(const char *program_name) {
          program_name);
 
   printf("%sEXIT CODES%s\n", bold, reset);
-  printf("  0    Success\n");
-  printf("  1    General error\n");
-  printf("  2    Invalid command or argument\n");
-  printf("  3    Configuration error\n");
-  printf("  10   Memory allocation error\n");
-  printf("  11   I/O error\n");
-  printf("  12   Permission denied\n\n");
+  size_t error_count = 0;
+  const app_error_info_t *errors = app_error_table(&error_count);
+  for (size_t i = 0; i < error_count; i++) {
+    printf("  %-4d %s\n", (int)errors[i].code, errors[i].description);
+  }
+  printf("\n");
 
   printf("%sAUTHOR%s\n", bold, reset);
   printf("  Written by Your Name\n\n");

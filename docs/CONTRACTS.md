@@ -21,9 +21,10 @@ and flag metadata must be updated in the C tables before the spec changes.
 The canonical data path is:
 
 - `src/cli/opencli_contract.c` for OpenCLI info, conventions, root arguments,
-  the config option, extra examples, and top-level metadata
+  extra examples, and top-level metadata
 - `src/cli/commands.c` for built-in `--help`/`--version` metadata, command
-  names, summaries, arguments, options, examples, and terminal requirements
+  names, summaries, global value options such as `--config`, command
+  arguments, command-specific options, examples, and terminal requirements
 - `src/core/config.c` for global flag metadata
 - `src/core/error.c` for public exit codes and descriptions
 
@@ -37,6 +38,8 @@ Supported automation surface:
   `opencli.json`
 - public exit codes listed in `opencli.json`
 - `--json` responses that include `format_version`
+- `myapp opencli` always writes the schema document directly; `--json opencli`
+  is rejected so callers do not confuse it with command result envelopes
 - stdout for command output and stderr for errors or diagnostics
 - config precedence: CLI args > environment > config file > defaults
 

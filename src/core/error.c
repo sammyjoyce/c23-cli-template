@@ -7,28 +7,9 @@
 #include "error.h"
 
 static const app_error_info_t g_app_error_table[] = {
-    {APP_SUCCESS, "Success"},
-    {APP_ERROR_INVALID_ARG, "Invalid argument"},
-    {APP_ERROR_INVALID_COMMAND, "Invalid or unknown command"},
-    {APP_ERROR_CONFIG, "Configuration file error"},
-    {APP_ERROR_CONFIG_PARSE, "Configuration file parse error"},
-    {APP_ERROR_CONFIG_INVALID, "Configuration file has invalid values"},
-    {APP_ERROR_MISSING_ARG, "Missing required argument"},
-    {APP_ERROR_UNKNOWN_OPTION, "Unknown option"},
-    {APP_ERROR_MEMORY, "Memory allocation error"},
-    {APP_ERROR_IO, "I/O error"},
-    {APP_ERROR_PERMISSION, "Permission denied"},
-    {APP_ERROR_INTERNAL, "Internal error"},
-    {APP_ERROR_THREADING, "Thread/mutex error"},
-    {APP_ERROR_RESOURCE, "Resource exhaustion"},
-    {APP_ERROR_SIGNAL, "Signal handling error"},
-    {APP_ERROR_NOT_FOUND, "File or resource not found"},
-    {APP_ERROR_INVALID_DATA, "Invalid data format"},
-    {APP_ERROR_PARSE_ERROR, "Parse error"},
-    {APP_ERROR_VALIDATION, "Validation failed"},
-    {APP_ERROR_OVERFLOW, "Numeric overflow"},
-    {APP_ERROR_UNDERFLOW, "Numeric underflow"},
-    {APP_ERROR_OUT_OF_RANGE, "Value out of range"},
+#define APP_ERROR_TABLE_ITEM(name, code, description) {name, description},
+    APP_ERROR_LIST(APP_ERROR_TABLE_ITEM)
+#undef APP_ERROR_TABLE_ITEM
 };
 
 const app_error_info_t *app_error_table(size_t *count) {

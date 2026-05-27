@@ -62,17 +62,19 @@ static app_error app_scan_global_args(int argc, char *argv[],
       continue;
     }
 
-    if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
+    const app_global_value_option_t *value_option =
+        app_global_value_option_find(argv[i]);
+    if (value_option) {
       if (i + 1 >= argc) {
         fprintf(stderr, "Error: %s requires an argument\n", argv[i]);
         return APP_ERROR_MISSING_ARG;
       }
 
       const char *config_path = argv[++i];
-      if (args) {
+      if (value_option->id == APP_GLOBAL_VALUE_OPTION_CONFIG && args) {
         args->config_path = config_path;
       }
-      if (config) {
+      if (value_option->id == APP_GLOBAL_VALUE_OPTION_CONFIG && config) {
         app_config_set_config_file(config, config_path);
       }
       continue;
