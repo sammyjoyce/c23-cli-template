@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../src/core/error.h"
 #include "cli_contract.h"
@@ -41,7 +42,10 @@ static bool test_help_is_human_readable(test_context_t *ctx) {
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "USAGE") &&
                   cc_expect_stdout_contains(&result, "COMMANDS") &&
-                  cc_expect_stdout_contains(&result, "doctor");
+                  cc_expect_stdout_contains(&result, "doctor") &&
+                  cc_expect_stdout_contains(
+                      &result, "Enable debug output (DEBUG level logs)") &&
+                  cc_expect_stdout_contains(&result, "(env: APP_LOG_LEVEL)");
   cc_command_result_free(&result);
   return ok;
 }
@@ -123,6 +127,28 @@ static bool test_doctor_reports_binary_state(test_context_t *ctx) {
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "doctor") &&
                   cc_expect_stdout_contains(&result, "binary");
+  cc_command_result_free(&result);
+  return ok;
+}
+
+static bool test_doctor_deep_option_exercises_runtime_probe(
+    test_context_t *ctx) {
+  const char *args[] = {"--json", "doctor", "--deep"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  bool ok = cc_expect_exit(&result, 0) &&
+            cc_expect_stdout_contains(&result, "\"name\":\"tui_runtime\"");
+  if (ok) {
+    const bool deep_detail =
+        result.out &&
+        (strstr(result.out, "TUI support not compiled") ||
+         strstr(result.out, "runtime smoke skipped without a TTY") ||
+         strstr(result.out, "ncurses initialized successfully") ||
+         strstr(result.out, "terminal is too small"));
+    if (!deep_detail) {
+      fprintf(stderr, "expected doctor --deep runtime probe detail\n");
+      ok = false;
+    }
+  }
   cc_command_result_free(&result);
   return ok;
 }
@@ -233,6 +259,48 @@ static bool test_terminal_command_requires_tty(test_context_t *ctx) {
   return ok;
 }
 
+static bool test_opencli_contract_matches_checked_in_spec(test_context_t *ctx) {
+  const char *args[] = {"opencli"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  char *expected = cc_read_text_file("opencli.json");
+  char *binary_name = cc_binary_name(ctx->binary);
+  char *normalized_expected = NULL;
+
+  bool ok = cc_expect_exit(&result, 0) &&
+            cc_expect_stdout_contains(&result, "\"opencli\": \"0.1\"") &&
+            cc_expect_stdout_contains(&result, "\"name\": \"opencli\"");
+  if (!expected) {
+    fprintf(stderr, "failed to read opencli.json\n");
+    ok = false;
+  } else if (!binary_name) {
+    fprintf(stderr, "failed to determine binary name\n");
+    ok = false;
+  } else {
+    normalized_expected = strcmp(binary_name, "myapp") == 0
+                              ? cc_copy_string(expected)
+                              : cc_replace_all(expected, "myapp", binary_name);
+    if (!normalized_expected) {
+      fprintf(stderr, "failed to normalize opencli.json\n");
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    cc_strip_carriage_returns(result.out);
+    cc_strip_carriage_returns(normalized_expected);
+  }
+  if (ok && strcmp(result.out ? result.out : "", normalized_expected) != 0) {
+    fprintf(stderr, "opencli command output does not match opencli.json\n");
+    ok = false;
+  }
+
+  free(normalized_expected);
+  free(binary_name);
+  free(expected);
+  cc_command_result_free(&result);
+  return ok;
+}
+
 const test_case_t cli_contract_cases[] = {
     {"installed binary starts", test_installed_binary_starts},
     {"help is human readable", test_help_is_human_readable},
@@ -242,6 +310,8 @@ const test_case_t cli_contract_cases[] = {
     {"quiet json commands suppress stdout",
      test_quiet_json_commands_suppress_stdout},
     {"doctor reports binary state", test_doctor_reports_binary_state},
+    {"doctor --deep exercises runtime probe",
+     test_doctor_deep_option_exercises_runtime_probe},
     {"plain mode disables forced color", test_plain_mode_disables_forced_color},
     {"command arguments are not global config flags",
      test_command_arguments_are_not_global_config_flags},
@@ -256,6 +326,8 @@ const test_case_t cli_contract_cases[] = {
     {"unknown command reports actionable error",
      test_unknown_command_reports_actionable_error},
     {"terminal commands require a tty", test_terminal_command_requires_tty},
+    {"opencli contract matches checked-in spec",
+     test_opencli_contract_matches_checked_in_spec},
 };
 
 const size_t cli_contract_cases_count = ARRAY_LEN(cli_contract_cases);

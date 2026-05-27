@@ -12,50 +12,50 @@
 
 #include "types.h"
 
-// Error codes are grouped by category with reserved ranges to aid debugging.
-// Each range represents a different layer of the application, making it easier
-// to identify where failures occur without examining stack traces.
+// Public error codes are grouped by category with reserved ranges to aid
+// debugging. Keep descriptions user-facing; this list generates both the enum
+// and the public error table.
+#define APP_ERROR_LIST(X)                                                 \
+  X(APP_SUCCESS, 0, "Success")                                            \
+  X(APP_ERROR_INVALID_ARG, 1, "Invalid argument")                         \
+  X(APP_ERROR_INVALID_COMMAND, 2, "Invalid or unknown command")           \
+  X(APP_ERROR_CONFIG, 3, "Configuration file error")                      \
+  X(APP_ERROR_CONFIG_PARSE, 4, "Configuration file parse error")          \
+  X(APP_ERROR_CONFIG_INVALID, 5, "Configuration file has invalid values") \
+  X(APP_ERROR_MISSING_ARG, 6, "Missing required argument")                \
+  X(APP_ERROR_UNKNOWN_OPTION, 7, "Unknown option")                        \
+  X(APP_ERROR_MEMORY, 10, "Memory allocation error")                      \
+  X(APP_ERROR_IO, 11, "I/O error")                                        \
+  X(APP_ERROR_PERMISSION, 12, "Permission denied")                        \
+  X(APP_ERROR_INTERNAL, 13, "Internal error")                             \
+  X(APP_ERROR_THREADING, 14, "Thread/mutex error")                        \
+  X(APP_ERROR_RESOURCE, 15, "Resource exhaustion")                        \
+  X(APP_ERROR_SIGNAL, 16, "Signal handling error")                        \
+  X(APP_ERROR_NOT_FOUND, 17, "File or resource not found")                \
+  X(APP_ERROR_INVALID_DATA, 20, "Invalid data format")                    \
+  X(APP_ERROR_PARSE_ERROR, 21, "Parse error")                             \
+  X(APP_ERROR_VALIDATION, 22, "Validation failed")                        \
+  X(APP_ERROR_OVERFLOW, 23, "Numeric overflow")                           \
+  X(APP_ERROR_UNDERFLOW, 24, "Numeric underflow")                         \
+  X(APP_ERROR_OUT_OF_RANGE, 25, "Value out of range")
+
 typedef enum {
-  // Success (0): Indicates successful execution
-  APP_SUCCESS = 0,
-
-  // Input/configuration errors (1-9): User-correctable errors that typically
-  // occur during startup or argument parsing. These errors indicate the user
-  // needs to fix their input or configuration rather than a system failure.
-  APP_ERROR_INVALID_ARG = 1,
-  APP_ERROR_INVALID_COMMAND = 2,
-  APP_ERROR_CONFIG = 3,
-  APP_ERROR_CONFIG_PARSE = 4,
-  APP_ERROR_CONFIG_INVALID = 5,
-  APP_ERROR_MISSING_ARG = 6,
-  APP_ERROR_UNKNOWN_OPTION = 7,
-
-  // System errors (10-19): Critical failures that typically cannot be recovered
-  // from without administrator intervention. These indicate resource
-  // exhaustion,
-  // permission issues, or internal bugs that require investigation.
-  APP_ERROR_MEMORY = 10,
-  APP_ERROR_IO = 11,
-  APP_ERROR_PERMISSION = 12,
-  APP_ERROR_INTERNAL = 13,
-  APP_ERROR_THREADING = 14,
-  APP_ERROR_RESOURCE = 15,
-  APP_ERROR_SIGNAL = 16,
-  APP_ERROR_NOT_FOUND = 17,
-
-  // Data processing errors (20-29): Errors that occur during data validation
-  // or processing. These might be recoverable depending on the context.
-  APP_ERROR_INVALID_DATA = 20,
-  APP_ERROR_PARSE_ERROR = 21,
-  APP_ERROR_VALIDATION = 22,
-  APP_ERROR_OVERFLOW = 23,
-  APP_ERROR_UNDERFLOW = 24,
-  APP_ERROR_OUT_OF_RANGE = 25,
+#define APP_ERROR_ENUM_ITEM(name, code, description) name = code,
+  APP_ERROR_LIST(APP_ERROR_ENUM_ITEM)
+#undef APP_ERROR_ENUM_ITEM
 
   // Feature-specific errors (30+): Reserved for application-specific features
   // that may be added by users of this template.
   APP_ERROR_FEATURE_BASE = 30,
 } app_error;
+
+typedef struct {
+  app_error code;
+  const char *description;
+} app_error_info_t;
+
+// Return the concrete error codes that the application exposes publicly.
+const app_error_info_t *app_error_table(size_t *count);
 
 // Get human-readable error description for user-facing messages.
 // This function ensures users receive meaningful feedback instead of cryptic

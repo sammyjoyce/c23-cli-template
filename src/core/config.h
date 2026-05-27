@@ -45,6 +45,7 @@ typedef struct {
   const char *env_match;  // NULL means env-var presence enables the flag
   const char *cli_short;  // NULL when there is no short option
   const char *cli_long;   // long option, including leading "--"
+  const char *description;
   app_flag_mask_t exclusive_mask;
 } app_flag_spec_t;
 

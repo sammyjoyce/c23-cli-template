@@ -122,6 +122,73 @@ void app_json_write_raw_field(FILE *stream, const char *key, const char *value,
   fputs(value, stream);
 }
 
+void app_json_write_indent(FILE *stream, int level) {
+  if (!stream || level <= 0) {
+    return;
+  }
+
+  for (int i = 0; i < level; i++) {
+    fputs("  ", stream);
+  }
+}
+
+static void app_json_write_pretty_suffix(FILE *stream, bool comma) {
+  if (comma) {
+    fputc(',', stream);
+  }
+  fputc('\n', stream);
+}
+
+void app_json_write_pretty_string_field(FILE *stream, int level,
+                                        const char *key, const char *value,
+                                        bool comma) {
+  if (!stream || !key) {
+    return;
+  }
+
+  app_json_write_indent(stream, level);
+  app_json_write_string(stream, key);
+  fputs(": ", stream);
+  app_json_write_string(stream, value);
+  app_json_write_pretty_suffix(stream, comma);
+}
+
+void app_json_write_pretty_bool_field(FILE *stream, int level, const char *key,
+                                      bool value, bool comma) {
+  if (!stream || !key) {
+    return;
+  }
+
+  app_json_write_indent(stream, level);
+  app_json_write_string(stream, key);
+  fputs(value ? ": true" : ": false", stream);
+  app_json_write_pretty_suffix(stream, comma);
+}
+
+void app_json_write_pretty_int_field(FILE *stream, int level, const char *key,
+                                     int value, bool comma) {
+  if (!stream || !key) {
+    return;
+  }
+
+  app_json_write_indent(stream, level);
+  app_json_write_string(stream, key);
+  fprintf(stream, ": %d", value);
+  app_json_write_pretty_suffix(stream, comma);
+}
+
+void app_json_write_pretty_null_field(FILE *stream, int level, const char *key,
+                                      bool comma) {
+  if (!stream || !key) {
+    return;
+  }
+
+  app_json_write_indent(stream, level);
+  app_json_write_string(stream, key);
+  fputs(": null", stream);
+  app_json_write_pretty_suffix(stream, comma);
+}
+
 void app_output(const char *text, const app_config_t *config, bool is_error) {
   if (text == nullptr || config == nullptr) {
     LOG_ERROR("Invalid parameters in app_output");

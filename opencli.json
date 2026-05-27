@@ -45,18 +45,18 @@
       "description": "Show version information and exit"
     },
     {
-      "name": "quiet",
-      "required": false,
-      "aliases": ["q"],
-      "arguments": [],
-      "description": "Suppress non-essential output"
-    },
-    {
       "name": "debug",
       "required": false,
       "aliases": ["d"],
       "arguments": [],
       "description": "Enable debug output (DEBUG level logs)"
+    },
+    {
+      "name": "quiet",
+      "required": false,
+      "aliases": ["q"],
+      "arguments": [],
+      "description": "Suppress non-essential output"
     },
     {
       "name": "verbose",
@@ -108,7 +108,7 @@
   "commands": [
     {
       "name": "hello",
-      "description": "Print a greeting message",
+      "description": "Print a greeting message.",
       "options": [],
       "arguments": [
         {
@@ -129,7 +129,7 @@
     },
     {
       "name": "echo",
-      "description": "Echo the provided text",
+      "description": "Echo the provided text.",
       "options": [],
       "arguments": [
         {
@@ -150,7 +150,7 @@
     },
     {
       "name": "info",
-      "description": "Display application information",
+      "description": "Display application metadata.",
       "options": [],
       "arguments": [],
       "examples": [
@@ -160,8 +160,16 @@
     },
     {
       "name": "doctor",
-      "description": "Run starter diagnostics for build metadata, output mode, and optional features",
-      "options": [],
+      "description": "Run starter diagnostics (add --deep for the TUI smoke test).",
+      "options": [
+        {
+          "name": "deep",
+          "required": false,
+          "aliases": [],
+          "arguments": [],
+          "description": "Also exercise the optional TUI runtime when a TTY is available"
+        }
+      ],
       "arguments": [],
       "examples": [
         "myapp doctor",
@@ -170,7 +178,7 @@
     },
     {
       "name": "menu",
-      "description": "Launch interactive TUI showcase (requires an ncurses-enabled build)",
+      "description": "Launch the interactive TUI main menu (requires --enable-tui).",
       "options": [],
       "arguments": [],
       "examples": [
@@ -180,6 +188,15 @@
         "requires": "ncurses",
         "interactive": true
       }
+    },
+    {
+      "name": "opencli",
+      "description": "Print the OpenCLI contract as JSON.",
+      "options": [],
+      "arguments": [],
+      "examples": [
+        "myapp opencli"
+      ]
     }
   ],
   "exitCodes": [
@@ -189,15 +206,31 @@
     },
     {
       "code": 1,
-      "description": "General error"
+      "description": "Invalid argument"
     },
     {
       "code": 2,
-      "description": "Invalid command or argument"
+      "description": "Invalid or unknown command"
     },
     {
       "code": 3,
-      "description": "Configuration error"
+      "description": "Configuration file error"
+    },
+    {
+      "code": 4,
+      "description": "Configuration file parse error"
+    },
+    {
+      "code": 5,
+      "description": "Configuration file has invalid values"
+    },
+    {
+      "code": 6,
+      "description": "Missing required argument"
+    },
+    {
+      "code": 7,
+      "description": "Unknown option"
     },
     {
       "code": 10,
@@ -210,15 +243,63 @@
     {
       "code": 12,
       "description": "Permission denied"
+    },
+    {
+      "code": 13,
+      "description": "Internal error"
+    },
+    {
+      "code": 14,
+      "description": "Thread/mutex error"
+    },
+    {
+      "code": 15,
+      "description": "Resource exhaustion"
+    },
+    {
+      "code": 16,
+      "description": "Signal handling error"
+    },
+    {
+      "code": 17,
+      "description": "File or resource not found"
+    },
+    {
+      "code": 20,
+      "description": "Invalid data format"
+    },
+    {
+      "code": 21,
+      "description": "Parse error"
+    },
+    {
+      "code": 22,
+      "description": "Validation failed"
+    },
+    {
+      "code": 23,
+      "description": "Numeric overflow"
+    },
+    {
+      "code": 24,
+      "description": "Numeric underflow"
+    },
+    {
+      "code": 25,
+      "description": "Value out of range"
     }
   ],
   "examples": [
     "myapp hello",
     "myapp hello Alice",
     "myapp echo Hello World",
+    "myapp echo",
     "myapp info",
     "myapp --json info",
     "myapp doctor",
+    "myapp --json doctor",
+    "zig build -Denable-tui=true run -- menu",
+    "myapp opencli",
     "myapp --help",
     "myapp --version"
   ],

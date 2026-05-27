@@ -14,6 +14,7 @@
 
 #include "../core/config.h"
 #include "../utils/logging.h"
+#include "commands.h"
 #include "help.h"
 
 typedef struct {
@@ -61,17 +62,19 @@ static app_error app_scan_global_args(int argc, char *argv[],
       continue;
     }
 
-    if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
+    const app_global_value_option_t *value_option =
+        app_global_value_option_find(argv[i]);
+    if (value_option) {
       if (i + 1 >= argc) {
         fprintf(stderr, "Error: %s requires an argument\n", argv[i]);
         return APP_ERROR_MISSING_ARG;
       }
 
       const char *config_path = argv[++i];
-      if (args) {
+      if (value_option->id == APP_GLOBAL_VALUE_OPTION_CONFIG && args) {
         args->config_path = config_path;
       }
-      if (config) {
+      if (value_option->id == APP_GLOBAL_VALUE_OPTION_CONFIG && config) {
         app_config_set_config_file(config, config_path);
       }
       continue;
@@ -89,14 +92,15 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
   CHECK_NULL(argv, APP_ERROR_INVALID_ARG);
 
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+    const app_builtin_option_t *option = app_builtin_option_find(argv[i]);
+    if (!option) {
+      continue;
+    }
+    switch (option->id) {
+    case APP_BUILTIN_OPTION_HELP:
       app_print_verbose_usage(argv[0]);
       exit(0);
-    }
-  }
-
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--version") == 0) {
+    case APP_BUILTIN_OPTION_VERSION:
       printf("%s %s\n", APP_NAME, APP_VERSION);
       printf("A C23 TUI + CLI starter application\n");
       printf("Built with: Zig, C23, ncurses/PDCurses\n");

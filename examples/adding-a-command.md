@@ -4,10 +4,13 @@ This example shows how to add a new `greet` command that greets multiple people.
 
 ## 1. Add the Command Handler
 
-In `src/main.c`, add your command to the `handle_command` function:
+Create a small command translation unit, for example
+`src/cli/commands_greet.c`:
 
 ```c
-if (strcmp(command, "greet") == 0) {
+app_error app_cmd_greet(const app_config_t *config, int argc, char **argv) {
+    (void)config;
+
     if (argc == 0) {
         fprintf(stderr, "Error: greet command requires at least one name\n");
         return APP_ERROR_MISSING_ARG;
@@ -23,46 +26,53 @@ if (strcmp(command, "greet") == 0) {
 }
 ```
 
-## 2. Update Help Text
+## 2. Register Command Metadata
 
-In `src/cli/help.c`, add your command to both help functions:
-
-### In `app_print_concise_help()`
-
-```c
-printf("  greet <names...> Greet multiple people\n");
-```
-
-### In `app_print_verbose_usage()`
+Add the handler forward declaration, arguments, examples, and command row in
+`src/cli/commands.c`. The command table feeds dispatch, help, and the OpenCLI
+contract:
 
 ```c
-printf("  greet <names...>   Greet multiple people\n");
-printf("                     Displays a greeting for each name provided\n\n");
+app_error app_cmd_greet(const app_config_t *config, int argc, char **argv);
+
+static const app_command_arg_t greet_args[] = {
+    {.name = "names",
+     .required = true,
+     .ordinal = 1,
+     .arity_minimum = 1,
+     .arity_maximum = APP_ARG_ARITY_UNBOUNDED,
+     .description = "Names of people to greet"},
+};
+
+static const char *const greet_examples[] = {
+    "myapp greet Alice",
+    "myapp greet Alice Bob Charlie",
+};
+
+static const app_command_t g_app_commands[] = {
+    /* existing commands... */
+    {.name = "greet",
+     .summary = "Greet multiple people.",
+     .handler = app_cmd_greet,
+     .arguments = greet_args,
+     .argument_count = sizeof(greet_args) / sizeof(greet_args[0]),
+     .examples = greet_examples,
+     .example_count = sizeof(greet_examples) / sizeof(greet_examples[0]),
+     .requires_terminal = false},
+};
 ```
 
-## 3. Add to Examples Section
+## 3. Update opencli.json
 
-Still in `app_print_verbose_usage()`:
+Run the live contract command and update `opencli.json` with the new command.
+`zig build test` fails if the checked-in spec drifts from the binary output.
 
-```c
-printf("  Greet multiple people:\n");
-printf("    $ %s greet Alice Bob Charlie\n", program_name);
-printf("    Greetings to:\n");
-printf("      👋 Alice\n");
-printf("      👋 Bob\n");
-printf("      👋 Charlie\n");
-printf("    \n");
-printf("    Have a great day!\n\n");
-```
-
-## 4. Update opencli.json
-
-Add your command to the `commands` array:
+Your command should appear in the `commands` array like this:
 
 ```json
 {
   "name": "greet",
-  "description": "Greet multiple people with a friendly message",
+  "description": "Greet multiple people.",
   "options": [],
   "arguments": [
     {
@@ -83,9 +93,9 @@ Add your command to the `commands` array:
 }
 ```
 
-## 5. Add Tests
+## 4. Add Tests
 
-In `test/cli_contract_runner.c`, add a test for your command:
+In `test/cli_contract_cases.c`, add a test for your command:
 
 ```c
 static bool test_greet_command(test_context_t *ctx) {
@@ -93,27 +103,27 @@ static bool test_greet_command(test_context_t *ctx) {
 
   {
     const char *args[] = {"greet", "Alice"};
-    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
-    ok = expect_exit(&result, 0) &&
-         expect_stdout_contains(&result, "Hello, Alice!") && ok;
-    command_result_free(&result);
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "Alice") && ok;
+    cc_command_result_free(&result);
   }
 
   {
     const char *args[] = {"greet", "Alice", "Bob"};
-    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
-    ok = expect_exit(&result, 0) &&
-         expect_stdout_contains(&result, "Hello, Alice!") &&
-         expect_stdout_contains(&result, "Hello, Bob!") && ok;
-    command_result_free(&result);
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "Alice") &&
+         cc_expect_stdout_contains(&result, "Bob") && ok;
+    cc_command_result_free(&result);
   }
 
   {
     const char *args[] = {"greet"};
-    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
-    ok = expect_not_exit(&result, 0) &&
-         expect_stderr_contains(&result, "requires at least one name") && ok;
-    command_result_free(&result);
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_not_exit(&result, 0) &&
+         cc_expect_stderr_contains(&result, "requires at least one name") && ok;
+    cc_command_result_free(&result);
   }
 
   return ok;
@@ -126,7 +136,7 @@ Then register it in the `tests` array:
 {"greet command handles names", test_greet_command},
 ```
 
-## 6. Build and Test
+## 5. Build and Test
 
 ```bash
 # Build
@@ -134,6 +144,9 @@ zig build
 
 # Run tests
 zig build test
+
+# Confirm the live OpenCLI contract matches opencli.json
+./zig-out/bin/myapp opencli
 
 # Try your new command
 ./zig-out/bin/myapp greet Alice Bob Charlie
