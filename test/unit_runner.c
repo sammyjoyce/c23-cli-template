@@ -405,6 +405,28 @@ static bool test_search_backspace_removes_one_wchar(void) {
   return ok;
 }
 
+static bool test_numeric_jump(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2},
+      {.label = "c", .id = 3, .disabled = true},
+      {.label = "d", .id = 4},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 4};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  tui_menu_state_numeric_jump(s, 1); /* visible row 1 = items[1] */
+  if (tui_menu_state_selected_index(s) != 1) {
+    tui_menu_state_destroy(s);
+    return false;
+  }
+  tui_menu_state_numeric_jump(s, 2); /* disabled - must not change selection */
+  bool ok = tui_menu_state_selected_index(s) == 1;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -497,6 +519,8 @@ int main(void) {
               "tui_menu search_close clears the query");
   unit_record(&stats, test_search_backspace_removes_one_wchar(),
               "tui_menu search backspace pops one wchar");
+  unit_record(&stats, test_numeric_jump(),
+              "tui_menu numeric jump targets visible row, skips disabled");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 

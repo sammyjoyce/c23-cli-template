@@ -394,7 +394,10 @@ int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
     *out_beep = true;
   return -1;
 }
-void tui_menu_state_numeric_jump(tui_menu_state_t *s, int row) {
-  (void)s;
-  (void)row;
+void tui_menu_state_numeric_jump(tui_menu_state_t *s, int visible_row) {
+  if (!s || visible_row < 0 || visible_row >= s->visible_count)
+    return;
+  if (menu_item_selectable(&s->cfg->items[s->visible[visible_row]])) {
+    s->selected_visible = visible_row;
+  }
 }
