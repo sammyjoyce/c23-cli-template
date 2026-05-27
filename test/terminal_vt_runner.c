@@ -37,6 +37,7 @@ int main(int argc, char **argv) {
   printf("TAP version 13\n");
   run_tui_menu_test(&stats, binary, tui_enabled);
   run_tui_fuzz_smoke(&stats, binary, tui_enabled);
+  run_tui_menu_search(&stats, binary, tui_enabled);
   printf("1..%d\n", stats.passed + stats.failed + stats.skipped);
   fprintf(stderr, "%d passed, %d failed, %d skipped\n", stats.passed,
           stats.failed, stats.skipped);
