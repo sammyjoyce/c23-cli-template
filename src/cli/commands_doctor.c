@@ -83,10 +83,6 @@ static void doctor_write_json_check(const doctor_check_t *check,
   app_json_end_object(stdout);
 }
 
-static const char *yes_no(bool value) {
-  return value ? "yes" : "no";
-}
-
 app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv) {
   if (app_config_is_quiet(config)) {
     return APP_SUCCESS;
@@ -168,9 +164,9 @@ app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv) {
   snprintf(config_detail, sizeof(config_detail), "%s",
            config_loaded ? config_file : "no config file loaded");
   snprintf(quiet_detail, sizeof(quiet_detail), "%s",
-           yes_no(app_config_is_quiet(config)));
+           app_yes_no(app_config_is_quiet(config)));
   snprintf(json_detail, sizeof(json_detail), "%s",
-           yes_no(app_config_is_json_output(config)));
+           app_yes_no(app_config_is_json_output(config)));
 
   const doctor_check_t checks[] = {
       {"binary", "ok", binary_detail, false, false},

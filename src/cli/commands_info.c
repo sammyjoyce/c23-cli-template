@@ -12,10 +12,6 @@
 
 app_error app_cmd_info(const app_config_t *config, int argc, char **argv);
 
-static const char *yes_no(bool value) {
-  return value ? "yes" : "no";
-}
-
 app_error app_cmd_info(const app_config_t *config, int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -55,6 +51,6 @@ app_error app_cmd_info(const app_config_t *config, int argc, char **argv) {
   app_output_format(config, false, "Version: %s", APP_VERSION);
   app_output_format(config, false, "Git Commit: %s", APP_GIT_COMMIT);
   app_output_format(config, false, "Build: %s", APP_BUILD_DATE);
-  app_output_format(config, false, "TUI Support: %s", yes_no(tui_enabled));
+  app_output_format(config, false, "TUI Support: %s", app_yes_no(tui_enabled));
   return APP_SUCCESS;
 }

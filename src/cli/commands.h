@@ -26,3 +26,7 @@ const app_command_t *app_commands(size_t *count);
 
 // Look up a command by name. Returns NULL when no command matches.
 const app_command_t *app_command_find(const char *name);
+
+static inline const char *app_yes_no(bool value) {
+  return value ? "yes" : "no";
+}

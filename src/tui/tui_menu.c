@@ -85,7 +85,6 @@ typedef struct {
   int detail_y;
   int detail_h;
   int footer_y;
-  int inner_w;
   int desired_h;
   int desired_w;
   bool detail_pane_visible;
@@ -107,7 +106,6 @@ static bool tui_menu_layout_compute(tui_menu_layout_t *L, const tui_window_t *w,
   if (W < 24)
     return false;
 
-  L->inner_w = W - 2;
   L->footer_y = H - 2;
   const int top_after_title = (cfg->title ? MENU_TITLE_ROWS : 0) + 1;
   const int avail = L->footer_y - top_after_title;
@@ -363,8 +361,9 @@ static tui_menu_event_t menu_handle_key_in_search(tui_menu_state_t *s, int ch) {
 }
 
 static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
-                                        int *out_confirm_index) {
+                                        int page_rows, int *out_confirm_index) {
   const tui_menu_config_t *cfg = tui_menu_state_config(s);
+  const int page_size = page_rows > 0 ? page_rows : MENU_MIN_ITEM_ROWS;
   if (tui_menu_state_search_active(s)) {
     return menu_handle_key_in_search(s, ch);
   }
@@ -384,10 +383,10 @@ static tui_menu_event_t menu_handle_key(tui_menu_state_t *s, int ch,
     tui_menu_state_end(s);
     return TUI_MENU_EV_NONE;
   case KEY_PPAGE:
-    tui_menu_state_page(s, -1, 8);
+    tui_menu_state_page(s, -1, page_size);
     return TUI_MENU_EV_NONE;
   case KEY_NPAGE:
-    tui_menu_state_page(s, 1, 8);
+    tui_menu_state_page(s, 1, page_size);
     return TUI_MENU_EV_NONE;
   case '\n':
   case KEY_ENTER:
@@ -577,7 +576,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     } else
 #endif
     {
-      ev = menu_handle_key(state, ch, &confirm_index);
+      ev = menu_handle_key(state, ch, L.item_area_h, &confirm_index);
     }
 
     switch (ev) {
