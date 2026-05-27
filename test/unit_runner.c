@@ -7,10 +7,12 @@
  * Output is TAP so it slots into the same harness as the contract tests.
  */
 
+#include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "../src/core/config_json.h"
 #include "../src/core/error.h"
@@ -111,6 +113,44 @@ static bool test_config_json_exclusivity(void) {
          !state.values[APP_FLAG_PLAIN_OUTPUT];
 }
 
+static bool test_menu_state_rejects_zero_items(void) {
+  const tui_menu_config_t cfg = {.items = NULL, .item_count = 0};
+  tui_menu_state_t *s = NULL;
+  return tui_menu_state_create(&cfg, &s) == TUI_MENU_INVALID_ARG && s == NULL;
+}
+
+static bool test_menu_state_picks_first_enabled_when_default_negative(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "first", .id = 1, .disabled = true},
+      {.label = "second", .id = 2},
+      {.label = "third", .id = 3},
+  };
+  const tui_menu_config_t cfg = {
+      .items = items, .item_count = 3, .default_index = -1};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  bool ok = tui_menu_state_selected_index(s) == 1;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
+static bool test_menu_state_honors_default_index_when_enabled(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.label = "b", .id = 2},
+      {.label = "c", .id = 3},
+  };
+  const tui_menu_config_t cfg = {
+      .items = items, .item_count = 3, .default_index = 2};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  bool ok = tui_menu_state_selected_index(s) == 2;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -130,6 +170,7 @@ static bool test_secret_zero_clears_buffer(void) {
 
 int main(void) {
   unit_stats_t stats = {0};
+  setlocale(LC_ALL, ""); /* required for wchar_t tests */
   printf("TAP version 13\n");
 
   {
@@ -166,6 +207,13 @@ int main(void) {
               "config_json rejects trailing garbage");
   unit_record(&stats, test_config_json_exclusivity(),
               "config_json enforces flag exclusivity");
+  unit_record(&stats, test_menu_state_rejects_zero_items(),
+              "tui_menu_state_create rejects zero items");
+  unit_record(&stats,
+              test_menu_state_picks_first_enabled_when_default_negative(),
+              "tui_menu_state_create skips disabled default");
+  unit_record(&stats, test_menu_state_honors_default_index_when_enabled(),
+              "tui_menu_state_create honors enabled default_index");
   unit_record(&stats, test_secret_zero_clears_buffer(),
               "app_secret_zero clears buffer");
 

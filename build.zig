@@ -187,6 +187,7 @@ pub fn build(b: *std.Build) void {
         const tui_sources = [_][]const u8{
             "src/tui/tui.c",
             "src/tui/tui_demo.c",
+            "src/tui/tui_menu_model.c",
             "src/tui/tui_progress.c",
         };
 
@@ -269,6 +270,7 @@ pub fn build(b: *std.Build) void {
             "src/core/error.c",
             "src/core/config.c",
             "src/core/config_json.c",
+            "src/tui/tui_menu_model.c",
             "src/utils/memory.c",
             "src/utils/logging.c",
         },
