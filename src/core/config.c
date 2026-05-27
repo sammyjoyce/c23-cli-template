@@ -107,6 +107,40 @@ const app_flag_spec_t *app_flag_find_by_json_key(const char *key) {
   return NULL;
 }
 
+void app_flag_apply(bool values[APP_FLAG_COUNT], app_flag_id id, bool value) {
+  if (!values || (int)id < 0 || id >= APP_FLAG_COUNT) {
+    return;
+  }
+  values[id] = value;
+  if (!value) {
+    return;
+  }
+
+  const app_flag_spec_t *spec = &g_app_flag_table[id];
+  for (app_flag_id other = 0; other < APP_FLAG_COUNT; other++) {
+    if ((spec->exclusive_mask & APP_FLAG_MASK(other)) != 0) {
+      values[other] = false;
+    }
+  }
+}
+
+bool app_flag_env_enabled(app_flag_id id) {
+  if ((int)id < 0 || id >= APP_FLAG_COUNT) {
+    return false;
+  }
+
+  const app_flag_spec_t *spec = &g_app_flag_table[id];
+  if (!spec->env_var) {
+    return false;
+  }
+
+  const char *value = getenv(spec->env_var);
+  if (!value) {
+    return false;
+  }
+  return !spec->env_match || strcmp(value, spec->env_match) == 0;
+}
+
 static bool app_config_set_string(char **slot, const char *value) {
   if (!slot || !value) {
     return false;
@@ -295,27 +329,10 @@ app_error app_config_load_env(app_config_t *config) {
 
   for (size_t i = 0; i < APP_FLAG_COUNT; i++) {
     const app_flag_spec_t *spec = &g_app_flag_table[i];
-    if (!spec->env_var) {
-      continue;
-    }
-    const char *value = getenv(spec->env_var);
-    if (!value) {
-      continue;
-    }
-    if (spec->env_match && strcmp(value, spec->env_match) != 0) {
-      continue;
-    }
-    app_config_set_flag(config, spec->id, true);
+    if (app_flag_env_enabled(spec->id))
+      app_config_set_flag(config, spec->id, true);
   }
 
-  return APP_SUCCESS;
-}
-
-app_error app_config_load_args(app_config_t *config, int argc, char *argv[]) {
-  // This is handled by args.c
-  (void)config;
-  (void)argc;
-  (void)argv;
   return APP_SUCCESS;
 }
 
@@ -380,15 +397,7 @@ void app_config_set_flag(app_config_t *config, app_flag_id id, bool value) {
   if (!config || (int)id < 0 || id >= APP_FLAG_COUNT) {
     return;
   }
-  config->flags[id] = value;
-  if (value) {
-    const app_flag_spec_t *spec = &g_app_flag_table[id];
-    for (app_flag_id other = 0; other < APP_FLAG_COUNT; other++) {
-      if ((spec->exclusive_mask & APP_FLAG_MASK(other)) != 0) {
-        config->flags[other] = false;
-      }
-    }
-  }
+  app_flag_apply(config->flags, id, value);
 }
 
 void app_config_set_debug(app_config_t *config, bool debug) {

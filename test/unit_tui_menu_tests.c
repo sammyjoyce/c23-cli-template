@@ -213,7 +213,7 @@ static bool test_mnemonic_duplicate_cycles_no_confirm(void) {
   return ok;
 }
 
-static bool test_mnemonic_disabled_beeps(void) {
+static bool test_mnemonic_disabled_does_not_consume_key(void) {
   const tui_menu_item_t items[] = {
       {.label = "&Foo", .id = 1, .disabled = true},
       {.label = "&Bar", .id = 2},
@@ -224,7 +224,7 @@ static bool test_mnemonic_disabled_beeps(void) {
     return false;
   bool beep = false;
   int r = tui_menu_state_mnemonic_jump(s, L'f', &beep);
-  bool ok = r < 0 && beep;
+  bool ok = r < 0 && !beep;
   tui_menu_state_destroy(s);
   return ok;
 }
@@ -410,8 +410,8 @@ void run_tui_menu_unit_tests(unit_stats_t *stats) {
               "tui_menu unique mnemonic returns the items[] index");
   unit_record(stats, test_mnemonic_duplicate_cycles_no_confirm(),
               "tui_menu duplicate mnemonic cycles selection");
-  unit_record(stats, test_mnemonic_disabled_beeps(),
-              "tui_menu disabled mnemonic beeps, no confirm");
+  unit_record(stats, test_mnemonic_disabled_does_not_consume_key(),
+              "tui_menu disabled mnemonic does not consume key");
   unit_record(stats, test_search_filters_matches_to_front_of_selection(),
               "tui_menu search snaps selection to first match");
   unit_record(stats, test_search_case_insensitive(),

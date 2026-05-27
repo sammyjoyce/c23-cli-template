@@ -352,13 +352,11 @@ int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
 
   int matches[2] = {-1, -1};
   int match_count = 0;
-  bool has_disabled_match = false;
   for (int i = 0; i < s->cfg->item_count; i++) {
     if (s->mnemonics[i] != target)
       continue;
     const tui_menu_item_t *it = &s->cfg->items[i];
     if (it->disabled || it->kind == TUI_MENU_ITEM_SEPARATOR) {
-      has_disabled_match = true;
       continue;
     }
     if (match_count < 2)
@@ -367,8 +365,6 @@ int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
   }
 
   if (match_count == 0) {
-    if (has_disabled_match && out_beep)
-      *out_beep = true;
     return -1;
   }
   if (match_count == 1) {

@@ -17,9 +17,8 @@ bool app_use_colors(const app_config_t *config) {
     return false;
   }
 
-  // NO_COLOR is presence-based and applies even when a caller passed a config
-  // that has not loaded environment variables.
-  if (getenv("NO_COLOR") != NULL) {
+  // NO_COLOR uses the same table-driven env policy as app_config_load_env().
+  if (app_flag_env_enabled(APP_FLAG_NO_COLOR)) {
     return false;
   }
 

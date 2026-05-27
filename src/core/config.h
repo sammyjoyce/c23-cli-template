@@ -54,6 +54,12 @@ const app_flag_spec_t *app_flag_table(size_t *count);
 // Look up by JSON key (used while loading config files).
 const app_flag_spec_t *app_flag_find_by_json_key(const char *key);
 
+// Apply one flag value to a boolean flag array and enforce exclusivity.
+void app_flag_apply(bool values[APP_FLAG_COUNT], app_flag_id id, bool value);
+
+// Evaluate an environment-backed flag using the table row for that flag.
+bool app_flag_env_enabled(app_flag_id id);
+
 // Create and destroy configuration objects with proper lifecycle management.
 // The create function allocates and initializes with defaults, while destroy
 // ensures all allocated resources are properly freed to prevent leaks.
@@ -68,8 +74,6 @@ void app_config_destroy(app_config_t *config);
 APP_NODISCARD app_error app_config_load_file(app_config_t *config,
                                              const char *path);
 APP_NODISCARD app_error app_config_load_env(app_config_t *config);
-APP_NODISCARD app_error app_config_load_args(app_config_t *config, int argc,
-                                             char *argv[]);
 
 // Configuration getters provide read-only access to ensure thread safety.
 // By returning const pointers and values, we prevent accidental modification

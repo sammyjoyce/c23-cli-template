@@ -119,7 +119,9 @@ static void app_draw_layout_window(tui_window_t *win, void *userdata) {
   tui_refresh_window(win);
 }
 
-static tui_modal_decision_t app_handle_layout_key(int ch, void *userdata) {
+static tui_modal_decision_t app_handle_layout_key(tui_window_t *window, int ch,
+                                                  void *userdata) {
+  (void)window;
   (void)userdata;
   return ch == '\n' || ch == KEY_ENTER || ch == 27 || ch == 'q' || ch == 'Q'
              ? TUI_MODAL_DONE

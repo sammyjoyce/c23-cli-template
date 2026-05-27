@@ -513,7 +513,9 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     return result;
   }
 
-  tui_push_background(L.frame);
+  const bool pushed_background = tui_get_background_window() != L.frame;
+  if (pushed_background)
+    tui_push_background(L.frame);
 
 #ifdef NCURSES_MOUSE_VERSION
   mmask_t prev_mask = 0;
@@ -626,7 +628,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
     mousemask(prev_mask, NULL);
 #endif
 
-  tui_pop_background();
+  if (pushed_background)
+    tui_pop_background();
   if (L.owns_frame) {
     if (L.frame)
       tui_destroy_window(L.frame);

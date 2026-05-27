@@ -620,8 +620,7 @@ static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
   return window;
 }
 
-static void tui_modal_close(tui_window_t *window) {
-  tui_destroy_window(window);
+static void tui_modal_restore_background(void) {
   touchwin(stdscr);
   tui_window_t *bg = tui_get_background_window();
   if (bg && bg->win) {
@@ -635,6 +634,11 @@ static void tui_modal_close(tui_window_t *window) {
     tui_refresh_window(bg);
   }
   refresh();
+}
+
+static void tui_modal_close(tui_window_t *window) {
+  tui_destroy_window(window);
+  tui_modal_restore_background();
 }
 
 static void tui_modal_redraw_background(void);
@@ -672,7 +676,7 @@ bool tui_modal_run(int height, int width, const char *title,
     if (ch == ERR) {
       continue;
     }
-    if (handle(ch, userdata) == TUI_MODAL_DONE) {
+    if (handle(window, ch, userdata) == TUI_MODAL_DONE) {
       break;
     }
   }
@@ -682,19 +686,7 @@ bool tui_modal_run(int height, int width, const char *title,
 }
 
 static void tui_modal_redraw_background(void) {
-  touchwin(stdscr);
-  refresh();
-  tui_window_t *bg = tui_get_background_window();
-  if (bg && bg->win) {
-    tui_clear_window(bg);
-    if (bg->has_border) {
-      tui_draw_border(bg);
-    }
-    if (bg->title) {
-      tui_set_window_title(bg, bg->title);
-    }
-    tui_refresh_window(bg);
-  }
+  tui_modal_restore_background();
 }
 
 typedef struct {
@@ -711,7 +703,9 @@ static void tui_message_redraw(tui_window_t *window, void *userdata) {
   tui_unset_color(window->win, TUI_COLOR_INFO);
 }
 
-static tui_modal_decision_t tui_message_key(int ch, void *userdata) {
+static tui_modal_decision_t tui_message_key(tui_window_t *window, int ch,
+                                            void *userdata) {
+  (void)window;
   (void)ch;
   (void)userdata;
   return TUI_MODAL_DONE;
@@ -748,7 +742,9 @@ static void tui_confirm_redraw(tui_window_t *window, void *userdata) {
   tui_unset_color(window->win, TUI_COLOR_INFO);
 }
 
-static tui_modal_decision_t tui_confirm_key(int ch, void *userdata) {
+static tui_modal_decision_t tui_confirm_key(tui_window_t *window, int ch,
+                                            void *userdata) {
+  (void)window;
   tui_confirm_state_t *state = userdata;
   if (ch == 'y' || ch == 'Y') {
     state->result = true;
@@ -770,28 +766,93 @@ bool tui_confirm(const char *title, const char *question) {
   return state.result;
 }
 
+typedef struct {
+  const char *prompt;
+  char *buffer;
+  size_t size;
+  size_t len;
+  app_error result;
+} tui_input_state_t;
+
+static void tui_input_redraw(tui_window_t *window, void *userdata) {
+  tui_input_state_t *state = userdata;
+  if (state->prompt) {
+    tui_write_clamped(window->win, 2, 2, window->width - 4, state->prompt);
+  }
+
+  mvwprintw(window->win, 4, 2, "> ");
+  const int max_cols = window->width > 6 ? window->width - 6 : 0;
+  size_t start = 0;
+  if (max_cols > 0 && state->len > (size_t)max_cols) {
+    start = state->len - (size_t)max_cols;
+  }
+  if (max_cols > 0) {
+    tui_write_clamped(window->win, 4, 4, max_cols, state->buffer + start);
+  }
+  wmove(window->win, 4, 4 + (int)(state->len - start));
+}
+
+static tui_modal_decision_t tui_input_key(tui_window_t *window, int ch,
+                                          void *userdata) {
+  tui_input_state_t *state = userdata;
+  switch (ch) {
+  case '\n':
+  case KEY_ENTER:
+    state->result = APP_SUCCESS;
+    return TUI_MODAL_DONE;
+  case 27:
+    state->result = APP_ERROR_IO;
+    return TUI_MODAL_DONE;
+  case KEY_BACKSPACE:
+  case 127:
+  case 8:
+    if (state->len > 0) {
+      state->buffer[--state->len] = '\0';
+    } else {
+      tui_beep();
+    }
+    break;
+  default:
+    if (ch >= 32 && ch < 0x7f) {
+      if (state->len + 1 < state->size) {
+        state->buffer[state->len++] = (char)ch;
+        state->buffer[state->len] = '\0';
+      } else {
+        tui_beep();
+      }
+    }
+    break;
+  }
+
+  werase(window->win);
+  tui_draw_border(window);
+  tui_input_redraw(window, state);
+  tui_refresh_window(window);
+  return TUI_MODAL_CONTINUE;
+}
+
 app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
                            size_t size) {
   if (!tui_initialized || !buffer || size == 0) {
     return APP_ERROR_INVALID_ARG;
   }
 
-  tui_window_t *window = tui_modal_open(8, 60, title);
-  if (!window) {
-    return APP_ERROR_INTERNAL;
+  buffer[0] = '\0';
+  const int previous_cursor = curs_set(1);
+  tui_input_state_t state = {.prompt = prompt,
+                             .buffer = buffer,
+                             .size = size,
+                             .len = 0,
+                             .result = APP_ERROR_IO};
+
+  const bool opened =
+      tui_modal_run(8, 60, title, tui_input_redraw, tui_input_key, &state);
+  if (previous_cursor != ERR) {
+    (void)curs_set(previous_cursor);
+  } else {
+    (void)curs_set(tui_saved_cursor_state);
   }
-
-  if (prompt) {
-    tui_write_clamped(window->win, 2, 2, window->width - 4, prompt);
-  }
-
-  mvwprintw(window->win, 4, 2, "> ");
-  tui_refresh_window(window);
-
-  app_error result = tui_get_string(window->win, buffer, size, NULL);
-
-  tui_modal_close(window);
-  return result;
+  return opened ? state.result : APP_ERROR_INTERNAL;
 }
 
 void tui_beep(void) {
