@@ -10,6 +10,9 @@ zig-pkg/
 # Local agent state
 .pi/
 
+# Git worktrees used by the agent harness
+.worktrees/
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -20,6 +23,7 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+.claude/
 
 # Build artifacts
 *.o
