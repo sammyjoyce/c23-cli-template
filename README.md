@@ -34,7 +34,7 @@
 - 🧹 **Template Cleanup** - Scripted cleanup of template-specific files and placeholders
 - 📚 **OpenCLI Compliant** - Standardized CLI behavior
 - 🔄 **Dependency Updates** - Automated updates with Dependabot/Renovate
-- 📝 **Pre-commit Hooks** - Code quality enforcement before commits
+- 📝 **Markdown Linting** - Documentation checks in local tooling and CI
 - 🐳 **Devcontainer Support** - Consistent development environments
 - 📋 **Comprehensive Documentation** - Detailed guides and examples
 
@@ -92,11 +92,10 @@ your-cli/
 │   ├── io/                 # Input/Output
 │   ├── tui/                # ncurses windows, menus, dialogs, progress bars
 │   └── utils/              # Utilities
-├── test/                   # Zig tests + terminal scenario harness
-│   ├── main.zig            # Fast build-integrated smoke tests
-│   ├── terminal_harness.py # CLI/PTY test helpers for end users
-│   ├── test_cli_scenarios.py
-│   └── test_tui_scenarios.py
+├── test/                   # Zig CLI tests + Ghostty VT terminal scenarios
+│   ├── main.zig            # Build-integrated smoke and CLI contract tests
+│   ├── terminal_vt_*.c     # C PTY/TUI scenario harness
+│   └── terminal_vt.h
 ├── build.zig               # Build config
 └── opencli.json            # CLI specification
 ```
@@ -193,15 +192,14 @@ const c_sources = [_][]const u8{
   - macOS: `brew install ncurses`
   - Fedora: `sudo dnf install ncurses-devel`
 - **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional; enables the C Ghostty VT backend for PTY-backed terminal tests
-- **Python `pexpect` + `pyte`** - Optional fallback for PTY-backed TUI scenario tests outside the Nix dev shell
 
 ### Development Environment
 
 This template provides several tools to enhance your development experience:
 
 - **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **Nix Dev Shell** - Includes Zig, C tooling, and Python PTY fallback dependencies (`pexpect`, `pyte`)
-- **Pre-commit Hooks** - Automated code quality checks before commits
+- **Nix Dev Shell** - Includes Zig, C tooling, and markdown lint tooling
+- **CI Quality Checks** - Automated build, test, lint, security, and release checks
 
 ### Commands
 

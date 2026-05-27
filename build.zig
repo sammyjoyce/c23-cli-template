@@ -2,7 +2,6 @@ const std = @import("std");
 
 const TerminalTestBackend = enum {
     auto,
-    python,
     ghostty,
 };
 
@@ -78,24 +77,6 @@ fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8)
     }
 }
 
-fn addPythonTerminalTests(
-    b: *std.Build,
-    terminal_test_step: *std.Build.Step,
-    installed_binary_path: []const u8,
-    tui_enabled: bool,
-    pattern: ?[]const u8,
-) void {
-    const python = b.findProgram(&.{ "python3", "python" }, &.{}) catch "python3";
-    const terminal_test_cmd = b.addSystemCommand(&.{ python, "test/run_terminal_tests.py" });
-    terminal_test_cmd.setEnvironmentVariable("APP_BINARY", installed_binary_path);
-    terminal_test_cmd.setEnvironmentVariable("APP_TUI_ENABLED", if (tui_enabled) "1" else "0");
-    if (pattern) |p| {
-        terminal_test_cmd.addArgs(&.{ "--pattern", p });
-    }
-    terminal_test_cmd.step.dependOn(b.getInstallStep());
-    terminal_test_step.dependOn(&terminal_test_cmd.step);
-}
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -125,7 +106,7 @@ pub fn build(b: *std.Build) void {
 
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
-    const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto, ghostty, or python") orelse .auto;
+    const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto or ghostty") orelse .auto;
     const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
 
     const exe = b.addExecutable(.{
@@ -244,7 +225,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&test_cmd.step);
 
     if (terminal_backend == .ghostty and target.result.os.tag == .windows) {
-        @panic("-Dterminal-backend=ghostty is not supported on Windows; use -Dterminal-backend=python");
+        @panic("-Dterminal-backend=ghostty is not supported on Windows");
     }
     const have_ghostty_vt = hasGhosttyTerminalApi(b, ghostty_vt_prefix);
     if (terminal_backend == .ghostty and !have_ghostty_vt) {
@@ -257,7 +238,8 @@ pub fn build(b: *std.Build) void {
     const use_ghostty_terminal_tests = target.result.os.tag != .windows and
         (terminal_backend == .ghostty or (terminal_backend == .auto and have_ghostty_vt));
 
-    const terminal_test_step = b.step("terminal-test", "Run end-to-end CLI/TUI terminal scenario tests");
+    const terminal_test_step = b.step("terminal-test", "Run CLI contracts and optional PTY/TUI terminal scenarios");
+    terminal_test_step.dependOn(test_step);
     if (use_ghostty_terminal_tests) {
         const vt_test_mod = b.createModule(.{
             .root_source_file = null,
@@ -318,9 +300,6 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
-        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, false, null);
-    } else {
-        addPythonTerminalTests(b, terminal_test_step, installed_binary_path, enable_tui, null);
     }
 
     // Clean command – cross-platform
@@ -349,6 +328,5 @@ pub fn build(b: *std.Build) void {
     // Check command
     const check_step = b.step("check", "Run all checks");
     check_step.dependOn(fmt_check_step);
-    check_step.dependOn(test_step);
     check_step.dependOn(terminal_test_step);
 }

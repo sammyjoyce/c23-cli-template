@@ -317,7 +317,7 @@ graph LR
     subgraph "Quality Checks"
         FORMAT[clang-format]
         LINT[clang-tidy]
-        PRECOMMIT[pre-commit]
+        MARKDOWN[markdownlint]
     end
 
     subgraph "CI/CD"
@@ -334,8 +334,8 @@ graph LR
 
     EDIT --> FORMAT
     FORMAT --> LINT
-    LINT --> PRECOMMIT
-    PRECOMMIT --> PUSH
+    LINT --> MARKDOWN
+    MARKDOWN --> PUSH
 
     PUSH --> CI
     CI --> RELEASE

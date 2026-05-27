@@ -28,7 +28,7 @@ check_dependencies() {
     if [ ${#missing[@]} -ne 0 ]; then
         echo -e "${RED}Missing dependencies: ${missing[*]}${NC}"
         echo "Install with:"
-        echo "  pip install asciinema"
+        echo "  install asciinema with your OS package manager"
         echo "  cargo install --git https://github.com/asciinema/agg"
         exit 1
     fi
@@ -276,7 +276,7 @@ To create new demos, use the `scripts/create-demo.sh` script:
 
 ### Requirements
 
-- asciinema: `pip install asciinema`
+- asciinema: install with your OS package manager
 - agg: `cargo install --git https://github.com/asciinema/agg`
 
 ### Adding a New Demo

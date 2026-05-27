@@ -10,10 +10,10 @@ The terminal-testing landscape has a few useful families:
 | --- | --- | --- | --- |
 | Recording/rendering | `evp`, VHS | Great for docs, demos, and visual regression artifacts | Optimized for recordings, not assertions as the primary workflow |
 | Headless terminal daemons/CLIs | `headless-terminal`, Phantom, Termscope | Real PTY plus parsed terminal screen, good waits, screenshots, sometimes cell/style data | Newer tools, often not packaged everywhere, may add daemon/build complexity |
-| Library-first test drivers | Bombadil terminal experiments, Termless, `tui-driver`, `ptytest` | Nice assertion APIs inside host-language tests | Often tied to Node, Go, Python, or Rust ecosystems |
-| Classic command tests | Cram, Bats, Expect, pexpect | Mature and easy to run in CI | Raw output matching can miss alternate-screen/cursor details |
+| Library-first test drivers | Bombadil terminal experiments, Termless, `tui-driver`, `ptytest` | Nice assertion APIs inside host-language tests | Often tied to a specific host-language ecosystem |
+| Classic command tests | Cram, Bats, Expect | Mature and easy to run in CI | Raw output matching can miss alternate-screen/cursor details |
 
-The template now has two terminal-test backends:
+The template now has one optional PTY terminal backend:
 
 - The **Ghostty VT backend** is a C runner split across `test/terminal_vt_*.c`.
   It owns PTY/TUI scenario coverage when libghostty-vt is available. It runs the
@@ -23,17 +23,13 @@ The template now has two terminal-test backends:
   plus resize sequences. This follows the same shape as the Bombadil terminal
   experiment, but keeps the implementation in C and uses Ghostty's C API rather
   than Rust wrappers.
-- The **Python fallback backend** keeps `pexpect` + `pyte` coverage for machines
-  that do not have libghostty-vt installed. It is also the portable fallback on
-  Windows.
 
 `zig build terminal-test` uses `-Dterminal-backend=auto` by default: auto selects
 Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
-Terminal and Formatter APIs; otherwise it falls back to Python. Use
-`-Dterminal-backend=ghostty` to require Ghostty VT on POSIX hosts, or
-`-Dterminal-backend=python` to force the fallback. Windows always uses the Python
-backend. The Ghostty path still runs the Python CLI and harness tests, then adds
-C-backed PTY/TUI coverage.
+Terminal and Formatter APIs. Use `-Dterminal-backend=ghostty` to require Ghostty
+VT on POSIX hosts. CLI contracts run through the Zig test binary on every host,
+so machines without libghostty-vt still exercise non-interactive behavior
+without a fallback scripting runtime.
 
 ## Commands
 
@@ -55,7 +51,7 @@ TUI-enabled terminal scenarios:
 zig build -Denable-tui=true terminal-test
 ```
 
-If you use the Nix dev shell, the Python fallback dependencies are already on
+If you use the Nix dev shell, the required Zig and C tooling is already on
 `PATH`:
 
 ```bash
@@ -63,15 +59,10 @@ nix develop
 zig build -Denable-tui=true terminal-test
 ```
 
-Outside Nix, either install a libghostty-vt build with the development
+Outside Nix, install a libghostty-vt build with the development
 [Terminal](https://libghostty.tip.ghostty.org/group__terminal.html) and
 [Formatter](https://libghostty.tip.ghostty.org/group__formatter.html) APIs so
-`pkg-config` can find `libghostty-vt.pc`, or install the optional Python fallback
-dependencies:
-
-```bash
-python3 -m pip install pexpect pyte
-```
+`pkg-config` can find `libghostty-vt.pc`.
 
 If libghostty-vt is installed outside a standard linker path, pass its prefix:
 
@@ -81,28 +72,24 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-CLI scenarios run through the Python suite on every backend. With Ghostty VT
-selected, the C backend adds PTY/TUI coverage using libghostty-vt. With the
-Python backend, the same CLI contract suite and harness unit tests still run
-without optional Python packages; PTY-backed TUI smoke skips with a clear message
-when the fallback dependencies are missing or the binary was not built with
-`-Denable-tui=true`.
+CLI scenarios run through `test/main.zig` on every backend. With Ghostty VT
+selected, the C backend adds PTY/TUI coverage using libghostty-vt. Without
+Ghostty VT, `zig build terminal-test` still runs the Zig CLI contract suite and
+skips PTY/TUI coverage unless `-Dterminal-backend=ghostty` was requested.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
-`zig build check`; these CLI contracts live in `test/test_cli_scenarios.py` and
-run regardless of whether Ghostty is installed. The PTY-backed TUI regression
-suite is Linux-gated in CI: Linux installs `pexpect` and `pyte` and runs
-`zig build -Denable-tui=true terminal-test` after the TUI build. If a runner also
-provides libghostty-vt, that Linux TUI step uses the C Ghostty backend;
-otherwise it uses the Python smoke fallback. macOS and Windows still build the
-TUI binary and run the `--json info` smoke check, but they do not run PTY-backed
-scenarios.
+`zig build check`; these CLI contracts live in `test/main.zig` and run
+regardless of whether Ghostty is installed. Linux CI also runs
+`zig build -Denable-tui=true terminal-test` after the TUI build; that step adds
+PTY-backed TUI coverage when libghostty-vt is available. macOS and Windows still
+build the TUI binary and run the `--json info` smoke check, but they do not run
+PTY-backed scenarios by default.
 
 ## Writing CLI Scenario Tests
 
-Add durable CLI contract checks to `test/test_cli_scenarios.py`. The Ghostty C
-runner is intentionally scoped to PTY/TUI behavior so CLI contracts have one
-source of truth.
+Add durable CLI contract checks to `test/main.zig`. The Ghostty C runner is
+intentionally scoped to PTY/TUI behavior so CLI contracts have one source of
+truth.
 
 Prefer stable contracts over incidental prose:
 
@@ -118,15 +105,9 @@ menu, including a deterministic input/resize smoke test. Add project-specific
 Ghostty scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate
 screen snapshots or resize coverage.
 
-Keep `test/test_tui_scenarios.py` as a minimal Python fallback smoke test unless
-you intentionally build a shared scenario manifest. The key parser supports
-literal text plus common angle-bracket keys:
-
-```text
-<CR> <Enter> <Esc> <Tab> <BS> <Space> <Del> <Ins>
-<Up> <Down> <Left> <Right> <Home> <End> <PageUp> <PageDown>
-<F1> ... <F12>  <C-c>  <M-x>  <A-x>  <S-Tab>  <lt>
-```
+Keep PTY-backed TUI scenarios in `test/terminal_vt_scenarios.c`. Prefer small
+step tables (`expect`, `send`, `resize`, `wait`) over long branch ladders so new
+screens do not require a second harness.
 
 ## When To Reach For A Richer Tool
 

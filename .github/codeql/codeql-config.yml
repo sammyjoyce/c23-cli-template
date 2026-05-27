@@ -12,7 +12,6 @@ paths:
 # Paths to exclude from the analysis
 paths-ignore:
   - node_modules
-  - venv
   - zig-cache
   - zig-out
   - build
