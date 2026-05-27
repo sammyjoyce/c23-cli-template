@@ -115,11 +115,11 @@ static bool tui_menu_layout_compute(tui_menu_layout_t *L, const tui_window_t *w,
 
 static void tui_menu_render_title(const tui_menu_layout_t *L,
                                   const char *title) {
+  /* The window border (drawn separately) already shows the title at row 0
+   * via tui_set_window_title, so we only render a separator rule beneath
+   * it to demarcate the items area. */
   if (!title || !L->frame)
     return;
-  tui_set_color(L->frame->win, TUI_COLOR_TITLE);
-  tui_print_centered(L->frame->win, 1, title);
-  tui_unset_color(L->frame->win, TUI_COLOR_TITLE);
   tui_set_color(L->frame->win, TUI_COLOR_BORDER);
   mvwhline(L->frame->win, 2, 2, ACS_HLINE, L->frame->width - 4);
   tui_unset_color(L->frame->win, TUI_COLOR_BORDER);
