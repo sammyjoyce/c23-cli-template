@@ -17,8 +17,9 @@ bool app_use_colors(const app_config_t *config) {
     return false;
   }
 
-  // Help text can ask without a loaded config; otherwise config owns env state.
-  if (!config && getenv("NO_COLOR") != NULL) {
+  // NO_COLOR is presence-based and applies even when a caller passed a config
+  // that has not loaded environment variables.
+  if (getenv("NO_COLOR") != NULL) {
     return false;
   }
 

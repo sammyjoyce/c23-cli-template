@@ -27,7 +27,6 @@ int tui_menu_state_selected_index(
 int tui_menu_state_selected_visible(
     const tui_menu_state_t *s); /* index into visible_indices[] */
 int tui_menu_state_top_visible(const tui_menu_state_t *s);
-void tui_menu_state_set_top_visible(tui_menu_state_t *s, int top);
 void tui_menu_state_ensure_selection_visible(tui_menu_state_t *s,
                                              int viewport_rows);
 bool tui_menu_state_select_visible(tui_menu_state_t *s, int visible_row);

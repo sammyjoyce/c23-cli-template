@@ -22,6 +22,90 @@ typedef struct {
   const char *failure;
 } tui_step_t;
 
+static int utf8_columns_until(const char *text, size_t len) {
+  int cols = 0;
+  for (size_t i = 0; i < len;) {
+    const unsigned char ch = (unsigned char)text[i];
+    if (ch < 0x80) {
+      i++;
+    } else {
+      i++;
+      while (i < len && (((unsigned char)text[i] & 0xC0) == 0x80)) {
+        i++;
+      }
+    }
+    cols++;
+  }
+  return cols;
+}
+
+static const char *find_line_containing(const char *text, const char *needle,
+                                        size_t *line_len) {
+  const char *line = text;
+  while (line && *line) {
+    const char *next = strchr(line, '\n');
+    const size_t len = next ? (size_t)(next - line) : strlen(line);
+    char *copy = calloc(len + 1, 1);
+    if (!copy) {
+      return NULL;
+    }
+    memcpy(copy, line, len);
+    const bool found = strstr(copy, needle) != NULL;
+    free(copy);
+    if (found) {
+      *line_len = len;
+      return line;
+    }
+    line = next ? next + 1 : NULL;
+  }
+  return NULL;
+}
+
+static bool snapshot_has_menu_frame(const char *snapshot, int expected_left,
+                                    int expected_width) {
+  static const char title[] = "Starter Showcase";
+  size_t line_len = 0;
+  const char *line = find_line_containing(snapshot, title, &line_len);
+  if (!line) {
+    return false;
+  }
+
+  size_t first_non_space = 0;
+  while (first_non_space < line_len && line[first_non_space] == ' ') {
+    first_non_space++;
+  }
+  const int frame_left = utf8_columns_until(line, first_non_space);
+  if (frame_left != expected_left) {
+    return false;
+  }
+
+  const char *title_at = strstr(line, title);
+  if (!title_at || title_at >= line + line_len) {
+    return false;
+  }
+  const int title_col = utf8_columns_until(line, (size_t)(title_at - line));
+  const int expected_title_col =
+      expected_left + ((expected_width - (int)strlen(title)) / 2) + 1;
+  if (title_col != expected_title_col) {
+    return false;
+  }
+
+  return utf8_columns_until(line, line_len) - frame_left == expected_width;
+}
+
+static bool vt_expect_menu_frame(vt_session_t *session, int expected_left,
+                                 int expected_width, int timeout_ms,
+                                 char **snapshot) {
+  const int64_t deadline = monotonic_ms() + timeout_ms;
+  while (monotonic_ms() <= deadline) {
+    if (vt_expect_text(session, "Starter Showcase", 100, snapshot) &&
+        snapshot_has_menu_frame(*snapshot, expected_left, expected_width)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static int run_tui_step(test_stats_t *stats, const char *test_name,
                         vt_session_t *session, const tui_step_t *step,
                         char **snapshot) {
@@ -333,14 +417,23 @@ int run_tui_menu_resize(test_stats_t *stats, const char *binary,
   if (!failed && !vt_resize(&session, 60, 16))
     failed = test_fail(stats, name, "failed to shrink");
   if (!failed &&
-      !vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
-    failed = test_fail(stats, name, "title vanished after shrink");
+      !vt_expect_menu_frame(&session, 0, 60, PTY_TIMEOUT_MS, &snapshot)) {
+    print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+               snapshot ? strlen(snapshot) : 0, 4000);
+    failed = test_fail(stats, name,
+                       "menu frame was not left-aligned at width 60 after "
+                       "shrink");
+  }
   /* Grow back. */
   if (!failed && !vt_resize(&session, 100, 30))
     failed = test_fail(stats, name, "failed to grow");
   if (!failed &&
-      !vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
-    failed = test_fail(stats, name, "title vanished after grow");
+      !vt_expect_menu_frame(&session, 14, 72, PTY_TIMEOUT_MS, &snapshot)) {
+    print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+               snapshot ? strlen(snapshot) : 0, 4000);
+    failed = test_fail(stats, name,
+                       "menu frame was not centered at width 72 after grow");
+  }
   if (!failed && !vt_send(&session, "q"))
     failed = test_fail(stats, name, "failed to start exit");
   if (!failed && !vt_send(&session, "y"))

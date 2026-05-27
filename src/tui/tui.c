@@ -192,6 +192,10 @@ bool tui_interrupted(void) {
   return tui_interrupted_flag != 0;
 }
 
+void tui_acknowledge_interrupt(void) {
+  tui_interrupted_flag = 0;
+}
+
 /* ---- color management --------------------------------------------------- */
 
 app_error tui_init_colors(void) {
@@ -620,6 +624,7 @@ static bool tui_modal_run(int height, int width, const char *title,
 
   while (1) {
     if (tui_interrupted()) {
+      tui_acknowledge_interrupt();
       break;
     }
     const int ch = wgetch(window->win);

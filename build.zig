@@ -272,6 +272,7 @@ pub fn build(b: *std.Build) void {
             "src/core/config.c",
             "src/core/config_json.c",
             "src/tui/tui_menu_model.c",
+            "src/utils/colors.c",
             "src/utils/memory.c",
             "src/utils/logging.c",
         },

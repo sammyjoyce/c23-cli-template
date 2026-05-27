@@ -18,6 +18,7 @@
 #include "../src/core/error.h"
 #include "../src/tui/tui_menu.h"
 #include "../src/tui/tui_menu_internal.h"
+#include "../src/utils/colors.h"
 #include "../src/utils/memory.h"
 
 typedef struct {
@@ -51,6 +52,32 @@ static bool test_config_env_no_color_empty_sets_flag(void) {
   if (ok) {
     ok = app_config_load_env(config) == APP_SUCCESS &&
          app_config_is_no_color(config);
+  }
+
+  app_config_destroy(config);
+  if (previous_copy) {
+    (void)setenv("NO_COLOR", previous_copy, 1);
+  } else {
+    (void)unsetenv("NO_COLOR");
+  }
+  free(previous_copy);
+  return ok;
+}
+
+static bool test_use_colors_honors_no_color_without_env_load(void) {
+  const char *previous = getenv("NO_COLOR");
+  char *previous_copy = previous ? strdup(previous) : NULL;
+  if (previous && !previous_copy) {
+    return false;
+  }
+
+  bool ok = setenv("NO_COLOR", "", 1) == 0;
+  app_config_t *config = NULL;
+  if (ok) {
+    ok = app_config_create(&config) == APP_SUCCESS;
+  }
+  if (ok) {
+    ok = !app_use_colors(config);
   }
 
   app_config_destroy(config);
@@ -550,6 +577,8 @@ int main(void) {
 #ifndef _WIN32
   unit_record(&stats, test_config_env_no_color_empty_sets_flag(),
               "config env treats empty NO_COLOR as present");
+  unit_record(&stats, test_use_colors_honors_no_color_without_env_load(),
+              "colors honor NO_COLOR even when config skipped env load");
 #endif
   unit_record(&stats, test_menu_state_rejects_zero_items(),
               "tui_menu_state_create rejects zero items");

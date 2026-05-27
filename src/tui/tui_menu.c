@@ -530,6 +530,7 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
 
     if (ch == ERR) {
       if (tui_interrupted()) {
+        tui_acknowledge_interrupt();
         result.status = TUI_MENU_INTERRUPTED;
         exit_loop = true;
       }

@@ -205,11 +205,6 @@ int tui_menu_state_top_visible(const tui_menu_state_t *s) {
   return s ? s->top_visible : 0;
 }
 
-void tui_menu_state_set_top_visible(tui_menu_state_t *s, int top) {
-  if (s && top >= 0)
-    s->top_visible = top;
-}
-
 void tui_menu_state_ensure_selection_visible(tui_menu_state_t *s,
                                              int viewport_rows) {
   if (!s || viewport_rows <= 0)
