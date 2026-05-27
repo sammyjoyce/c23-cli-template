@@ -46,6 +46,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = "DEBUG",
      .cli_short = "-d",
      .cli_long = "--debug",
+     .description = "Enable debug output (DEBUG level logs)",
      .exclusive_mask =
          APP_FLAG_MASK(APP_FLAG_QUIET) | APP_FLAG_MASK(APP_FLAG_VERBOSE)},
     {.id = APP_FLAG_QUIET,
@@ -54,6 +55,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = "-q",
      .cli_long = "--quiet",
+     .description = "Suppress non-essential output",
      .exclusive_mask =
          APP_FLAG_MASK(APP_FLAG_DEBUG) | APP_FLAG_MASK(APP_FLAG_VERBOSE)},
     {.id = APP_FLAG_VERBOSE,
@@ -62,6 +64,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = "-v",
      .cli_long = "--verbose",
+     .description = "Enable verbose output",
      .exclusive_mask =
          APP_FLAG_MASK(APP_FLAG_DEBUG) | APP_FLAG_MASK(APP_FLAG_QUIET)},
     {.id = APP_FLAG_JSON_OUTPUT,
@@ -70,6 +73,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--json",
+     .description = "Output a versioned JSON response where supported",
      .exclusive_mask = APP_FLAG_MASK(APP_FLAG_PLAIN_OUTPUT)},
     {.id = APP_FLAG_PLAIN_OUTPUT,
      .json_key = "plain_output",
@@ -77,6 +81,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--plain",
+     .description = "Output plain text without colors",
      .exclusive_mask = APP_FLAG_MASK(APP_FLAG_JSON_OUTPUT)},
     {.id = APP_FLAG_NO_COLOR,
      .json_key = "no_color",
@@ -84,6 +89,7 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--no-color",
+     .description = "Disable colored output",
      .exclusive_mask = 0},
 };
 

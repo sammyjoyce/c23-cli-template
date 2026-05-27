@@ -46,6 +46,7 @@ bool cc_expect_stderr_contains(const command_result_t *result,
 bool cc_expect_stdout_empty(const command_result_t *result);
 bool cc_write_temp_config(const char *content, char **path_out);
 bool cc_file_exists(const char *path);
+char *cc_read_text_file(const char *path);
 
 // Test cases (cases.c)
 extern const test_case_t cli_contract_cases[];

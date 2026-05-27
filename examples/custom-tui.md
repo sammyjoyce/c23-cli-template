@@ -109,10 +109,13 @@ static app_error show_data_viewer(void) {
 
 ## 2. Add Command Handler
 
-In your `handle_command` function:
+Create a command handler and register it in `src/cli/commands.c`:
 
 ```c
-if (strcmp(command, "viewer") == 0) {
+app_error app_cmd_viewer(const app_config_t *config, int argc, char **argv) {
+    (void)config;
+    (void)argc;
+    (void)argv;
 #ifdef ENABLE_TUI
     return show_data_viewer();
 #else
@@ -122,6 +125,9 @@ if (strcmp(command, "viewer") == 0) {
 #endif
 }
 ```
+
+Set `.requires_terminal = true` in the command table so help and
+`myapp opencli` expose the command as interactive policy.
 
 ## 3. Using TUI Components
 

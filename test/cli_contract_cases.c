@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../src/core/error.h"
 #include "cli_contract.h"
@@ -233,6 +234,123 @@ static bool test_terminal_command_requires_tty(test_context_t *ctx) {
   return ok;
 }
 
+static const char *test_path_basename(const char *path) {
+  const char *base = path;
+  for (const char *p = path; p && *p; p++) {
+    if (*p == '/' || *p == '\\') {
+      base = p + 1;
+    }
+  }
+  return base;
+}
+
+static char *test_binary_name(const char *path) {
+  const char *base = test_path_basename(path);
+  char *name = cc_copy_string(base);
+  if (!name) {
+    return NULL;
+  }
+  size_t len = strlen(name);
+  if (len > 4 && strcmp(name + len - 4, ".exe") == 0) {
+    name[len - 4] = '\0';
+  }
+  return name;
+}
+
+static char *test_replace_all(const char *input, const char *needle,
+                              const char *replacement) {
+  const size_t needle_len = strlen(needle);
+  if (needle_len == 0) {
+    return cc_copy_string(input);
+  }
+  const size_t replacement_len = strlen(replacement);
+  size_t count = 0;
+
+  for (const char *p = input; (p = strstr(p, needle)) != NULL;
+       p += needle_len) {
+    count++;
+  }
+
+  const size_t input_len = strlen(input);
+  const size_t output_len =
+      replacement_len >= needle_len
+          ? input_len + count * (replacement_len - needle_len)
+          : input_len - count * (needle_len - replacement_len);
+  char *output = malloc(output_len + 1);
+  if (!output) {
+    return NULL;
+  }
+
+  char *dst = output;
+  const char *src = input;
+  const char *match = NULL;
+  while ((match = strstr(src, needle)) != NULL) {
+    const size_t prefix_len = (size_t)(match - src);
+    memcpy(dst, src, prefix_len);
+    dst += prefix_len;
+    memcpy(dst, replacement, replacement_len);
+    dst += replacement_len;
+    src = match + needle_len;
+  }
+  strcpy(dst, src);
+  return output;
+}
+
+static void test_strip_carriage_returns(char *text) {
+  char *dst = text;
+  for (const char *src = text; src && *src; src++) {
+    if (*src != '\r') {
+      *dst++ = *src;
+    }
+  }
+  if (dst) {
+    *dst = '\0';
+  }
+}
+
+static bool test_opencli_contract_matches_checked_in_spec(test_context_t *ctx) {
+  const char *args[] = {"opencli"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  char *expected = cc_read_text_file("opencli.json");
+  char *binary_name = test_binary_name(ctx->binary);
+  char *normalized_expected = NULL;
+
+  bool ok = cc_expect_exit(&result, 0) &&
+            cc_expect_stdout_contains(&result, "\"opencli\": \"0.1\"") &&
+            cc_expect_stdout_contains(&result, "\"name\": \"opencli\"");
+  if (!expected) {
+    fprintf(stderr, "failed to read opencli.json\n");
+    ok = false;
+  } else if (!binary_name) {
+    fprintf(stderr, "failed to determine binary name\n");
+    ok = false;
+  } else {
+    normalized_expected =
+        strcmp(binary_name, "myapp") == 0
+            ? cc_copy_string(expected)
+            : test_replace_all(expected, "myapp", binary_name);
+    if (!normalized_expected) {
+      fprintf(stderr, "failed to normalize opencli.json\n");
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    test_strip_carriage_returns(result.out);
+    test_strip_carriage_returns(normalized_expected);
+  }
+  if (ok && strcmp(result.out ? result.out : "", normalized_expected) != 0) {
+    fprintf(stderr, "opencli command output does not match opencli.json\n");
+    ok = false;
+  }
+
+  free(normalized_expected);
+  free(binary_name);
+  free(expected);
+  cc_command_result_free(&result);
+  return ok;
+}
+
 const test_case_t cli_contract_cases[] = {
     {"installed binary starts", test_installed_binary_starts},
     {"help is human readable", test_help_is_human_readable},
@@ -256,6 +374,8 @@ const test_case_t cli_contract_cases[] = {
     {"unknown command reports actionable error",
      test_unknown_command_reports_actionable_error},
     {"terminal commands require a tty", test_terminal_command_requires_tty},
+    {"opencli contract matches checked-in spec",
+     test_opencli_contract_matches_checked_in_spec},
 };
 
 const size_t cli_contract_cases_count = ARRAY_LEN(cli_contract_cases);

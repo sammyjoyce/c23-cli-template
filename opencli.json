@@ -45,18 +45,18 @@
       "description": "Show version information and exit"
     },
     {
-      "name": "quiet",
-      "required": false,
-      "aliases": ["q"],
-      "arguments": [],
-      "description": "Suppress non-essential output"
-    },
-    {
       "name": "debug",
       "required": false,
       "aliases": ["d"],
       "arguments": [],
       "description": "Enable debug output (DEBUG level logs)"
+    },
+    {
+      "name": "quiet",
+      "required": false,
+      "aliases": ["q"],
+      "arguments": [],
+      "description": "Suppress non-essential output"
     },
     {
       "name": "verbose",
@@ -161,7 +161,15 @@
     {
       "name": "doctor",
       "description": "Run starter diagnostics for build metadata, output mode, and optional features",
-      "options": [],
+      "options": [
+        {
+          "name": "deep",
+          "required": false,
+          "aliases": [],
+          "arguments": [],
+          "description": "Also exercise the optional TUI runtime when a TTY is available"
+        }
+      ],
       "arguments": [],
       "examples": [
         "myapp doctor",
@@ -180,6 +188,15 @@
         "requires": "ncurses",
         "interactive": true
       }
+    },
+    {
+      "name": "opencli",
+      "description": "Print the OpenCLI specification as JSON",
+      "options": [],
+      "arguments": [],
+      "examples": [
+        "myapp opencli"
+      ]
     }
   ],
   "exitCodes": [
@@ -219,6 +236,7 @@
     "myapp info",
     "myapp --json info",
     "myapp doctor",
+    "myapp opencli",
     "myapp --help",
     "myapp --version"
   ],

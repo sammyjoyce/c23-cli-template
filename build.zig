@@ -84,6 +84,19 @@ fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8)
     }
 }
 
+fn linkCurses(module: *std.Build.Module, target: std.Build.ResolvedTarget, curses_prefix: ?[]const u8, b: *std.Build) void {
+    if (curses_prefix) |pref| {
+        module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
+        module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
+    }
+
+    if (target.result.os.tag == .windows) {
+        module.linkSystemLibrary("pdcurses", .{});
+    } else {
+        module.linkSystemLibrary("ncursesw", .{});
+    }
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -146,6 +159,7 @@ pub fn build(b: *std.Build) void {
         "src/cli/commands_info.c",
         "src/cli/commands_doctor.c",
         "src/cli/commands_menu.c",
+        "src/cli/commands_opencli.c",
     };
 
     // Base flags shared by the binary and test targets.
@@ -199,20 +213,54 @@ pub fn build(b: *std.Build) void {
     }
 
     if (enable_tui) {
-        // Allow caller to override ncurses install prefix explicitly.
-        if (curses_prefix) |pref| {
-            exe.root_module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
-            exe.root_module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
-        }
-
-        if (target.result.os.tag == .windows) {
-            exe.root_module.linkSystemLibrary("pdcurses", .{});
-        } else {
-            exe.root_module.linkSystemLibrary("ncursesw", .{});
-        }
+        linkCurses(exe.root_module, target, curses_prefix, b);
     }
 
     b.installArtifact(exe);
+
+    // Narrow reusable primitive: a static library for the TUI lifecycle and
+    // modal menu, without the demo app or CLI command policy.
+    var tui_menu_lib_flags: std.ArrayList([]const u8) = .empty;
+    defer tui_menu_lib_flags.deinit(b.allocator);
+    tui_menu_lib_flags.appendSlice(b.allocator, &base_flags) catch |err| oom(err);
+    tui_menu_lib_flags.append(b.allocator, "-DENABLE_TUI=1") catch |err| oom(err);
+
+    const tui_menu_lib = b.addLibrary(.{
+        .name = "tui-menu",
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .root_source_file = null,
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    tui_menu_lib.root_module.addIncludePath(b.path("src"));
+    tui_menu_lib.root_module.addCSourceFiles(.{
+        .files = &.{
+            "src/core/error.c",
+            "src/utils/logging.c",
+            "src/tui/tui.c",
+            "src/tui/tui_menu.c",
+            "src/tui/tui_menu_model.c",
+        },
+        .flags = tui_menu_lib_flags.items,
+    });
+    linkCurses(tui_menu_lib.root_module, target, curses_prefix, b);
+
+    const install_tui_menu_lib = b.addInstallArtifact(tui_menu_lib, .{});
+    const install_tui_headers = [_]*std.Build.Step.InstallFile{
+        b.addInstallFile(b.path("src/core/error.h"), "include/c23-cli-template/core/error.h"),
+        b.addInstallFile(b.path("src/core/types.h"), "include/c23-cli-template/core/types.h"),
+        b.addInstallFile(b.path("src/tui/tui.h"), "include/c23-cli-template/tui/tui.h"),
+        b.addInstallFile(b.path("src/tui/tui_menu.h"), "include/c23-cli-template/tui/tui_menu.h"),
+        b.addInstallFile(b.path("src/tui/tui_progress.h"), "include/c23-cli-template/tui/tui_progress.h"),
+    };
+    const tui_menu_lib_step = b.step("tui-menu-lib", "Build and install the reusable TUI menu static library");
+    tui_menu_lib_step.dependOn(&install_tui_menu_lib.step);
+    for (install_tui_headers) |install_header| {
+        tui_menu_lib_step.dependOn(&install_header.step);
+    }
 
     // Run command
     const run_cmd = b.addRunArtifact(exe);

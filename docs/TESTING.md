@@ -97,6 +97,7 @@ Prefer stable contracts over incidental prose:
 
 - Assert exit status.
 - Assert JSON fields for automation-facing commands.
+- Keep `myapp opencli` byte-for-byte aligned with `opencli.json`.
 - Keep human-output assertions focused on durable words, not full paragraphs.
 - Use `NO_COLOR=1` or `--plain` when colors are not under test.
 

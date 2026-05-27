@@ -13,6 +13,7 @@ This directory contains project documentation.
 ## Guides
 
 - [Architecture Overview](ARCHITECTURE.md)
+- [Public Contracts](CONTRACTS.md)
 - [Testing CLI And TUI Behavior](TESTING.md)
 - [Zig Primer For C Developers](ZIG_PRIMER.md)
 

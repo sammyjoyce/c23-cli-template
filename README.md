@@ -33,6 +33,8 @@
 - 📊 **Dynamic Binary Naming** - Extracts binary name from build.zig.zon
 - 🧹 **Template Cleanup** - Scripted cleanup of template-specific files and placeholders
 - 📚 **OpenCLI Compliant** - Standardized CLI behavior
+- 🔎 **Live CLI Contract** - `myapp opencli` prints the checked-in OpenCLI spec
+- 🧩 **Reusable TUI Menu** - Optional `tui-menu-lib` target for downstream C apps
 - 🔄 **Dependency Updates** - Automated updates with Dependabot/Renovate
 - 📝 **Markdown Linting** - Documentation checks in local tooling and CI
 - 🐳 **Devcontainer Support** - Consistent development environments
@@ -129,6 +131,12 @@ $ myapp doctor
 myapp doctor
   binary        ok (myapp 0.1.0)
 
+$ myapp opencli
+{
+  "opencli": "0.1",
+  ...
+}
+
 # Interactive TUI showcase
 $ zig build -Denable-tui=true run -- menu
 # Opens ncurses menus, dialogs, panels, and progress bars
@@ -208,6 +216,7 @@ This template provides several tools to enhance your development experience:
 zig build                    # Debug build
 zig build -Doptimize=ReleaseSafe  # Release build
 zig build -Denable-tui=true  # Build with the TUI showcase
+zig build tui-menu-lib       # Build reusable TUI menu static library
 
 # Test
 zig build test              # Run fast C23 CLI contract tests
@@ -245,6 +254,7 @@ Config files are flat JSON objects with boolean keys for `debug`, `quiet`,
 ### Developer Resources
 
 - 🏗️ [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and module structure
+- 📜 [**Public Contracts**](docs/CONTRACTS.md) - Supported CLI and TUI seams
 - ⚡ [**Zig Primer for C Developers**](docs/ZIG_PRIMER.md) - Understanding the build system
 - 🧪 [**Testing CLI And TUI Behavior**](docs/TESTING.md) - End-to-end terminal scenario tests
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute to the project

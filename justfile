@@ -21,6 +21,10 @@ release:
 release-no-tui:
     zig build -Doptimize=ReleaseSafe
 
+# Build the reusable TUI menu static library
+tui-menu-lib:
+    zig build tui-menu-lib
+
 # --- Run ---
 
 # Run the application (TUI enabled by default)

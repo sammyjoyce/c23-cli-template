@@ -11,13 +11,36 @@
 #include "../core/config.h"
 #include "../core/error.h"
 
+#define APP_ARG_ARITY_UNBOUNDED (-1)
+
 typedef app_error (*app_command_fn)(const app_config_t *config, int argc,
                                     char **argv);
 
 typedef struct {
   const char *name;
+  bool required;
+  int ordinal;
+  int arity_minimum;
+  int arity_maximum;  // APP_ARG_ARITY_UNBOUNDED means JSON null
+  const char *description;
+} app_command_arg_t;
+
+typedef struct {
+  const char *name;
+  const char *description;
+} app_command_option_t;
+
+typedef struct {
+  const char *name;
   const char *summary;  // one-line description for help output
+  const char *description;
   app_command_fn handler;
+  const app_command_option_t *options;
+  size_t option_count;
+  const app_command_arg_t *arguments;
+  size_t argument_count;
+  const char *const *examples;
+  size_t example_count;
   bool requires_terminal;  // hint: command is interactive (e.g. TUI)
 } app_command_t;
 

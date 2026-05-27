@@ -244,6 +244,10 @@ static char *read_entire_file(const char *path) {
   return buf;
 }
 
+char *cc_read_text_file(const char *path) {
+  return read_entire_file(path);
+}
+
 static command_result_t make_error_result(const char *message) {
   return (command_result_t){
       .exit_code = -1,

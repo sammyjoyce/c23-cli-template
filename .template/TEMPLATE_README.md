@@ -7,7 +7,9 @@ A ready-to-use C23 TUI + CLI starter.
 - C23 command-line application skeleton built with Zig 0.16.0.
 - Human-readable and JSON output modes for automation-friendly commands.
 - Layered configuration from config files, environment, and CLI flags.
+- Live OpenCLI contract from `myapp opencli`, checked against `opencli.json`.
 - Optional ncurses/PDCurses TUI build with windows, menus, dialogs, and progress bars.
+- Optional `tui-menu-lib` static library target for the reusable TUI menu.
 - Small module layout that keeps CLI routing, core state, I/O, TUI, and utilities separate.
 - Zig build steps for build, run, test, terminal-test, check, format, and cleanup.
 - C23 terminal scenario harness for non-interactive CLI contracts and optional Ghostty VT-backed TUI tests.
@@ -26,6 +28,7 @@ A ready-to-use C23 TUI + CLI starter.
 zig build
 zig build -Doptimize=ReleaseSafe
 zig build -Denable-tui=true
+zig build tui-menu-lib
 ```
 
 The default binary name is `myapp`. You can override it without editing source:
@@ -44,6 +47,7 @@ zig build -Dapp-name=myapp
 ./zig-out/bin/myapp info
 ./zig-out/bin/myapp --json info
 ./zig-out/bin/myapp doctor
+./zig-out/bin/myapp opencli
 ```
 
 Build with TUI support before launching the interactive showcase:
@@ -63,10 +67,14 @@ zig build check
 zig build fmt-check
 ```
 
-The Zig tests keep fast build-integrated smoke coverage. The terminal scenario tests exercise non-interactive CLI contracts through a C23 runner on every host.
-When built with `-Denable-tui=true` and `libghostty-vt` is available, they also drive the ncurses menu through a pseudo-terminal.
+The Zig tests keep fast build-integrated smoke coverage and verify that
+`myapp opencli` matches `opencli.json`. The terminal scenario tests exercise
+non-interactive CLI contracts through a C23 runner on every host. When built
+with `-Denable-tui=true` and `libghostty-vt` is available, they also drive the
+ncurses menu through a pseudo-terminal.
 
-PTY-backed TUI tests skip cleanly when `libghostty-vt` is not installed. Use `-Dterminal-backend=ghostty` to require Ghostty VT and fail if it is missing.
+PTY-backed TUI tests skip cleanly when `libghostty-vt` is not installed. Use
+`-Dterminal-backend=ghostty` to require Ghostty VT and fail if it is missing.
 
 ## Project Layout
 
@@ -84,8 +92,8 @@ PTY-backed TUI tests skip cleanly when `libghostty-vt` is not installed. Use `-D
 |   `-- utils/
 |-- test/
 |   |-- cli_contract_runner.c
-|   |-- test_harness.c
-|   |-- test_harness.h
+|   |-- cli_contract_cases.c
+|   |-- cli_contract_helpers.c
 |   |-- terminal_vt_runner.c
 |   |-- terminal_vt_scenarios.c
 |   `-- terminal_vt_session.c
@@ -95,10 +103,12 @@ PTY-backed TUI tests skip cleanly when `libghostty-vt` is not installed. Use `-D
 
 ## Add A Command
 
-Add the route in `src/main.c`:
+Add the handler in a command source file:
 
 ```c
-if (strcmp(command, "status") == 0) {
+app_error app_cmd_status(const app_config_t *config, int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   app_output(config, "status ok", false);
   return APP_SUCCESS;
 }
@@ -106,18 +116,19 @@ if (strcmp(command, "status") == 0) {
 
 Then update:
 
-- `src/cli/help.c` for user-facing help.
-- `opencli.json` for machine-readable CLI metadata.
-- `test/cli_contract_runner.c` for fast CLI contract and smoke coverage.
-- `test/terminal_vt_scenarios.c` for PTY-backed TUI behavior when the command affects the menu flow.
+- `src/cli/commands.c` for command metadata and dispatch.
+- `opencli.json` from the live `myapp opencli` output.
+- `test/cli_contract_cases.c` for contract coverage.
+- `test/terminal_vt_scenarios.c` for PTY/TUI behavior when needed.
 
 ## Customize The TUI
 
 The reusable TUI helpers live under `src/tui/`:
 
-- `tui.c` owns ncurses lifecycle, windows, bounded text, dialogs, and menus.
+- `tui.c` owns ncurses lifecycle, windows, bounded text, and dialogs.
+- `tui_menu.c` and `tui_menu_model.c` own the reusable modal menu.
 - `tui_progress.c` owns progress window rendering.
-- `tui_demo.c` wires examples together for the `menu` command.
+- `tui_app.c` wires examples together for the `menu` command.
 
 Keep raw curses calls inside the TUI layer where practical. That keeps command handlers easy to test without a terminal.
 
