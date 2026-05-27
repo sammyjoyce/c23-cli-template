@@ -14,6 +14,7 @@
 
 #include "../src/core/config_json.h"
 #include "../src/core/error.h"
+#include "../src/tui/tui_menu.h"
 #include "../src/utils/memory.h"
 
 typedef struct {
@@ -129,6 +130,24 @@ static bool test_secret_zero_clears_buffer(void) {
 int main(void) {
   unit_stats_t stats = {0};
   printf("TAP version 13\n");
+
+  {
+    const tui_menu_item_t item = {
+        .label = "&Foo",
+        .description = "demo",
+        .id = 42,
+    };
+    /* Default-init must yield enabled, NORMAL kind. */
+    bool ok =
+        !item.disabled && item.kind == TUI_MENU_ITEM_NORMAL && item.id == 42;
+    unit_record(&stats, ok,
+                "tui_menu_item_t zero-init defaults are enabled+normal");
+  }
+  {
+    const tui_menu_result_t r = {.status = TUI_MENU_OK, .selected_id = 7};
+    unit_record(&stats, r.status == TUI_MENU_OK && r.selected_id == 7,
+                "tui_menu_result_t designated-init works");
+  }
 
   unit_record(&stats, test_strerror_covers_every_code(),
               "app_strerror covers every code");
