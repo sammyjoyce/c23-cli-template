@@ -97,5 +97,7 @@ int run_tui_menu_search(test_stats_t *stats, const char *binary,
                         bool tui_enabled);
 int run_tui_menu_mnemonic(test_stats_t *stats, const char *binary,
                           bool tui_enabled);
+int run_tui_menu_separator(test_stats_t *stats, const char *binary,
+                           bool tui_enabled);
 
 #endif
