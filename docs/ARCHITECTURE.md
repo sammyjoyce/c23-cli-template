@@ -122,8 +122,8 @@ graph TD
         DEPS[Fetch Dependencies<br/>aro, etc.]
         COMPILE[Compile C23 Code<br/>via Zig CC]
         LINK[Link Binary<br/>+ Platform Libs]
-        TEST[Run Zig Tests<br/>test/main.zig]
-        TERMTEST[Run Terminal Scenarios<br/>test/*.py]
+        TEST[Run C23 CLI Tests<br/>test/cli_contract_runner.c]
+        TERMTEST[Run Terminal Scenarios<br/>test/terminal_vt_*.c]
     end
 
     subgraph "Build Outputs"
@@ -153,7 +153,7 @@ graph TD
 # Development build
 zig build
 
-# Run fast Zig tests
+# Run fast C23 CLI contract tests
 zig build test
 
 # Run end-to-end terminal scenario tests

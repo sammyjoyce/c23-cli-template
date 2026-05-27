@@ -85,60 +85,45 @@ Add your command to the `commands` array:
 
 ## 5. Add Tests
 
-In `test/main.zig`, add a test for your command:
+In `test/cli_contract_runner.c`, add a test for your command:
 
-```zig
-fn testGreetCommand(allocator: std.mem.Allocator) !void {
-    std.debug.print("Testing greet command...\n", .{});
+```c
+static bool test_greet_command(test_context_t *ctx) {
+  bool ok = true;
 
-    // Test with one name
-    {
-        const result = try std.process.Child.run(.{
-            .allocator = allocator,
-            .argv = &[_][]const u8{ "./zig-out/bin/myapp", "greet", "Alice" },
-        });
-        defer allocator.free(result.stdout);
-        defer allocator.free(result.stderr);
+  {
+    const char *args[] = {"greet", "Alice"};
+    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = expect_exit(&result, 0) &&
+         expect_stdout_contains(&result, "Hello, Alice!") && ok;
+    command_result_free(&result);
+  }
 
-        try testing.expect(result.term.Exited == 0);
-        try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Alice") != null);
-    }
+  {
+    const char *args[] = {"greet", "Alice", "Bob"};
+    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = expect_exit(&result, 0) &&
+         expect_stdout_contains(&result, "Hello, Alice!") &&
+         expect_stdout_contains(&result, "Hello, Bob!") && ok;
+    command_result_free(&result);
+  }
 
-    // Test with multiple names
-    {
-        const result = try std.process.Child.run(.{
-            .allocator = allocator,
-            .argv = &[_][]const u8{ "./zig-out/bin/myapp", "greet", "Alice", "Bob" },
-        });
-        defer allocator.free(result.stdout);
-        defer allocator.free(result.stderr);
+  {
+    const char *args[] = {"greet"};
+    command_result_t result = run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = expect_not_exit(&result, 0) &&
+         expect_stderr_contains(&result, "requires at least one name") && ok;
+    command_result_free(&result);
+  }
 
-        try testing.expect(result.term.Exited == 0);
-        try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Alice") != null);
-        try testing.expect(std.mem.indexOf(u8, result.stdout, "👋 Bob") != null);
-    }
-
-    // Test with no names (should error)
-    {
-        const result = try std.process.Child.run(.{
-            .allocator = allocator,
-            .argv = &[_][]const u8{ "./zig-out/bin/myapp", "greet" },
-        });
-        defer allocator.free(result.stdout);
-        defer allocator.free(result.stderr);
-
-        try testing.expect(result.term.Exited != 0);
-        try testing.expect(std.mem.indexOf(u8, result.stderr, "requires at least one name") != null);
-    }
-
-    std.debug.print("✓ Greet command works correctly\n", .{});
+  return ok;
 }
 ```
 
-Don't forget to call it in the main test:
+Then register it in the `tests` array:
 
-```zig
-try testGreetCommand(allocator);
+```c
+{"greet command handles names", test_greet_command},
 ```
 
 ## 6. Build and Test

@@ -18,7 +18,7 @@
 - 🚀 **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - ⚡ **Zig Build System** - Fast, reliable builds with cross-compilation
 - 🏗️ **Well-Structured** - Organized project layout ready for growth
-- 🧪 **Testing Included** - Zig smoke tests plus PTY terminal scenario tests for CLI/TUI flows
+- 🧪 **Testing Included** - C23 CLI contract tests plus PTY terminal scenario tests for CLI/TUI flows
 - 🎨 **Smart CLI** - Colored output, help text, argument parsing
 - 🖼️ **TUI Support** - ncurses/PDCurses integration for interactive terminal UIs
 - 🔧 **Configuration** - Layered config system (file → env → args)
@@ -92,8 +92,8 @@ your-cli/
 │   ├── io/                 # Input/Output
 │   ├── tui/                # ncurses windows, menus, dialogs, progress bars
 │   └── utils/              # Utilities
-├── test/                   # Zig CLI tests + Ghostty VT terminal scenarios
-│   ├── main.zig            # Build-integrated smoke and CLI contract tests
+├── test/                   # C23 CLI tests + Ghostty VT terminal scenarios
+│   ├── cli_contract_runner.c # C23 CLI contract tests
 │   ├── terminal_vt_*.c     # C PTY/TUI scenario harness
 │   └── terminal_vt.h
 ├── build.zig               # Build config
@@ -210,7 +210,7 @@ zig build -Doptimize=ReleaseSafe  # Release build
 zig build -Denable-tui=true  # Build with the TUI showcase
 
 # Test
-zig build test              # Run fast Zig smoke tests
+zig build test              # Run fast C23 CLI contract tests
 zig build terminal-test     # Run terminal scenarios with the selected backend
 zig build -Denable-tui=true terminal-test  # Run TUI scenarios through Ghostty VT when available
 zig build -Dterminal-backend=ghostty terminal-test  # Require the C Ghostty VT test backend

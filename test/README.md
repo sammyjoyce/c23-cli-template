@@ -2,10 +2,11 @@
 
 This template has two layers of tests:
 
-- `main.zig` keeps fast Zig smoke and CLI contract tests close to the build graph.
+- `cli_contract_runner.c` keeps fast C23 smoke and CLI contract tests close to
+  the build graph.
 - The C Ghostty VT runner covers PTY-backed TUI flows when libghostty-vt is available.
 
-Run the default Zig suite:
+Run the default CLI contract suite:
 
 ```bash
 zig build test
@@ -25,8 +26,9 @@ zig build -Denable-tui=true terminal-test
 
 The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
 when `libghostty-vt` is available through `pkg-config` on POSIX hosts. CLI
-contracts always run through `main.zig`, so hosts without libghostty-vt still
-exercise non-interactive behavior without a fallback scripting runtime.
+contracts always run through `cli_contract_runner.c`, so hosts without
+libghostty-vt still exercise non-interactive behavior without a fallback
+scripting runtime.
 
 The Ghostty VT runner is split across `terminal_vt_*.c` files. It runs TUI
 checks in a pseudo-terminal, feeds output through libghostty-vt, snapshots the

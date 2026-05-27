@@ -206,19 +206,23 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     // Test command
-    const test_exe = b.addTest(.{
+    const test_exe = b.addExecutable(.{
+        .name = "cli-contract-tests",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("test/main.zig"),
+            .root_source_file = null,
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
+    test_exe.root_module.addCSourceFiles(.{
+        .files = &.{"test/cli_contract_runner.c"},
+        .flags = &base_flags,
+    });
     const installed_binary_path = b.getInstallPath(.bin, exe.out_filename);
-    const test_options = b.addOptions();
-    test_options.addOption([]const u8, "binary_path", installed_binary_path);
-    test_exe.root_module.addOptions("test_options", test_options);
 
     const test_cmd = b.addRunArtifact(test_exe);
+    test_cmd.addArgs(&.{ "--binary", installed_binary_path });
     test_cmd.step.dependOn(b.getInstallStep());
 
     const test_step = b.step("test", "Run test suite");

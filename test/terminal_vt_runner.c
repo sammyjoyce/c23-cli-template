@@ -6,7 +6,7 @@ static bool parse_bool_arg(const char *value) {
 }
 
 int main(int argc, char **argv) {
-  const char *binary = "./zig-out/bin/myapp";
+  const char *binary = NULL;
   bool tui_enabled = false;
 
   for (int i = 1; i < argc; i++) {
@@ -15,12 +15,16 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[i], "--tui-enabled") == 0 && i + 1 < argc) {
       tui_enabled = parse_bool_arg(argv[++i]);
     } else {
-      fprintf(
-          stderr,
-          "usage: %s [--binary PATH] [--tui-enabled 0|1]\nunknown arg: %s\n",
-          argv[0], argv[i]);
+      fprintf(stderr,
+              "usage: %s --binary PATH [--tui-enabled 0|1]\nunknown arg: %s\n",
+              argv[0], argv[i]);
       return 2;
     }
+  }
+
+  if (!binary) {
+    fprintf(stderr, "usage: %s --binary PATH [--tui-enabled 0|1]\n", argv[0]);
+    return 2;
   }
 
   struct stat st;

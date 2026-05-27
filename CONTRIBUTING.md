@@ -116,6 +116,8 @@ docs(readme): update installation instructions
    ```bash
    zig build fmt-check
    zig build check
+   git diff --check
+   find src test \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
 
    # Optional documentation lint, available in the Nix dev shell
    markdownlint "**/*.md" --ignore ".template/**" --ignore ".github/**" --ignore "zig-pkg/**"
@@ -208,7 +210,7 @@ For more details, see the [Architecture Overview](docs/ARCHITECTURE.md).
 #### Running Tests
 
 ```bash
-# Run fast Zig smoke tests
+# Run fast C23 CLI contract tests
 zig build test
 
 # Run end-to-end CLI terminal scenarios
@@ -225,8 +227,8 @@ zig build test -Doptimize=ReleaseFast
 
 #### Writing Tests
 
-- Put fast build-integrated smoke coverage in `test/main.zig`
-- Put end-to-end CLI behavior in `test/main.zig`
+- Put fast build-integrated smoke coverage in `test/cli_contract_runner.c`
+- Put end-to-end CLI behavior in `test/cli_contract_runner.c`
 - Put PTY-backed TUI behavior in `test/terminal_vt_scenarios.c`
 - Prefer JSON-field assertions for automation-facing output
 - Ensure all existing tests pass

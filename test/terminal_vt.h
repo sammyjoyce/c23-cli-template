@@ -55,7 +55,7 @@ typedef struct {
   uint16_t rows;
   buffer_t transcript;
   bool child_exited;
-  bool pty_write_failed;
+  bool io_failed;
   int exit_code;
 } vt_session_t;
 

@@ -27,13 +27,13 @@ The template now has one optional PTY terminal backend:
 `zig build terminal-test` uses `-Dterminal-backend=auto` by default: auto selects
 Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
 Terminal and Formatter APIs. Use `-Dterminal-backend=ghostty` to require Ghostty
-VT on POSIX hosts. CLI contracts run through the Zig test binary on every host,
-so machines without libghostty-vt still exercise non-interactive behavior
+VT on POSIX hosts. CLI contracts run through a C23 test executable on every
+host, so machines without libghostty-vt still exercise non-interactive behavior
 without a fallback scripting runtime.
 
 ## Commands
 
-Fast Zig smoke tests:
+Fast C23 CLI contract tests:
 
 ```bash
 zig build test
@@ -72,13 +72,14 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-CLI scenarios run through `test/main.zig` on every backend. With Ghostty VT
-selected, the C backend adds PTY/TUI coverage using libghostty-vt. Without
-Ghostty VT, `zig build terminal-test` still runs the Zig CLI contract suite and
-skips PTY/TUI coverage unless `-Dterminal-backend=ghostty` was requested.
+CLI scenarios run through `test/cli_contract_runner.c` on every backend. With
+Ghostty VT selected, the C backend adds PTY/TUI coverage using libghostty-vt.
+Without Ghostty VT, `zig build terminal-test` still runs the C23 CLI contract
+suite and skips PTY/TUI coverage unless `-Dterminal-backend=ghostty` was
+requested.
 
 CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
-`zig build check`; these CLI contracts live in `test/main.zig` and run
+`zig build check`; these CLI contracts live in `test/cli_contract_runner.c` and run
 regardless of whether Ghostty is installed. Linux CI builds libghostty-vt from
 the Ghostty flake, then runs
 `zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test` after the
@@ -88,9 +89,9 @@ PTY-backed scenarios by default.
 
 ## Writing CLI Scenario Tests
 
-Add durable CLI contract checks to `test/main.zig`. The Ghostty C runner is
-intentionally scoped to PTY/TUI behavior so CLI contracts have one source of
-truth.
+Add durable CLI contract checks to `test/cli_contract_runner.c`. The Ghostty C
+runner is intentionally scoped to PTY/TUI behavior so CLI contracts have one
+source of truth.
 
 Prefer stable contracts over incidental prose:
 

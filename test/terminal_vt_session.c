@@ -4,12 +4,12 @@ static void ghostty_write_pty(GhosttyTerminal terminal, void *userdata,
                               const uint8_t *data, size_t len) {
   (void)terminal;
   vt_session_t *session = userdata;
-  if (!session || session->pty_write_failed || session->master_fd < 0) {
+  if (!session || session->io_failed || session->master_fd < 0) {
     return;
   }
 
   if (!write_nonblocking_all(session->master_fd, data, len, PTY_TIMEOUT_MS)) {
-    session->pty_write_failed = true;
+    session->io_failed = true;
     close_if_open(&session->master_fd);
   }
 }
@@ -77,37 +77,6 @@ bool vt_session_start(vt_session_t *session, const char *binary,
   return true;
 }
 
-void vt_session_close(vt_session_t *session) {
-  if (!session) {
-    return;
-  }
-
-  if (!session->child_exited && session->pid > 0) {
-    kill(session->pid, SIGTERM);
-    for (int i = 0; i < 20; i++) {
-      int status = 0;
-      const pid_t waited = waitpid(session->pid, &status, WNOHANG);
-      if (waited == session->pid) {
-        session->child_exited = true;
-        break;
-      }
-      usleep(25000);
-    }
-    if (!session->child_exited) {
-      kill(session->pid, SIGKILL);
-      waitpid(session->pid, NULL, 0);
-      session->child_exited = true;
-    }
-  }
-
-  close_if_open(&session->master_fd);
-  if (session->terminal) {
-    ghostty_terminal_free(session->terminal);
-    session->terminal = NULL;
-  }
-  buffer_free(&session->transcript);
-}
-
 static void vt_session_note_exit(vt_session_t *session, int status) {
   session->child_exited = true;
   if (WIFEXITED(status)) {
@@ -119,8 +88,80 @@ static void vt_session_note_exit(vt_session_t *session, int status) {
   }
 }
 
+static bool vt_session_try_reap(vt_session_t *session) {
+  if (!session || session->child_exited || session->pid <= 0) {
+    return session && session->child_exited;
+  }
+
+  while (true) {
+    int status = 0;
+    const pid_t waited = waitpid(session->pid, &status, WNOHANG);
+    if (waited == session->pid) {
+      vt_session_note_exit(session, status);
+      return true;
+    }
+    if (waited == 0) {
+      return false;
+    }
+    if (errno == EINTR) {
+      continue;
+    }
+    if (errno == ECHILD) {
+      session->child_exited = true;
+      session->exit_code = -1;
+      return true;
+    }
+    return false;
+  }
+}
+
+void vt_session_close(vt_session_t *session) {
+  if (!session) {
+    return;
+  }
+
+  if (!session->child_exited && session->pid > 0) {
+    kill(session->pid, SIGTERM);
+    for (int i = 0; i < 20; i++) {
+      if (vt_session_try_reap(session)) {
+        break;
+      }
+      usleep(25000);
+    }
+    if (!session->child_exited) {
+      kill(session->pid, SIGKILL);
+      while (true) {
+        int status = 0;
+        const pid_t waited = waitpid(session->pid, &status, 0);
+        if (waited == session->pid) {
+          vt_session_note_exit(session, status);
+          break;
+        }
+        if (waited < 0 && errno == EINTR) {
+          continue;
+        }
+        session->child_exited = true;
+        session->exit_code = -1;
+        break;
+      }
+    }
+  }
+
+  close_if_open(&session->master_fd);
+  if (session->terminal) {
+    ghostty_terminal_free(session->terminal);
+    session->terminal = NULL;
+  }
+  buffer_free(&session->transcript);
+}
+
 void vt_drain(vt_session_t *session, int idle_ms) {
-  if (!session || session->pty_write_failed || session->master_fd < 0) {
+  if (!session) {
+    return;
+  }
+
+  if (session->io_failed || session->master_fd < 0) {
+    vt_session_try_reap(session);
     return;
   }
 
@@ -151,7 +192,12 @@ void vt_drain(vt_session_t *session, int idle_ms) {
       const ssize_t n = read(session->master_fd, chunk, sizeof(chunk));
       if (n > 0) {
         read_any = true;
-        buffer_append(&session->transcript, chunk, (size_t)n);
+        if (!buffer_append(&session->transcript, chunk, (size_t)n)) {
+          fputs("terminal-vt tests: transcript append failed\n", stderr);
+          session->io_failed = true;
+          close_if_open(&session->master_fd);
+          break;
+        }
         ghostty_terminal_vt_write(session->terminal, chunk, (size_t)n);
         continue;
       }
@@ -170,18 +216,15 @@ void vt_drain(vt_session_t *session, int idle_ms) {
       break;
     }
 
+    if (session->io_failed || session->master_fd < 0) {
+      break;
+    }
     if (!read_any && idle_ms == 0) {
       break;
     }
   }
 
-  if (!session->child_exited && session->pid > 0) {
-    int status = 0;
-    const pid_t waited = waitpid(session->pid, &status, WNOHANG);
-    if (waited == session->pid) {
-      vt_session_note_exit(session, status);
-    }
-  }
+  vt_session_try_reap(session);
 }
 
 static char *vt_snapshot_text(vt_session_t *session) {
@@ -218,7 +261,7 @@ bool vt_expect_text(vt_session_t *session, const char *needle, int timeout_ms,
   const int64_t deadline = monotonic_ms() + timeout_ms;
   while (monotonic_ms() <= deadline) {
     vt_drain(session, 50);
-    if (session->pty_write_failed) {
+    if (session->io_failed) {
       break;
     }
     char *snapshot = vt_snapshot_text(session);
@@ -245,12 +288,12 @@ bool vt_expect_text(vt_session_t *session, const char *needle, int timeout_ms,
 }
 
 bool vt_send(vt_session_t *session, const char *bytes) {
-  if (session->pty_write_failed) {
+  if (session->io_failed || session->master_fd < 0) {
     return false;
   }
   const size_t len = strlen(bytes);
   if (!write_nonblocking_all(session->master_fd, bytes, len, PTY_TIMEOUT_MS)) {
-    session->pty_write_failed = true;
+    session->io_failed = true;
     return false;
   }
   usleep(50000);
@@ -288,7 +331,7 @@ int vt_wait_for_exit(vt_session_t *session, int timeout_ms) {
   const int64_t deadline = monotonic_ms() + timeout_ms;
   while (monotonic_ms() <= deadline) {
     vt_drain(session, 50);
-    if (session->pty_write_failed) {
+    if (session->io_failed) {
       return -1;
     }
     if (session->child_exited) {
