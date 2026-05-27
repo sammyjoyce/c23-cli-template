@@ -294,8 +294,12 @@ int run_tui_fuzz_smoke(test_stats_t *stats, const char *binary,
     failed = test_fail(stats, name, "initial menu did not render");
   }
 
+  /* With TERM=xterm-256color and keypad() enabled, ncurses asks the terminal
+   * for application cursor mode; Ghostty-compatible VT input should use the
+   * matching terminfo kcuu1/kcud1 sequences.
+   */
   const char *safe_inputs[] = {
-      "\x1b[B", "\x1b[A", "\t", "\x1b[B", "\x1b[A", "\t",
+      "\x1bOB", "\x1bOA", "\t", "\x1bOB", "\x1bOA", "\t",
   };
   const uint16_t sizes[][2] = {{72, 20}, {100, 28}, {80, 24}};
   for (size_t i = 0;
@@ -312,6 +316,10 @@ int run_tui_fuzz_smoke(test_stats_t *stats, const char *binary,
     }
     if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS,
                         &snapshot)) {
+      print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
+                 snapshot ? strlen(snapshot) : 0, 4000);
+      print_tail(stderr, "transcript:\n", buffer_cstr(&session.transcript),
+                 session.transcript.len, 4000);
       failed = test_fail(stats, name,
                          "menu invariant failed after generated action %zu", i);
       break;
