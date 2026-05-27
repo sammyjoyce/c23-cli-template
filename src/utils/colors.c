@@ -17,8 +17,8 @@ bool app_use_colors(const app_config_t *config) {
     return false;
   }
 
-  // Respect NO_COLOR environment variable
-  if (getenv("NO_COLOR") != NULL) {
+  // NO_COLOR uses the same table-driven env policy as app_config_load_env().
+  if (app_flag_env_enabled(APP_FLAG_NO_COLOR)) {
     return false;
   }
 

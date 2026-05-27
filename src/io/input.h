@@ -21,11 +21,3 @@ APP_NODISCARD char *app_read_input_from_stdin(void);
 // Returns allocated string that must be freed by caller, or NULL on error.
 // Handles large files efficiently with chunked reading.
 APP_NODISCARD char *app_read_input_from_file(const char *filename);
-
-// Read input from stdin asynchronously using C23 thread features.
-// Enables timeout support and graceful cancellation for interactive use.
-// Falls back to blocking read on platforms without C23 support to maintain
-// compatibility while leveraging modern features where available.
-#if __STDC_VERSION__ >= 202311L
-APP_NODISCARD char *app_read_input_from_stdin_async(void);
-#endif

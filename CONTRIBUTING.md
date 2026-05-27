@@ -267,12 +267,12 @@ app_error process_input(const char* input, size_t len) {
   app_error err = process_data(input, len, &buffer);
 
   if (err != APP_SUCCESS) {
-    app_secure_free(buffer.data, buffer.capacity);
+    free(buffer.data);
     return err;
   }
 
   // Clean up
-  app_secure_free(buffer.data, buffer.capacity);
+  free(buffer.data);
   return APP_SUCCESS;
 }
 ```
@@ -287,7 +287,7 @@ app_error process_input(const char* input, size_t len) {
 ### Memory Management
 
 - Free all allocated memory
-- Use secure memory functions for sensitive data
+- Use `app_secret_zero()` before freeing buffers that held sensitive data
 - Check for allocation failures
 - Avoid memory leaks in error paths
 

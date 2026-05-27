@@ -1,28 +1,47 @@
 # Justfile for C23 CLI Template
+# Quick reference: https://just.systems/man/en/
 
-# Build the project
+set positional-arguments
+
+# --- Build ---
+
+# Build the project (TUI enabled by default)
 build:
+    zig build -Denable-tui=true
+
+# Build without TUI support
+build-no-tui:
     zig build
 
-default: build
-
-# Build with release optimization
+# Build with release optimization (TUI enabled by default)
 release:
+    zig build -Doptimize=ReleaseSafe -Denable-tui=true
+
+# Build with release optimization without TUI
+release-no-tui:
     zig build -Doptimize=ReleaseSafe
 
-# Run the application (with optional arguments)
+# --- Run ---
+
+# Run the application (TUI enabled by default)
 run *args:
+    zig build -Denable-tui=true run -- {{ args }}
+
+# Run the application without TUI
+run-no-tui *args:
     zig build run -- {{ args }}
 
+# --- Test ---
+
 # Run tests
-test:
+@test:
     zig build test
 
-# Run end-to-end terminal scenario tests
+# Run end-to-end terminal scenario tests (uses current build default)
 terminal-test:
     zig build terminal-test
 
-# Run terminal scenarios against a TUI-enabled build
+# Run terminal scenarios with TUI explicitly enabled
 tui-test:
     zig build -Denable-tui=true terminal-test
 
@@ -36,47 +55,28 @@ test-release:
 test-fast:
     zig build test -Doptimize=ReleaseFast
 
+# --- Quality ---
+
 # Check code formatting
 fmt:
     zig build fmt
 
+# Check code formatting without fixing
 fmt-check:
     zig build fmt-check
 
-# Run all checks
+# Run all checks (format + tests)
 check:
     zig build check
+
+# --- Maintenance ---
 
 # Clean build artifacts
 clean:
     zig build clean
 
-# Install dependencies (if any)
-install:
-    # No additional installation needed for this template
-    echo "No additional installation needed"
+# --- Help ---
 
-# Generate documentation
-docs:
-    # Generate documentation using your preferred tool
-    echo "Documentation generation not configured"
-
-# Display help
+# Display available commands
 help:
-    echo "Available commands:"
-    echo "  build       - Build the project"
-    echo "  release     - Build with release optimization"
-    echo "  run         - Run the application"
-    echo "  test        - Run tests"
-    echo "  terminal-test - Run end-to-end terminal scenarios"
-    echo "  tui-test    - Run terminal scenarios with TUI support"
-    echo "  test-debug  - Run tests with debug optimization"
-    echo "  test-release - Run tests with release optimization"
-    echo "  test-fast   - Run tests with fast optimization"
-    echo "  fmt         - Format code"
-    echo "  fmt-check   - Check code formatting"
-    echo "  check       - Run all checks"
-    echo "  clean       - Clean build artifacts"
-    echo "  install     - Install dependencies"
-    echo "  docs        - Generate documentation"
-    echo "  help        - Display this help message"
+    @just --list --unsorted

@@ -83,14 +83,11 @@ static app_error app_config_parse_json_string(const char **cursor, char *out,
         ch = '\t';
         break;
       case 'u':
-        for (int i = 0; i < 4; i++) {
-          if (p[i] == '\0' || !isxdigit((unsigned char)p[i])) {
-            return APP_ERROR_CONFIG_PARSE;
-          }
-        }
-        p += 4;
-        ch = '?';
-        break;
+        // \uXXXX escapes are valid JSON but would need real UTF-8 decoding
+        // to round-trip. Rather than silently replace them with '?', reject
+        // the value so users see a parse error and can switch to a literal
+        // UTF-8 byte sequence in their config file.
+        return APP_ERROR_CONFIG_PARSE;
       default:
         return APP_ERROR_CONFIG_PARSE;
       }
@@ -207,36 +204,18 @@ static app_error app_config_read_json_bool_value(const char **cursor,
 
 static bool app_config_apply_json_bool_key(app_config_json_state_t *state,
                                            const char *key, bool value) {
-  if (strcmp(key, "debug") == 0) {
-    state->debug = value;
-  } else if (strcmp(key, "quiet") == 0) {
-    state->quiet = value;
-  } else if (strcmp(key, "verbose") == 0) {
-    state->verbose = value;
-  } else if (strcmp(key, "no_color") == 0) {
-    state->no_color = value;
-  } else if (strcmp(key, "json_output") == 0) {
-    state->json_output = value;
-    if (value) {
-      state->plain_output = false;
-    }
-  } else if (strcmp(key, "plain_output") == 0) {
-    state->plain_output = value;
-    if (value) {
-      state->json_output = false;
-    }
-  } else {
+  const app_flag_spec_t *spec = app_flag_find_by_json_key(key);
+  if (!spec) {
     return false;
   }
 
+  app_flag_apply(state->values, spec->id, value);
   LOG_DEBUG("Loaded config key '%s' from file", key);
   return true;
 }
 
 static bool app_config_is_known_bool_key(const char *key) {
-  return strcmp(key, "debug") == 0 || strcmp(key, "quiet") == 0 ||
-         strcmp(key, "verbose") == 0 || strcmp(key, "no_color") == 0 ||
-         strcmp(key, "json_output") == 0 || strcmp(key, "plain_output") == 0;
+  return app_flag_find_by_json_key(key) != NULL;
 }
 
 static app_error app_config_finish_json_parse(const char *cursor) {

@@ -298,6 +298,12 @@ jobs:
       - name: Run clang-tidy analysis
         run: |
           zig build -Doptimize=ReleaseSafe
+
+          # Source app metadata from build.zig.zon so the -D flags stay in
+          # sync with the build instead of drifting.
+          APP_NAME=$(awk '/\.name = / {gsub(/.*\.name = /, ""); gsub(/[,.]/, ""); gsub(/"/, ""); print}' build.zig.zon)
+          APP_VERSION=$(awk '/\.version = / {gsub(/.*\.version = /, ""); gsub(/[",]/, ""); print}' build.zig.zon)
+
           cc_include_flags=()
           while IFS= read -r include_dir; do
             [ -n "$include_dir" ] && cc_include_flags+=("-isystem" "$include_dir")
@@ -320,13 +326,11 @@ jobs:
               -std=c23 \
               -Wall \
               -Wextra \
-              -D_DEFAULT_SOURCE \
-              -D_XOPEN_SOURCE=700 \
               -D_GNU_SOURCE \
-              -DAPP_VERSION=\"0.1.0\" \
-              -DAPP_NAME=\"myapp\" \
-              -DAPP_GIT_COMMIT=\"unknown\" \
-              -DAPP_BUILD_DATE=\"reproducible\" \
+              "-DAPP_VERSION=\"${APP_VERSION}\"" \
+              "-DAPP_NAME=\"${APP_NAME}\"" \
+              "-DAPP_GIT_COMMIT=\"unknown\"" \
+              "-DAPP_BUILD_DATE=\"reproducible\"" \
               -Isrc \
               "${cc_include_flags[@]}"
           done < <(find src -name "*.c" -print0)

@@ -1,10 +1,17 @@
-#include "test_harness.h"
+/*
+ * Shared helpers for the CLI contract tests: process spawning, environment
+ * sandboxing, temp file management, and assertion primitives.
+ */
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "cli_contract.h"
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -36,7 +43,7 @@ typedef struct {
   int fd;
 } temp_file_t;
 
-static char *format_string(const char *fmt, ...) {
+char *cc_format_string(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   va_list copy;
@@ -63,7 +70,7 @@ static char *format_string(const char *fmt, ...) {
   return buf;
 }
 
-static char *copy_string(const char *value) {
+char *cc_copy_string(const char *value) {
   if (!value) {
     value = "";
   }
@@ -104,7 +111,7 @@ static bool apply_env(const env_var_t *env, size_t env_count,
 
     const char *previous = getenv(env[i].name);
     if (previous) {
-      restore[i].previous = copy_string(previous);
+      restore[i].previous = cc_copy_string(previous);
       if (!restore[i].previous) {
         return false;
       }
@@ -159,8 +166,9 @@ static char *temp_template(const char *label) {
   const char *dir = temp_dir();
   const size_t len = strlen(dir);
   const bool has_sep = len > 0 && (dir[len - 1] == '/' || dir[len - 1] == '\\');
-  return format_string("%s%sc23-cli-%s-%ld-XXXXXX", dir,
-                       has_sep ? "" : path_separator(), label, (long)getpid());
+  return cc_format_string("%s%sc23-cli-%s-%ld-XXXXXX", dir,
+                          has_sep ? "" : path_separator(), label,
+                          (long)getpid());
 }
 
 static bool make_temp_file(temp_file_t *file, const char *label) {
@@ -171,7 +179,7 @@ static bool make_temp_file(temp_file_t *file, const char *label) {
 #ifdef _WIN32
   if (_mktemp_s(file->path, strlen(file->path) + 1) != 0) {
     free(file->path);
-    *file = (temp_file_t){.fd = -1};
+    *file = (temp_file_t){0};
     return false;
   }
   file->fd = open(file->path, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY,
@@ -182,7 +190,7 @@ static bool make_temp_file(temp_file_t *file, const char *label) {
 
   if (file->fd < 0) {
     free(file->path);
-    *file = (temp_file_t){.fd = -1};
+    *file = (temp_file_t){0};
     return false;
   }
   return true;
@@ -201,33 +209,33 @@ static void cleanup_temp_file(temp_file_t *file) {
     (void)unlink(file->path);
     free(file->path);
   }
-  *file = (temp_file_t){.fd = -1};
+  *file = (temp_file_t){0};
 }
 
 static char *read_entire_file(const char *path) {
   FILE *stream = fopen(path, "rb");
   if (!stream) {
-    return format_string("failed to open captured output %s: %s", path,
-                         strerror(errno));
+    return cc_format_string("failed to open captured output %s: %s", path,
+                            strerror(errno));
   }
   if (fseek(stream, 0, SEEK_END) != 0) {
     fclose(stream);
-    return copy_string("failed to seek captured output");
+    return cc_copy_string("failed to seek captured output");
   }
   const long size = ftell(stream);
   if (size < 0) {
     fclose(stream);
-    return copy_string("failed to size captured output");
+    return cc_copy_string("failed to size captured output");
   }
   if (fseek(stream, 0, SEEK_SET) != 0) {
     fclose(stream);
-    return copy_string("failed to rewind captured output");
+    return cc_copy_string("failed to rewind captured output");
   }
 
   char *buf = malloc((size_t)size + 1);
   if (!buf) {
     fclose(stream);
-    return copy_string("out of memory reading captured output");
+    return cc_copy_string("out of memory reading captured output");
   }
 
   const size_t read_len = fread(buf, 1, (size_t)size, stream);
@@ -239,12 +247,12 @@ static char *read_entire_file(const char *path) {
 static command_result_t make_error_result(const char *message) {
   return (command_result_t){
       .exit_code = -1,
-      .out = copy_string(""),
-      .err = copy_string(message),
+      .out = cc_copy_string(""),
+      .err = cc_copy_string(message),
   };
 }
 
-void command_result_free(command_result_t *result) {
+void cc_command_result_free(command_result_t *result) {
   free(result->out);
   free(result->err);
   *result = (command_result_t){0};
@@ -356,22 +364,22 @@ static command_result_t run_process(char *const *argv, const env_var_t *env,
   cleanup_temp_file(&stderr_file);
 
   if (status < 0) {
-    char *spawn_err = format_string("spawn failed: %s\n%s",
-                                    strerror(child_errno), err ? err : "");
+    char *spawn_err = cc_format_string("spawn failed: %s\n%s",
+                                       strerror(child_errno), err ? err : "");
     free(err);
-    err = spawn_err ? spawn_err : copy_string("spawn failed");
+    err = spawn_err ? spawn_err : cc_copy_string("spawn failed");
   }
 
   return (command_result_t){
       .exit_code = status,
-      .out = out ? out : copy_string(""),
-      .err = err ? err : copy_string(""),
+      .out = out ? out : cc_copy_string(""),
+      .err = err ? err : cc_copy_string(""),
   };
 }
 
-command_result_t run_cli(test_context_t *ctx, const char *const *args,
-                         size_t arg_count, const env_var_t *env,
-                         size_t env_count) {
+command_result_t cc_run_cli(test_context_t *ctx, const char *const *args,
+                            size_t arg_count, const env_var_t *env,
+                            size_t env_count) {
   char **argv = calloc(arg_count + 2, sizeof(*argv));
   if (!argv) {
     return make_error_result("out of memory building argv");
@@ -387,12 +395,12 @@ command_result_t run_cli(test_context_t *ctx, const char *const *args,
   return result;
 }
 
-void print_result_tail(const command_result_t *result) {
+static void print_result_tail(const command_result_t *result) {
   fprintf(stderr, "exit: %d\nstdout:\n%s\nstderr:\n%s\n", result->exit_code,
           result->out ? result->out : "", result->err ? result->err : "");
 }
 
-bool expect_exit(const command_result_t *result, int expected) {
+bool cc_expect_exit(const command_result_t *result, int expected) {
   if (result->exit_code == expected) {
     return true;
   }
@@ -401,7 +409,7 @@ bool expect_exit(const command_result_t *result, int expected) {
   return false;
 }
 
-bool expect_not_exit(const command_result_t *result, int unexpected) {
+bool cc_expect_not_exit(const command_result_t *result, int unexpected) {
   if (result->exit_code != unexpected) {
     return true;
   }
@@ -410,8 +418,8 @@ bool expect_not_exit(const command_result_t *result, int unexpected) {
   return false;
 }
 
-bool expect_contains(const command_result_t *result, const char *label,
-                     const char *haystack, const char *needle) {
+static bool expect_contains(const command_result_t *result, const char *label,
+                            const char *haystack, const char *needle) {
   if (strstr(haystack ? haystack : "", needle)) {
     return true;
   }
@@ -420,17 +428,17 @@ bool expect_contains(const command_result_t *result, const char *label,
   return false;
 }
 
-bool expect_stdout_contains(const command_result_t *result,
-                            const char *needle) {
+bool cc_expect_stdout_contains(const command_result_t *result,
+                               const char *needle) {
   return expect_contains(result, "stdout", result->out, needle);
 }
 
-bool expect_stderr_contains(const command_result_t *result,
-                            const char *needle) {
+bool cc_expect_stderr_contains(const command_result_t *result,
+                               const char *needle) {
   return expect_contains(result, "stderr", result->err, needle);
 }
 
-bool expect_stdout_empty(const command_result_t *result) {
+bool cc_expect_stdout_empty(const command_result_t *result) {
   if (result->out && result->out[0] == '\0') {
     return true;
   }
@@ -439,18 +447,18 @@ bool expect_stdout_empty(const command_result_t *result) {
   return false;
 }
 
-bool write_temp_config(const char *content, char **path_out) {
+bool cc_write_temp_config(const char *content, char **path_out) {
   temp_file_t file;
   if (!make_temp_file(&file, "config")) {
     return false;
   }
 
   FILE *stream = fdopen(file.fd, "wb");
+  file.fd = -1;
   if (!stream) {
     cleanup_temp_file(&file);
     return false;
   }
-  file.fd = -1;
   const size_t len = strlen(content);
   const bool ok = fwrite(content, 1, len, stream) == len;
   if (fclose(stream) != 0) {
@@ -468,7 +476,7 @@ bool write_temp_config(const char *content, char **path_out) {
   return true;
 }
 
-bool file_exists(const char *path) {
+bool cc_file_exists(const char *path) {
   FILE *stream = fopen(path, "rb");
   if (!stream) {
     return false;

@@ -1,14 +1,23 @@
 /*
  * Terminal UI (TUI) implementation using ncurses.
+ *
+ * Module map:
+ *   - lifecycle, signal, and color setup
+ *   - window allocation, drawing, and bounded text helpers
+ *   - shared modal runner plus message/confirm/input dialogs
  */
 
 #include "tui.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "tui_internal.h"
 #ifdef _WIN32
 #include <io.h>
 #define isatty _isatty
@@ -18,10 +27,99 @@
 #endif
 
 #include "../utils/logging.h"
-#include "../utils/memory.h"
 
 static bool tui_initialized = false;
 static bool tui_default_colors = false;
+static volatile sig_atomic_t tui_interrupted_flag = 0;
+static int tui_saved_cursor_state = 0;
+static tui_window_t *tui_background_win = NULL;
+#define TUI_BACKGROUND_STACK_MAX 16
+static tui_window_t *tui_background_stack[TUI_BACKGROUND_STACK_MAX];
+static size_t tui_background_stack_depth = 0;
+
+void tui_clear_background_window(void) {
+  tui_background_win = NULL;
+  for (size_t i = 0; i < tui_background_stack_depth; i++) {
+    tui_background_stack[i] = NULL;
+  }
+  tui_background_stack_depth = 0;
+}
+
+tui_window_t *tui_get_background_window(void) {
+  return tui_background_win;
+}
+
+void tui_push_background(tui_window_t *window) {
+  if (tui_background_stack_depth < TUI_BACKGROUND_STACK_MAX) {
+    tui_background_stack[tui_background_stack_depth++] = tui_background_win;
+  } else {
+    for (size_t i = 1; i < TUI_BACKGROUND_STACK_MAX; i++) {
+      tui_background_stack[i - 1] = tui_background_stack[i];
+    }
+    tui_background_stack[TUI_BACKGROUND_STACK_MAX - 1] = tui_background_win;
+    LOG_WARNING("TUI background stack overflow; oldest background dropped");
+  }
+  tui_background_win = window;
+}
+
+void tui_pop_background(void) {
+  if (tui_background_stack_depth == 0) {
+    tui_background_win = NULL;
+    return;
+  }
+  tui_background_stack_depth--;
+  tui_background_win = tui_background_stack[tui_background_stack_depth];
+  tui_background_stack[tui_background_stack_depth] = NULL;
+}
+
+void tui_replace_background(tui_window_t *old_window,
+                            tui_window_t *new_window) {
+  if (tui_background_win == old_window) {
+    tui_background_win = new_window;
+  }
+  for (size_t i = 0; i < tui_background_stack_depth; i++) {
+    if (tui_background_stack[i] == old_window) {
+      tui_background_stack[i] = new_window;
+    }
+  }
+}
+
+/* ---- signal handling ---------------------------------------------------- */
+
+#ifndef _WIN32
+static void tui_signal_handler(int signum) {
+  (void)signum;
+  const int saved_errno = errno;
+  tui_interrupted_flag = 1;
+  errno = saved_errno;
+}
+#endif
+
+static void tui_install_signal_handlers(void) {
+#ifndef _WIN32
+  struct sigaction sa_int = {.sa_handler = tui_signal_handler};
+  sigemptyset(&sa_int.sa_mask);
+  /* Clear SA_RESTART so wgetch returns ERR and the menu loop can react. */
+  sa_int.sa_flags = 0;
+  sigaction(SIGINT, &sa_int, NULL);
+
+  struct sigaction sa_term = {.sa_handler = tui_signal_handler};
+  sigemptyset(&sa_term.sa_mask);
+  sa_term.sa_flags = SA_RESTART;
+  sigaction(SIGTERM, &sa_term, NULL);
+#endif
+}
+
+static void tui_uninstall_signal_handlers(void) {
+#ifndef _WIN32
+  struct sigaction sa = {.sa_handler = SIG_DFL};
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGTERM, &sa, NULL);
+#endif
+}
+
+/* ---- helpers ------------------------------------------------------------- */
 
 static bool tui_has_interactive_terminal(void) {
   return isatty(fileno(stdin)) && isatty(fileno(stdout));
@@ -71,12 +169,13 @@ static short tui_default_bg(void) {
   return tui_default_colors ? -1 : COLOR_BLACK;
 }
 
+/* ---- public lifecycle --------------------------------------------------- */
+
 app_error tui_init(void) {
   if (tui_initialized) {
     return APP_SUCCESS;
   }
 
-  // Set locale for proper Unicode support
   setlocale(LC_ALL, "");
 
   if (!tui_has_interactive_terminal()) {
@@ -84,19 +183,18 @@ app_error tui_init(void) {
     return APP_ERROR_IO;
   }
 
-  // Initialize ncurses
   if (initscr() == NULL) {
     LOG_ERROR("Failed to initialize ncurses");
     return APP_ERROR_INTERNAL;
   }
 
-  // Configure ncurses
-  cbreak();              // Disable line buffering
-  noecho();              // Don't echo input
-  keypad(stdscr, TRUE);  // Enable special keys
-  (void)curs_set(0);     // Hide cursor by default when supported
+  tui_install_signal_handlers();
 
-  // Initialize colors if supported
+  cbreak();
+  noecho();
+  keypad(stdscr, TRUE);
+  tui_saved_cursor_state = curs_set(0);
+
   if (has_colors()) {
     if (start_color() != ERR) {
       tui_default_colors = use_default_colors() != ERR;
@@ -104,7 +202,6 @@ app_error tui_init(void) {
     }
   }
 
-  // Clear and refresh
   clear();
   refresh();
 
@@ -118,13 +215,15 @@ void tui_cleanup(void) {
     return;
   }
 
-  // Reset terminal
   clear();
   refresh();
   endwin();
+  tui_uninstall_signal_handlers();
 
   tui_initialized = false;
   tui_default_colors = false;
+  tui_clear_background_window();
+  tui_interrupted_flag = 0;
   LOG_DEBUG("TUI cleaned up");
 }
 
@@ -132,16 +231,25 @@ bool tui_is_initialized(void) {
   return tui_initialized;
 }
 
+bool tui_interrupted(void) {
+  return tui_interrupted_flag != 0;
+}
+
+void tui_acknowledge_interrupt(void) {
+  tui_interrupted_flag = 0;
+}
+
+/* ---- color management --------------------------------------------------- */
+
 app_error tui_init_colors(void) {
   if (!has_colors()) {
     LOG_WARNING("Terminal does not support colors");
-    return APP_SUCCESS;  // Not an error, just no colors
+    return APP_SUCCESS;
   }
 
   const short default_fg = tui_default_fg();
   const short default_bg = tui_default_bg();
 
-  // Pair 0 is the terminal default and cannot be redefined portably.
   init_pair(TUI_COLOR_HIGHLIGHT, COLOR_BLACK, COLOR_WHITE);
   init_pair(TUI_COLOR_ERROR, COLOR_RED, default_bg);
   init_pair(TUI_COLOR_SUCCESS, COLOR_GREEN, default_bg);
@@ -151,6 +259,8 @@ app_error tui_init_colors(void) {
   init_pair(TUI_COLOR_MENU_NORMAL, default_fg, default_bg);
   init_pair(TUI_COLOR_BORDER, COLOR_BLUE, default_bg);
   init_pair(TUI_COLOR_TITLE, COLOR_MAGENTA, default_bg);
+  init_pair(TUI_COLOR_ACCENT, COLOR_WHITE, COLOR_CYAN);
+  init_pair(TUI_COLOR_DIM, COLOR_WHITE, default_bg);
 
   return APP_SUCCESS;
 }
@@ -158,14 +268,14 @@ app_error tui_init_colors(void) {
 void tui_set_color(WINDOW *win, tui_color_pair_t color) {
   if (win && has_colors() && color > TUI_COLOR_DEFAULT &&
       color < TUI_COLOR_MAX) {
-    wattron(win, COLOR_PAIR(color));
+    wattron(win, COLOR_PAIR(color) | (color == TUI_COLOR_DIM ? A_DIM : 0));
   }
 }
 
 void tui_unset_color(WINDOW *win, tui_color_pair_t color) {
   if (win && has_colors() && color > TUI_COLOR_DEFAULT &&
       color < TUI_COLOR_MAX) {
-    wattroff(win, COLOR_PAIR(color));
+    wattroff(win, COLOR_PAIR(color) | (color == TUI_COLOR_DIM ? A_DIM : 0));
   }
 }
 
@@ -194,7 +304,7 @@ tui_window_t *tui_create_window(int height, int width, int y, int x) {
     }
   }
 
-  tui_window_t *window = app_secure_malloc(sizeof(tui_window_t));
+  tui_window_t *window = calloc(1, sizeof(tui_window_t));
   if (!window) {
     return NULL;
   }
@@ -203,16 +313,14 @@ tui_window_t *tui_create_window(int height, int width, int y, int x) {
   window->width = width;
   window->y = y;
   window->x = x;
-  window->has_border = false;
-  window->title = NULL;
 
   window->win = newwin(height, width, y, x);
   if (!window->win) {
-    app_secure_free(window, sizeof(tui_window_t));
+    free(window);
     return NULL;
   }
 
-  keypad(window->win, TRUE);  // Enable special keys for this window
+  keypad(window->win, TRUE);
   return window;
 }
 
@@ -267,11 +375,8 @@ void tui_destroy_window(tui_window_t *window) {
     delwin(window->win);
   }
 
-  if (window->title) {
-    app_secure_free(window->title, strlen(window->title) + 1);
-  }
-
-  app_secure_free(window, sizeof(tui_window_t));
+  free(window->title);
+  free(window);
 }
 
 void tui_draw_border(tui_window_t *window) {
@@ -294,14 +399,12 @@ void tui_set_window_title(tui_window_t *window, const char *title) {
     return;
   }
 
-  char *title_copy = app_secure_strdup(title);
+  char *title_copy = strdup(title);
   if (!title_copy) {
     return;
   }
 
-  if (window->title) {
-    app_secure_free(window->title, strlen(window->title) + 1);
-  }
+  free(window->title);
   window->title = title_copy;
 
   tui_draw_window_title(window, window->title);
@@ -456,27 +559,23 @@ app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
     return APP_ERROR_INVALID_ARG;
   }
 
-  // Show prompt
   if (prompt) {
     wprintw(win, "%s", prompt);
   }
 
-  // Enable cursor and echo temporarily
   const int previous_cursor = curs_set(1);
   echo();
 
-  // Get string
   const size_t requested_len = size - 1;
   const int max_chars =
       requested_len > (size_t)INT_MAX ? INT_MAX : (int)requested_len;
   int result = wgetnstr(win, buffer, max_chars);
 
-  // Restore settings
   noecho();
   if (previous_cursor != ERR) {
     (void)curs_set(previous_cursor);
   } else {
-    (void)curs_set(0);
+    (void)curs_set(tui_saved_cursor_state);
   }
 
   if (result == ERR) {
@@ -484,168 +583,6 @@ app_error tui_get_string(WINDOW *win, char *buffer, size_t size,
   }
 
   return APP_SUCCESS;
-}
-
-static int tui_menu_next_enabled(const tui_menu_item_t *items, int item_count,
-                                 int selected, int direction) {
-  if (!items || item_count <= 0 || direction == 0) {
-    return -1;
-  }
-
-  int next = selected;
-  for (int i = 0; i < item_count; i++) {
-    next += direction;
-    if (next < 0) {
-      next = item_count - 1;
-    } else if (next >= item_count) {
-      next = 0;
-    }
-
-    if (items[next].enabled) {
-      return next;
-    }
-  }
-
-  return selected;
-}
-
-int tui_show_menu(tui_window_t *window, const char *title,
-                  const tui_menu_item_t *items, int item_count,
-                  int default_selection) {
-  if (!window || !items || item_count <= 0) {
-    return -1;
-  }
-
-  int selected = -1;
-  if (default_selection >= 0 && default_selection < item_count &&
-      items[default_selection].enabled) {
-    selected = default_selection;
-  } else {
-    for (int i = 0; i < item_count; i++) {
-      if (items[i].enabled) {
-        selected = i;
-        break;
-      }
-    }
-  }
-
-  if (selected < 0) {
-    return -1;  // No enabled items
-  }
-
-  int top = 0;
-
-  while (1) {
-    tui_clear_window(window);
-
-    if (title) {
-      tui_set_color(window->win, TUI_COLOR_TITLE);
-      tui_print_centered(window->win, 1, title);
-      tui_unset_color(window->win, TUI_COLOR_TITLE);
-    }
-
-    const int start_y = title ? 3 : 2;
-    const int footer_y = window->height - 2;
-    const int available_rows = footer_y - start_y;
-    const int visible_count = available_rows > 0 ? (available_rows + 1) / 2 : 0;
-    if (visible_count <= 0 || window->width < 12) {
-      return -1;
-    }
-
-    if (selected < top) {
-      top = selected;
-    } else if (selected >= top + visible_count) {
-      top = selected - visible_count + 1;
-    }
-    if (top < 0) {
-      top = 0;
-    }
-
-    for (int row = 0; row < visible_count && top + row < item_count; row++) {
-      const int i = top + row;
-      const int y = start_y + row * 2;
-      const int label_width = window->width - 8;
-      if (!items[i].enabled) {
-        tui_set_color(window->win, TUI_COLOR_WARNING);
-        tui_write_clamped(window->win, y, 4, label_width,
-                          items[i].label ? items[i].label : "(untitled)");
-        tui_write_clamped(window->win, y, window->width - 14, 12, "(disabled)");
-        tui_unset_color(window->win, TUI_COLOR_WARNING);
-      } else if (i == selected) {
-        tui_set_color(window->win, TUI_COLOR_MENU_SELECTED);
-        mvwhline(window->win, y, 2, ' ', window->width - 4);
-        tui_write_clamped(window->win, y, 3, label_width,
-                          items[i].label ? items[i].label : "(untitled)");
-        tui_unset_color(window->win, TUI_COLOR_MENU_SELECTED);
-
-        if (items[i].description) {
-          tui_set_color(window->win, TUI_COLOR_INFO);
-          tui_write_clamped(window->win, y + 1, 6, window->width - 10,
-                            items[i].description);
-          tui_unset_color(window->win, TUI_COLOR_INFO);
-        }
-      } else {
-        tui_write_clamped(window->win, y, 4, label_width,
-                          items[i].label ? items[i].label : "(untitled)");
-      }
-    }
-
-    tui_set_color(window->win, TUI_COLOR_INFO);
-    tui_write_clamped(window->win, footer_y, 2, window->width - 4,
-                      "Up/Down or j/k navigate, Enter select, q/Esc cancel");
-    tui_unset_color(window->win, TUI_COLOR_INFO);
-
-    tui_refresh_window(window);
-
-    int ch = wgetch(window->win);
-    switch (ch) {
-    case KEY_UP:
-    case 'k':
-      selected = tui_menu_next_enabled(items, item_count, selected, -1);
-      break;
-
-    case KEY_DOWN:
-    case 'j':
-      selected = tui_menu_next_enabled(items, item_count, selected, 1);
-      break;
-
-    case KEY_HOME:
-      selected = tui_menu_next_enabled(items, item_count, item_count - 1, 1);
-      break;
-
-    case KEY_END:
-      selected = tui_menu_next_enabled(items, item_count, 0, -1);
-      break;
-
-    case KEY_NPAGE:
-      for (int i = 0; i < visible_count; i++) {
-        selected = tui_menu_next_enabled(items, item_count, selected, 1);
-      }
-      break;
-
-    case KEY_PPAGE:
-      for (int i = 0; i < visible_count; i++) {
-        selected = tui_menu_next_enabled(items, item_count, selected, -1);
-      }
-      break;
-
-    case '\n':
-    case KEY_ENTER:
-      return items[selected].id;
-
-    case 'q':
-    case 27:  // ESC
-      return -1;
-
-    case KEY_RESIZE:
-      touchwin(stdscr);
-      refresh();
-      break;
-
-    case ERR:
-      break;
-    }
-  }
 }
 
 static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
@@ -688,10 +625,95 @@ static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
   return window;
 }
 
+static void tui_modal_restore_background(void) {
+  touchwin(stdscr);
+  tui_window_t *bg = tui_get_background_window();
+  if (bg && bg->win) {
+    tui_clear_window(bg);
+    if (bg->has_border) {
+      tui_draw_border(bg);
+    }
+    if (bg->title) {
+      tui_set_window_title(bg, bg->title);
+    }
+    tui_refresh_window(bg);
+  }
+  refresh();
+}
+
 static void tui_modal_close(tui_window_t *window) {
   tui_destroy_window(window);
-  touchwin(stdscr);
-  refresh();
+  tui_modal_restore_background();
+}
+
+static void tui_modal_redraw_background(void);
+
+// Run a modal dialog loop until the key handler reports DONE or the user
+// triggers a SIGINT. Handles window setup, redraw on resize, and teardown.
+// Returns true if the loop completed normally and false on open failure.
+bool tui_modal_run(int height, int width, const char *title,
+                   tui_modal_redraw_fn redraw, tui_modal_key_fn handle,
+                   void *userdata) {
+  tui_window_t *window = tui_modal_open(height, width, title);
+  if (!window) {
+    return false;
+  }
+  redraw(window, userdata);
+  tui_refresh_window(window);
+
+  while (1) {
+    if (tui_interrupted()) {
+      tui_acknowledge_interrupt();
+      break;
+    }
+    const int ch = wgetch(window->win);
+    if (ch == KEY_RESIZE) {
+      tui_modal_redraw_background();
+      tui_destroy_window(window);
+      window = tui_modal_open(height, width, title);
+      if (!window) {
+        return false;
+      }
+      redraw(window, userdata);
+      tui_refresh_window(window);
+      continue;
+    }
+    if (ch == ERR) {
+      continue;
+    }
+    if (handle(window, ch, userdata) == TUI_MODAL_DONE) {
+      break;
+    }
+  }
+
+  tui_modal_close(window);
+  return true;
+}
+
+static void tui_modal_redraw_background(void) {
+  tui_modal_restore_background();
+}
+
+typedef struct {
+  const char *message;
+} tui_message_state_t;
+
+static void tui_message_redraw(tui_window_t *window, void *userdata) {
+  const tui_message_state_t *state = userdata;
+  if (state->message) {
+    tui_print_wrapped(window->win, 2, 2, window->width - 4, state->message);
+  }
+  tui_set_color(window->win, TUI_COLOR_INFO);
+  tui_print_centered(window->win, window->height - 2, "Press any key");
+  tui_unset_color(window->win, TUI_COLOR_INFO);
+}
+
+static tui_modal_decision_t tui_message_key(tui_window_t *window, int ch,
+                                            void *userdata) {
+  (void)window;
+  (void)ch;
+  (void)userdata;
+  return TUI_MODAL_DONE;
 }
 
 void tui_show_message(const char *title, const char *message) {
@@ -705,62 +727,113 @@ void tui_show_message(const char *title, const char *message) {
     }
   }
 
-  tui_window_t *window = tui_modal_open(height, 60, title);
-  if (!window) {
-    return;
-  }
-
-  // Print message
-  if (message) {
-    tui_print_wrapped(window->win, 2, 2, window->width - 4, message);
-  }
-
-  // Instructions
-  tui_set_color(window->win, TUI_COLOR_INFO);
-  tui_print_centered(window->win, window->height - 2, "Press any key");
-  tui_unset_color(window->win, TUI_COLOR_INFO);
-
-  tui_refresh_window(window);
-  (void)wgetch(window->win);
-
-  tui_modal_close(window);
+  tui_message_state_t state = {.message = message};
+  (void)tui_modal_run(height, 60, title, tui_message_redraw, tui_message_key,
+                      &state);
 }
 
-bool tui_confirm(const char *title, const char *question) {
-  tui_window_t *window = tui_modal_open(8, 50, title);
-  if (!window) {
-    return false;
-  }
+typedef struct {
+  const char *question;
+  bool result;
+} tui_confirm_state_t;
 
-  // Print question
-  if (question) {
-    tui_print_wrapped(window->win, 2, 2, window->width - 4, question);
+static void tui_confirm_redraw(tui_window_t *window, void *userdata) {
+  const tui_confirm_state_t *state = userdata;
+  if (state->question) {
+    tui_print_wrapped(window->win, 2, 2, window->width - 4, state->question);
   }
-
-  // Instructions
   tui_set_color(window->win, TUI_COLOR_INFO);
   tui_print_centered(window->win, window->height - 2, "y/n, Esc cancels");
   tui_unset_color(window->win, TUI_COLOR_INFO);
+}
 
-  tui_refresh_window(window);
+static tui_modal_decision_t tui_confirm_key(tui_window_t *window, int ch,
+                                            void *userdata) {
+  (void)window;
+  tui_confirm_state_t *state = userdata;
+  if (ch == 'y' || ch == 'Y') {
+    state->result = true;
+    return TUI_MODAL_DONE;
+  }
+  if (ch == 'n' || ch == 'N' || ch == 'q' || ch == 'Q' || ch == 27) {
+    state->result = false;
+    return TUI_MODAL_DONE;
+  }
+  return TUI_MODAL_CONTINUE;
+}
 
-  bool result = false;
-  while (1) {
-    int ch = wgetch(window->win);
-    if (ch == 'y' || ch == 'Y') {
-      result = true;
-      break;
-    } else if (ch == 'n' || ch == 'N' || ch == 'q' || ch == 'Q' ||
-               ch == 27) {  // ESC
-      result = false;
-      break;
-    } else if (ch == ERR) {
-      break;
-    }
+bool tui_confirm(const char *title, const char *question) {
+  tui_confirm_state_t state = {.question = question, .result = false};
+  if (!tui_modal_run(8, 50, title, tui_confirm_redraw, tui_confirm_key,
+                     &state)) {
+    return false;
+  }
+  return state.result;
+}
+
+typedef struct {
+  const char *prompt;
+  char *buffer;
+  size_t size;
+  size_t len;
+  app_error result;
+} tui_input_state_t;
+
+static void tui_input_redraw(tui_window_t *window, void *userdata) {
+  tui_input_state_t *state = userdata;
+  if (state->prompt) {
+    tui_write_clamped(window->win, 2, 2, window->width - 4, state->prompt);
   }
 
-  tui_modal_close(window);
-  return result;
+  mvwprintw(window->win, 4, 2, "> ");
+  const int max_cols = window->width > 6 ? window->width - 6 : 0;
+  size_t start = 0;
+  if (max_cols > 0 && state->len > (size_t)max_cols) {
+    start = state->len - (size_t)max_cols;
+  }
+  if (max_cols > 0) {
+    tui_write_clamped(window->win, 4, 4, max_cols, state->buffer + start);
+  }
+  wmove(window->win, 4, 4 + (int)(state->len - start));
+}
+
+static tui_modal_decision_t tui_input_key(tui_window_t *window, int ch,
+                                          void *userdata) {
+  tui_input_state_t *state = userdata;
+  switch (ch) {
+  case '\n':
+  case KEY_ENTER:
+    state->result = APP_SUCCESS;
+    return TUI_MODAL_DONE;
+  case 27:
+    state->result = APP_ERROR_IO;
+    return TUI_MODAL_DONE;
+  case KEY_BACKSPACE:
+  case 127:
+  case 8:
+    if (state->len > 0) {
+      state->buffer[--state->len] = '\0';
+    } else {
+      tui_beep();
+    }
+    break;
+  default:
+    if (ch >= 32 && ch < 0x7f) {
+      if (state->len + 1 < state->size) {
+        state->buffer[state->len++] = (char)ch;
+        state->buffer[state->len] = '\0';
+      } else {
+        tui_beep();
+      }
+    }
+    break;
+  }
+
+  werase(window->win);
+  tui_draw_border(window);
+  tui_input_redraw(window, state);
+  tui_refresh_window(window);
+  return TUI_MODAL_CONTINUE;
 }
 
 app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
@@ -769,24 +842,22 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
     return APP_ERROR_INVALID_ARG;
   }
 
-  tui_window_t *window = tui_modal_open(8, 60, title);
-  if (!window) {
-    return APP_ERROR_INTERNAL;
+  buffer[0] = '\0';
+  const int previous_cursor = curs_set(1);
+  tui_input_state_t state = {.prompt = prompt,
+                             .buffer = buffer,
+                             .size = size,
+                             .len = 0,
+                             .result = APP_ERROR_IO};
+
+  const bool opened =
+      tui_modal_run(8, 60, title, tui_input_redraw, tui_input_key, &state);
+  if (previous_cursor != ERR) {
+    (void)curs_set(previous_cursor);
+  } else {
+    (void)curs_set(tui_saved_cursor_state);
   }
-
-  // Print prompt
-  if (prompt) {
-    tui_write_clamped(window->win, 2, 2, window->width - 4, prompt);
-  }
-
-  // Input field
-  mvwprintw(window->win, 4, 2, "> ");
-  tui_refresh_window(window);
-
-  app_error result = tui_get_string(window->win, buffer, size, NULL);
-
-  tui_modal_close(window);
-  return result;
+  return opened ? state.result : APP_ERROR_INTERNAL;
 }
 
 void tui_beep(void) {

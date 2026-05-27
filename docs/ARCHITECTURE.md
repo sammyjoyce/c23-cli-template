@@ -24,7 +24,7 @@ graph TB
         MAIN[main.c<br/>Entry Point]
         CLI[CLI Module<br/>args.c/help.c]
         CORE[Core Module<br/>config.c/error.c]
-        TUI[TUI Module<br/>tui.c/tui_demo.c/progress.c]
+        TUI[TUI Module<br/>tui.c/tui_app.c/tui_menu.c/progress.c]
         IO[I/O Module<br/>input.c/output.c]
     end
 
@@ -74,21 +74,24 @@ graph LR
     end
 
     subgraph "src/tui"
-        TUIDEF[tui.c<br/>TUI Framework]
-        TUIDEMO[tui_demo.c<br/>Starter Showcase]
+        TUIDEF[tui.c<br/>TUI Primitives]
+        TUIMENU[tui_menu.c<br/>Menu Component]
+        TUIAPP[tui_app.c<br/>Starter Showcase]
         PROGRESS[tui_progress.c<br/>Progress Bars]
     end
 
     subgraph "src/utils"
         COLORS[colors.c<br/>Color Definitions]
         LOGGING[logging.c<br/>Logging System]
-        MEMORY[memory.c<br/>Secure Memory]
+        MEMORY[memory.c<br/>Secret Zeroing]
     end
 
     ARGS --> CONFIG
     ARGS --> ERROR
     TUIDEF --> COLORS
-    TUIDEMO --> TUIDEF
+    TUIAPP --> TUIDEF
+    TUIAPP --> TUIMENU
+    TUIMENU --> TUIDEF
     TUIDEF --> OUTPUT
     CONFIG --> LOGGING
     INPUT --> MEMORY
@@ -102,7 +105,7 @@ graph LR
 | **core** | Core application logic and configuration | `load_config()`, `handle_error()` |
 | **io** | Input/output operations with formatting | `read_input()`, `write_output()` |
 | **tui** | Terminal UI components and rendering | `init_tui()`, `show_progress()` |
-| **utils** | Cross-cutting utilities and helpers | `secure_malloc()`, `log_message()` |
+| **utils** | Cross-cutting utilities and helpers | `app_secret_zero()`, `app_log_*()` |
 
 ## Build System
 
@@ -264,8 +267,8 @@ graph TB
     end
 
     subgraph "Memory Security"
-        SECMEM[Secure Allocation<br/>mlock/VirtualLock]
-        ZEROMEM[Zero on Free<br/>secure_zero()]
+        SECMEM[Secret Buffer Hygiene]
+        ZEROMEM[Explicit Zeroing<br/>app_secret_zero()]
         CANARY[Stack Canaries<br/>-fstack-protector]
     end
 
