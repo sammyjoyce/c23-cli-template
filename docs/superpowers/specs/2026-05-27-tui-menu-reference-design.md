@@ -358,11 +358,23 @@ static tui_menu_event_t tui_menu_handle_mouse(tui_menu_state_t *s,
 ## Lifecycle hooks
 
 ### Signal wiring
-The dead `tui_install_signal_handlers` and `tui_uninstall_signal_handlers`
-are wired into `tui_init` (after `initscr()` succeeds) and `tui_cleanup`
-(before `endwin()`), respectively. `signal()` is replaced with `sigaction()`
-to disable `SA_RESTART` for `SIGINT` so that `wgetch` returns `ERR` and the
-menu loop can observe the flag. Handler body:
+
+The handler install/uninstall calls are **already wired** in the working tree
+(`tui_init` calls `tui_install_signal_handlers` after `initscr()`;
+`tui_cleanup` calls `tui_uninstall_signal_handlers` before `endwin()`). What
+remains for the reference implementation:
+
+1. Replace `signal()` with `sigaction()` so we can clear `SA_RESTART` on
+   `SIGINT` — `wgetch` then returns `ERR` and the menu loop can observe the
+   flag rather than the syscall auto-restarting.
+2. Observe the flag inside the menu loop (current code only checks
+   `tui_interrupted()` at the top of each iteration, before `wgetch`, which
+   misses the common case where the user hits Ctrl-C while `wgetch` is
+   blocked).
+3. Return `TUI_MENU_INTERRUPTED` so callers can distinguish interrupt from
+   user-cancel.
+
+Handler body stays in one breath:
 
 ```c
 static void tui_signal_handler(int signum) {
@@ -407,17 +419,45 @@ On every exit path (OK / CANCELLED / INTERRUPTED / TOO_SMALL / INVALID_ARG):
 ## Starter shell (`tui_app.c`)
 
 ### Renames
-| Before                       | After                  |
-|------------------------------|------------------------|
-| `src/tui/tui_demo.c`         | `src/tui/tui_app.c`    |
-| `tui_run_demo()`             | `tui_run_app()`        |
-| `static tui_demo_show_*()`   | `static app_show_*()`  |
-| `build.zig:183` source path  | updated path           |
-| `src/main.c:382` call site   | updated call           |
-| `src/tui/tui.h` prototype    | updated prototype      |
+| Before                                       | After                                       |
+|----------------------------------------------|---------------------------------------------|
+| `src/tui/tui_demo.c`                         | `src/tui/tui_app.c`                         |
+| `tui_run_demo()`                             | `tui_run_app()`                             |
+| `static tui_demo_show_*()`                   | `static app_show_*()`                       |
+| `static tui_demo_show_config_menu(...)`      | `static app_show_config_menu(void)`         |
+| `build.zig:189` source-list line             | updated path                                |
+| `src/cli/commands_menu.c:28` call site       | updated call (one-line edit)                |
+| `src/tui/tui.h` prototype                    | updated prototype                           |
+| `commands.c` summary: "TUI showcase"         | "interactive main menu" (drop "showcase")   |
 
 The `app_*` naming signals **edit these** to the consumer; `tui_*` stays for
 primitives the consumer keeps.
+
+### Adjacent files (post-refactor context)
+
+The CLI was split into a command-table pattern (`src/cli/commands.c` registers
+handlers; each command lives in `commands_<name>.c`). The menu integration
+point is now:
+
+```
+src/cli/commands.c              # registration table
+  └── src/cli/commands_menu.c   # thin shim: calls tui_run_demo()/tui_run_app()
+        └── src/tui/tui_app.c   # starter shell — the file consumers edit
+```
+
+`commands_menu.c` is **only** a router; the spec's rename is to `tui_app.c`
+(unchanged), but the call-site update is one line in `commands_menu.c`, not
+`main.c`. `main.c` is now 135 lines of pure bootstrap and has no TUI
+knowledge.
+
+### Exit-status channel (load-bearing)
+
+`commands_menu.c` translates `tui_run_demo`'s `APP_ERROR_OUT_OF_RANGE` into a
+human-readable "terminal is too small (minimum NNxNN)" message. The new
+`tui_run_app` MUST preserve this channel: on `TUI_MENU_TOO_SMALL`, it returns
+`APP_ERROR_OUT_OF_RANGE` so the existing `commands_menu.c` branch still
+fires. Verification step in the plan asserts that running `menu` in a
+sub-minimum terminal still prints the size message.
 
 ### File shape
 
@@ -478,14 +518,16 @@ static const tui_menu_item_t main_menu[] = {
     {.label = "&Configuration",
      .description = "Adjust output mode, log level, and terminal settings",
      .id = 6},
-    {.label = "&Quick Actions",
-     .description = "Jump to common operations from a dedicated sub-menu",
-     .id = 7, .disabled = true},
     {.kind = TUI_MENU_ITEM_SEPARATOR},
     {.label = "E&xit",
      .description = "Return to the shell",
      .id = 0},
 };
+// Disabled-item demonstration lives in the Configuration sub-menu
+// (`Export config`, .disabled = true). Keeping it there means the main
+// menu has no skeuomorphic placeholder users will delete first, while
+// still surfacing the dim + (disabled) + navigation-skip + beep behavior
+// once the consumer drills into Configuration.
 
 static void app_dispatch(int id) {
   switch (id) {
