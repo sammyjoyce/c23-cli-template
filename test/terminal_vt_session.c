@@ -305,8 +305,7 @@ bool vt_send(vt_session_t *session, const char *bytes) {
     session->io_failed = true;
     return false;
   }
-  usleep(50000);
-  vt_drain(session, 0);
+  vt_drain(session, 50);
   return true;
 }
 
