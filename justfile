@@ -27,13 +27,17 @@ tui-menu-lib:
 
 # --- Run ---
 
-# Run the application
+# Run the application. Delegate menu to the TUI-enabled recipe.
 run *args:
-    zig build run -- {{ args }}
+    if [ "${1:-}" = "menu" ]; then \
+        just run-tui "$@"; \
+    else \
+        zig build run -- "$@"; \
+    fi
 
 # Run the application with TUI support
 run-tui *args:
-    zig build -Denable-tui=true run -- {{ args }}
+    zig build -Denable-tui=true run -- "$@"
 
 # --- Test ---
 
