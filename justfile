@@ -5,21 +5,21 @@ set positional-arguments
 
 # --- Build ---
 
-# Build the project (TUI enabled by default)
+# Build the default CLI
 build:
-    zig build -Denable-tui=true
-
-# Build without TUI support
-build-no-tui:
     zig build
 
-# Build with release optimization (TUI enabled by default)
-release:
-    zig build -Doptimize=ReleaseSafe -Denable-tui=true
+# Build with TUI support
+build-tui:
+    zig build -Denable-tui=true
 
-# Build with release optimization without TUI
-release-no-tui:
+# Build with release optimization
+release:
     zig build -Doptimize=ReleaseSafe
+
+# Build with release optimization and TUI support
+release-tui:
+    zig build -Doptimize=ReleaseSafe -Denable-tui=true
 
 # Build the reusable TUI menu static library
 tui-menu-lib:
@@ -27,13 +27,13 @@ tui-menu-lib:
 
 # --- Run ---
 
-# Run the application (TUI enabled by default)
+# Run the application
 run *args:
-    zig build -Denable-tui=true run -- {{ args }}
-
-# Run the application without TUI
-run-no-tui *args:
     zig build run -- {{ args }}
+
+# Run the application with TUI support
+run-tui *args:
+    zig build -Denable-tui=true run -- {{ args }}
 
 # --- Test ---
 
@@ -48,6 +48,14 @@ terminal-test:
 # Run terminal scenarios with TUI explicitly enabled
 tui-test:
     zig build -Denable-tui=true terminal-test
+
+# Require Ghostty VT-backed TUI scenarios
+tui-test-ghostty:
+    zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
+
+# Require Ghostty VT-backed TUI scenarios inside the Nix shell
+nix-test-ghostty:
+    nix develop --command zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
 
 # Run tests with different optimization levels
 test-debug:

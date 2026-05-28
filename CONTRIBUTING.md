@@ -13,8 +13,9 @@ cd c23-cli-template
 git checkout -b your-change
 
 # Build and test
-zig build check                                # fmt-check + tests (the CI gate)
-zig build -Denable-tui=true terminal-test      # if you touched the TUI
+zig build check                                           # fmt-check + tests (the CI gate)
+zig build -Denable-tui=true terminal-test                 # if you touched the TUI
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require PTY/TUI coverage
 
 # Format, commit, push
 zig build fmt
@@ -22,7 +23,7 @@ git commit -m "feat(scope): one-line summary"
 git push origin your-change
 ```
 
-Open a PR against `main`. CI runs `zig build check` on Linux, macOS, and Windows, plus `clang-tidy` and `cppcheck`.
+Open a PR against `main`. CI runs `zig build check` on Linux, macOS, and Windows, plus `clang-tidy` and `cppcheck`, without requiring Nix by default.
 
 ## Reporting issues
 
@@ -54,18 +55,18 @@ Only needed for `-Denable-tui=true` builds. (The default build links only libc.)
 
 | Platform | Install |
 | --- | --- |
-| macOS | `brew install ncurses` |
-| Ubuntu / Debian | `sudo apt-get install libncurses-dev clang-format clang-tidy` |
-| Fedora / RHEL | `sudo dnf install ncurses-devel clang-tools-extra` |
+| macOS | `brew install pkg-config ncurses` |
+| Ubuntu / Debian | `sudo apt-get install pkg-config libncurses-dev clang-format clang-tidy` |
+| Fedora / RHEL | `sudo dnf install pkg-config ncurses-devel clang-tools-extra` |
 | Windows | `vcpkg install pdcurses:x64-windows` |
 
-### Alternative: Nix or devcontainer
+### Optional: Nix or devcontainer
 
 ```bash
-nix develop                # Zig, C toolchain, libghostty-vt, markdownlint
+nix develop                # convenience shell with Zig, C tooling, curses, Ghostty VT, markdownlint
 ```
 
-The repository also ships a devcontainer (open in VS Code, choose **Reopen in Container**) with the same dependencies pre-installed.
+The repository also ships a default devcontainer (open in VS Code, choose **Reopen in Container**) that uses Zig and normal Linux packages, not Nix.
 
 ## Build and test
 
@@ -76,7 +77,8 @@ zig build                                # debug build
 zig build -Doptimize=ReleaseSafe         # optimized
 zig build run -- hello Alice             # build + run with arguments
 zig build test                           # unit tests + CLI contract tests
-zig build terminal-test                  # the above + PTY/TUI scenarios when available
+zig build terminal-test                  # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
+zig build -Denable-tui=true terminal-test # TUI build; PTY scenarios run if libghostty-vt is found
 zig build check                          # fmt-check + tests (the CI gate)
 zig build fmt                            # apply formatting
 zig build clean                          # remove zig-out + .zig-cache
@@ -112,7 +114,8 @@ Append the path to `base_sources` in `build.zig` (TUI-only files belong in `tui_
 
 4. Keep PRs focused. Update documentation when behavior changes (commands, flags, exit codes, the OpenCLI contract).
 
-Local pre-commit hooks (install with `pre-commit install`) run clang-format, markdownlint, and the conventional-commit validator. CI runs `zig build check` on three platforms plus `clang-tidy` and `cppcheck`.
+Local pre-commit hooks (install with `pre-commit install`) run clang-format, markdownlint, and the conventional-commit validator.
+CI runs `zig build check` on three platforms plus `clang-tidy` and `cppcheck`; optional Ghostty VT coverage can be enabled with `CI_ENABLE_NIX_GHOSTTY=true`.
 
 ## Coding standards
 

@@ -112,7 +112,7 @@ Pass these as `-D<name>=<value>` on any `zig build` command.
 | `-Dapp-name=` | string (default `myapp`) | Application and binary name |
 | `-Dversion=` | string (default `0.1.0`) | Version baked into the binary |
 | `-Dcurses-prefix=` | path | Override the ncurses/PDCurses install prefix |
-| `-Dterminal-backend=` | `auto` (default) / `ghostty` | Terminal-test backend; see [TESTING.md](TESTING.md) |
+| `-Dterminal-backend=` | `auto` (default) / `none` / `ghostty` | PTY/TUI terminal-test backend selection; see [TESTING.md](TESTING.md) |
 | `-Dghostty-vt-prefix=` | path | Override the libghostty-vt install prefix |
 
 ## Build steps
@@ -123,7 +123,7 @@ Pass these as `-D<name>=<value>` on any `zig build` command.
 | `zig build run -- ARGS` | Build, then run with `ARGS` |
 | `zig build test` | CLI contract tests plus in-process unit tests |
 | `zig build unit-test` | Only the in-process unit tests |
-| `zig build terminal-test` | CLI contracts plus PTY/TUI scenarios when a backend is available |
+| `zig build terminal-test` | Unit and CLI tests plus PTY/TUI scenarios when TUI + backend are available |
 | `zig build tui-menu-lib` | Build the reusable TUI menu static library and install its headers |
 | `zig build fmt` / `fmt-check` | Format, or check formatting of, `build.zig`, `src`, and `test` |
 | `zig build check` | Baseline gate: `fmt-check` + tests (what CI runs) |
@@ -203,8 +203,10 @@ install ncurses`, `dnf install ncurses-devel`), or point at a custom install wit
 `-Dcurses-prefix=/path`.
 
 **libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See
-[TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build
-test` and the CLI portion of `terminal-test` still run.
+[TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, auto mode
+still runs `zig build test` and prints a PTY/TUI skip reason. Use
+`-Dterminal-backend=ghostty` to require the backend, or `-Dterminal-backend=none` to
+skip it explicitly.
 
 **Stale build.** `zig build clean` removes `zig-out` and `.zig-cache`. (Equivalent: `rm -rf zig-out .zig-cache`.)
 

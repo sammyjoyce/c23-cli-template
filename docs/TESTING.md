@@ -22,13 +22,16 @@ zig build check           # fmt-check + tests (the gate CI runs)
 PTY/TUI scenarios only run when the TUI is built and a terminal backend is present:
 
 ```bash
-zig build -Denable-tui=true terminal-test
+zig build -Denable-tui=true terminal-test                         # auto-run PTY scenarios when libghostty-vt is found
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require Ghostty VT
+zig build -Dterminal-backend=none terminal-test                   # never run PTY/TUI scenarios
 ```
 
 ## The Ghostty VT backend
 
-`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the
-Ghostty VT backend when `pkg-config` finds libghostty-vt and its headers expose the
+`zig build terminal-test` defaults to `-Dterminal-backend=auto`. In auto mode it runs
+unit and CLI contract tests everywhere, then runs Ghostty VT-backed PTY/TUI scenarios
+only when `-Denable-tui=true` is set and `pkg-config` finds libghostty-vt with the
 Terminal and Formatter APIs. The backend is a C runner (`test/terminal_vt_*.c`) that
 runs the app in a real PTY, feeds output through
 [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the virtual
@@ -36,14 +39,16 @@ terminal with Ghostty's formatter API, and drives deterministic input and resize
 sequences.
 
 Use `-Dterminal-backend=ghostty` to *require* it on POSIX hosts (the build fails if
-libghostty-vt is missing). Without the backend, `zig build terminal-test` still runs the
-unit and CLI contract suites and skips PTY/TUI coverage.
+TUI support or libghostty-vt is missing). Use `-Dterminal-backend=none` to skip PTY/TUI
+coverage explicitly. Without the backend, auto mode still runs the unit and CLI contract
+suites and prints a skip reason.
 
-The Nix dev shell wires Zig, the C toolchain, and nixpkgs `libghostty-vt` into `PATH` and `pkg-config`:
+The Nix dev shell is a convenience path that wires Zig, the C toolchain, curses, and
+`libghostty-vt` into `PATH` and `pkg-config`:
 
 ```bash
 nix develop
-zig build -Denable-tui=true terminal-test
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
 ```
 
 Outside Nix, install a libghostty-vt build that exposes the development
@@ -93,12 +98,15 @@ Prefer small step tables (`expect`, `send`, `resize`, `wait`) over long branch l
 
 ## What CI runs
 
-CI runs `zig build check` on Linux, macOS, and Windows, so the unit and CLI contract
-suites are enforced on every platform. Linux additionally builds libghostty-vt from the
-Ghostty flake and runs `zig build -Denable-tui=true -Dterminal-backend=ghostty
-terminal-test`, making PTY-backed TUI coverage a required gate there. macOS and Windows
-build the TUI binary and run the `--json info` smoke check, but do not run PTY
-scenarios by default.
+CI runs `zig build check` on Linux, macOS, and Windows without Nix, so the unit and CLI
+contract suites are enforced on every platform. CI also builds the TUI with platform
+package managers and runs a `--json info` smoke check. Linux runs `zig build
+-Denable-tui=true terminal-test` in auto mode, so PTY/TUI coverage runs automatically if
+libghostty-vt is available and otherwise reports a skip.
+
+Maintainers who want required Ghostty VT coverage can set `CI_ENABLE_NIX_GHOSTTY=true`
+to enable the separate Nix-backed job. That job is intentionally not part of the default
+release gate.
 
 ## Choosing a richer tool
 

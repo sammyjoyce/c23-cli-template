@@ -2,6 +2,7 @@ const std = @import("std");
 
 const TerminalTestBackend = enum {
     auto,
+    none,
     ghostty,
 };
 
@@ -42,25 +43,35 @@ fn ghosttyLibraryExists(b: *std.Build, lib_dir: []const u8) bool {
         pathExists(b, b.fmt("{s}/libghostty-vt.a", .{lib_dir}));
 }
 
+fn ghosttyLibraryExistsUnderPrefix(b: *std.Build, prefix: []const u8) bool {
+    return ghosttyLibraryExists(b, b.fmt("{s}/lib", .{prefix})) or
+        ghosttyLibraryExists(b, b.fmt("{s}/lib64", .{prefix}));
+}
+
 fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
     if (prefix) |pref| {
-        return pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{pref})) and
+        return pathExists(b, b.fmt("{s}/include/ghostty/vt.h", .{pref})) and
+            pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{pref})) and
             pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{pref})) and
-            ghosttyLibraryExists(b, b.fmt("{s}/lib", .{pref}));
+            ghosttyLibraryExistsUnderPrefix(b, pref);
     }
 
-    return commandSucceeds(b, &.{
-        "sh",
-        "-c",
-        "pkg-config --exists libghostty-vt && " ++
-            "inc=$(pkg-config --variable=includedir libghostty-vt) && " ++
-            "lib=$(pkg-config --variable=libdir libghostty-vt) && " ++
-            "test -f \"$inc/ghostty/vt/terminal.h\" && " ++
-            "test -f \"$inc/ghostty/vt/formatter.h\" && " ++
-            "{ test -f \"$lib/libghostty-vt.so\" || " ++
-            "test -f \"$lib/libghostty-vt.dylib\" || " ++
-            "test -f \"$lib/libghostty-vt.a\"; }",
-    });
+    if (!commandSucceeds(b, &.{ "pkg-config", "--exists", "libghostty-vt" })) return false;
+    const include_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=includedir", "libghostty-vt" }) orelse return false;
+    const lib_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" }) orelse return false;
+
+    return pathExists(b, b.fmt("{s}/ghostty/vt.h", .{include_dir})) and
+        pathExists(b, b.fmt("{s}/ghostty/vt/terminal.h", .{include_dir})) and
+        pathExists(b, b.fmt("{s}/ghostty/vt/formatter.h", .{include_dir})) and
+        ghosttyLibraryExists(b, lib_dir);
+}
+
+fn addMessageCommand(b: *std.Build, target: std.Build.ResolvedTarget, message: []const u8) *std.Build.Step.Run {
+    if (target.result.os.tag == .windows) {
+        return b.addSystemCommand(&.{ "cmd", "/C", "echo", message });
+    }
+
+    return b.addSystemCommand(&.{ "printf", "%s\n", message });
 }
 
 fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8) void {
@@ -126,7 +137,7 @@ pub fn build(b: *std.Build) void {
 
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
-    const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto or ghostty") orelse .auto;
+    const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto, none, or ghostty") orelse .auto;
     const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
 
     const exe = b.addExecutable(.{
@@ -335,15 +346,25 @@ pub fn build(b: *std.Build) void {
     unit_step.dependOn(&unit_cmd.step);
     test_step.dependOn(&unit_cmd.step);
 
-    if (terminal_backend == .ghostty and target.result.os.tag == .windows) {
+    const is_windows = target.result.os.tag == .windows;
+    if (terminal_backend == .ghostty and is_windows) {
         std.log.err("-Dterminal-backend=ghostty is not supported on Windows", .{});
         std.process.exit(1);
     }
-    const have_ghostty_vt = hasGhosttyTerminalApi(b, ghostty_vt_prefix);
+    if (terminal_backend == .ghostty and !enable_tui) {
+        std.log.err(
+            "-Dterminal-backend=ghostty requires -Denable-tui=true because the PTY scenarios exercise the TUI.",
+            .{},
+        );
+        std.process.exit(1);
+    }
+
+    const should_probe_ghostty = enable_tui and !is_windows and terminal_backend != .none;
+    const have_ghostty_vt = should_probe_ghostty and hasGhosttyTerminalApi(b, ghostty_vt_prefix);
     if (terminal_backend == .ghostty and !have_ghostty_vt) {
         std.log.err(
-            "-Dterminal-backend=ghostty needs libghostty-vt with the terminal/formatter API.\n" ++
-                "  Install libghostty-vt and ensure pkg-config can find it, or pass -Dghostty-vt-prefix=/path.",
+            "-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API.\n" ++
+                "  Install it so pkg-config can find libghostty-vt.pc, or pass -Dghostty-vt-prefix=/path.",
             .{},
         );
         std.process.exit(1);
@@ -352,8 +373,14 @@ pub fn build(b: *std.Build) void {
         commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" })
     else
         null;
-    const use_ghostty_terminal_tests = target.result.os.tag != .windows and
-        (terminal_backend == .ghostty or (terminal_backend == .auto and have_ghostty_vt));
+    const ghostty_prefix_lib_dir = if (ghostty_vt_prefix) |pref|
+        if (ghosttyLibraryExists(b, b.fmt("{s}/lib", .{pref})))
+            b.fmt("{s}/lib", .{pref})
+        else
+            b.fmt("{s}/lib64", .{pref})
+    else
+        null;
+    const use_ghostty_terminal_tests = enable_tui and !is_windows and have_ghostty_vt and terminal_backend != .none;
 
     const terminal_test_step = b.step("terminal-test", "Run CLI contracts and optional PTY/TUI terminal scenarios");
     terminal_test_step.dependOn(test_step);
@@ -381,9 +408,10 @@ pub fn build(b: *std.Build) void {
         });
 
         if (ghostty_vt_prefix) |pref| {
+            const lib_dir = ghostty_prefix_lib_dir.?;
             vt_test_mod.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
-            vt_test_mod.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
-            vt_test_mod.addRPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
+            vt_test_mod.addLibraryPath(.{ .cwd_relative = lib_dir });
+            vt_test_mod.addRPath(.{ .cwd_relative = lib_dir });
             vt_test_mod.linkSystemLibrary("ghostty-vt", .{ .use_pkg_config = .no });
         } else {
             if (ghostty_pkg_lib_dir) |lib_dir| {
@@ -404,8 +432,8 @@ pub fn build(b: *std.Build) void {
             "--tui-enabled",
             "auto",
         });
-        if (ghostty_vt_prefix) |pref| {
-            const lib_path = b.fmt("{s}/lib", .{pref});
+        if (ghostty_vt_prefix != null) {
+            const lib_path = ghostty_prefix_lib_dir.?;
             prependRunEnvPath(vt_test_cmd, "LD_LIBRARY_PATH", lib_path);
             prependRunEnvPath(vt_test_cmd, "DYLD_FALLBACK_LIBRARY_PATH", lib_path);
         } else if (ghostty_pkg_lib_dir) |lib_dir| {
@@ -414,6 +442,17 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
+    } else {
+        const skip_reason = if (terminal_backend == .none)
+            "Skipping PTY/TUI terminal scenarios: disabled by -Dterminal-backend=none."
+        else if (!enable_tui)
+            "Skipping PTY/TUI terminal scenarios: pass -Denable-tui=true to build the TUI."
+        else if (is_windows)
+            "Skipping PTY/TUI terminal scenarios: Ghostty VT backend is POSIX-only."
+        else
+            "Skipping PTY/TUI terminal scenarios: libghostty-vt was not found; use -Dterminal-backend=ghostty to require it.";
+        const skip_cmd = addMessageCommand(b, target, skip_reason);
+        terminal_test_step.dependOn(&skip_cmd.step);
     }
 
     // Clean command – cross-platform
