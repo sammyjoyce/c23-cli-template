@@ -12,7 +12,10 @@ A map of how a project generated from this template is put together: the layers,
 
 ## The mental model
 
-It is a small, layered C23 program. `main.c` parses arguments, resolves configuration, looks up a command in a table, and runs its handler. Handlers write text (or JSON with `--json`) through one I/O layer and signal failure with a typed error code that becomes the process exit status.
+It is a small, layered C23 program. `main.c` parses arguments, resolves configuration,
+looks up a command in a table, and runs its handler. Handlers write text (or JSON with
+`--json`) through one I/O layer and signal failure with a typed error code that becomes
+the process exit status.
 
 The interactive ncurses interface is a separate layer that only compiles when you pass `-Denable-tui=true`. The default build is a plain libc CLI with no curses dependency.
 
@@ -41,12 +44,18 @@ Each directory under `src/` owns one concern. The functions below are representa
 | `tui` | `tui.c`, `tui_menu.c`, `tui_menu_model.c`, `tui_progress.c`, `tui_app.c` | ncurses lifecycle, modal menus, progress bars, and the demo showcase (compiled only with `-Denable-tui=true`) | `tui_init()`, `tui_cleanup()`, `tui_show_menu()`, `tui_progress_create()` |
 | `utils` | `colors.c`, `logging.c`, `memory.c` | Cross-cutting helpers: color setup, leveled logging, secret zeroing | `app_log_init()`, `app_secret_zero()` |
 
-The command table is the seam to extend. `commands.c` registers the built-in commands, and each lives in its own file (`commands_basic.c` for `hello`/`echo`, plus `commands_info.c`, `commands_doctor.c`, `commands_menu.c`, `commands_opencli.c`). See [examples/adding-a-command.md](../examples/adding-a-command.md).
+The command table is the seam to extend. `commands.c` registers the built-in commands,
+and each lives in its own file (`commands_basic.c` for `hello`/`echo`, plus
+`commands_info.c`, `commands_doctor.c`, `commands_menu.c`, `commands_opencli.c`). See
+[examples/adding-a-command.md](../examples/adding-a-command.md).
 
 ## Request lifecycle
 
 1. `main()` initializes logging and creates an `app_config_t`.
-2. The CLI layer reads argv. Immediate-exit options (`--help`, `--version`) are handled first by `app_args_handle_immediate_exit()`. Global flags (`--debug`, `--quiet`, `--verbose`, `--json`, `--plain`, `--no-color`, `--config`) update the config; the remaining tokens become the command name and its arguments.
+2. The CLI layer reads argv. Immediate-exit options (`--help`, `--version`) are handled
+   first by `app_args_handle_immediate_exit()`. Global flags (`--debug`, `--quiet`,
+   `--verbose`, `--json`, `--plain`, `--no-color`, `--config`) update the config; the
+   remaining tokens become the command name and its arguments.
 3. Configuration is resolved by precedence: **CLI args > environment > config file > defaults**.
 4. `app_command_find()` looks up the command. Its handler runs and writes output through `app_output()` / the `app_json_*` helpers.
 5. On failure a handler returns an `app_error` value (see `core/error.c`). `app_strerror()` describes it, and the numeric code becomes the exit status. The public codes are listed in `opencli.json`.
@@ -56,7 +65,11 @@ The stable shape of this surface (commands, flags, exit codes, JSON envelopes) i
 
 ## Build system
 
-`build.zig` compiles the C sources with Zig's bundled Clang. The base binary is the file list in the `base_sources` array; the `tui_sources` are appended only when `-Denable-tui=true`, which also defines `ENABLE_TUI=1` and links `ncursesw` (or `pdcurses` on Windows). A separate `tui-menu-lib` step builds the reusable menu primitive as a static library with installed headers.
+`build.zig` compiles the C sources with Zig's bundled Clang. The base binary is the
+file list in the `base_sources` array; the `tui_sources` are appended only when
+`-Denable-tui=true`, which also defines `ENABLE_TUI=1` and links `ncursesw` (or
+`pdcurses` on Windows). A separate `tui-menu-lib` step builds the reusable menu
+primitive as a static library with installed headers.
 
 For the build options, steps, and how to add a source file, see the [Zig Primer](ZIG_PRIMER.md).
 

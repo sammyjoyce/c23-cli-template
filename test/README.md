@@ -1,40 +1,25 @@
 # Test Suite
 
-This template has two layers of tests:
+Three test layers cover unit logic, CLI contracts, and interactive terminal flows.
 
-- `cli_contract_runner.c` keeps fast C23 smoke and CLI contract tests close to
-  the build graph.
-- The C Ghostty VT runner covers PTY-backed TUI flows when libghostty-vt is available.
+| Layer | How it runs | What it asserts | Lives in |
+| --- | --- | --- | --- |
+| Unit tests | In-process, linked against the real sources | Logic inside `config`, `error`, `tui_menu_model`, and other modules | `unit_*.c` |
+| CLI contract tests | The built binary as a subprocess | Exit codes, JSON fields, durable output, `myapp opencli` matching `opencli.json` | `cli_contract_*.c` |
+| PTY/TUI scenarios | The binary in a real PTY via libghostty-vt | Rendered screen snapshots, input and resize handling | `terminal_vt_*.c` |
 
-Run the default CLI contract suite:
-
-```bash
-zig build test
-```
-
-Run the terminal scenarios against the built binary:
+## Running them
 
 ```bash
-zig build terminal-test
+zig build unit-test       # just the in-process unit tests
+zig build test            # unit tests + CLI contract tests
+zig build terminal-test   # the above + PTY/TUI scenarios when available
 ```
 
-Run the same scenarios against a TUI-enabled build:
+`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the
+Ghostty VT backend when libghostty-vt is available through `pkg-config` on POSIX hosts.
+The Nix dev shell wires this up automatically. Without libghostty-vt the CLI portion
+still runs; pass `-Dterminal-backend=ghostty` to require the PTY backend, or
+`-Dghostty-vt-prefix=/path` to override the install prefix.
 
-```bash
-zig build -Denable-tui=true terminal-test
-```
-
-The default terminal-test backend is `auto`: it uses the C Ghostty VT runner
-when `libghostty-vt` is available through `pkg-config` on POSIX hosts. In the
-Nix dev shell, nixpkgs `libghostty-vt` is exported through `pkg-config`
-automatically, so `zig build -Dterminal-backend=ghostty terminal-test` works
-without extra flags. CLI contracts always run through `cli_contract_runner.c`,
-so hosts without libghostty-vt still exercise non-interactive behavior without
-a fallback scripting runtime.
-
-The Ghostty VT runner is split across `terminal_vt_*.c` files. It runs TUI
-checks in a pseudo-terminal, feeds output through libghostty-vt, snapshots the
-screen with Ghostty's formatter API, and drives deterministic input plus resize
-actions. For the Ghostty backend, install a libghostty-vt build with the
-development Terminal and Formatter APIs and make it visible through `pkg-config` or
-`-Dghostty-vt-prefix=/path/to/ghostty`.
+See [docs/TESTING.md](../docs/TESTING.md) for the full guide, including how to write each layer.

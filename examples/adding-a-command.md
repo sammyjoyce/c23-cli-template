@@ -8,22 +8,24 @@ Create a command translation unit, for example `src/cli/commands_greet.c`. Every
 
 ```c
 app_error app_cmd_greet(const app_config_t *config, int argc, char **argv) {
-    (void)config;
-
     if (argc == 0) {
         fprintf(stderr, "Error: greet command requires at least one name\n");
         return APP_ERROR_MISSING_ARG;
     }
 
-    printf("Greetings to:\n");
+    app_output("Greetings to:", config, false);
     for (int i = 0; i < argc; i++) {
-        printf("  - %s\n", argv[i]);
+        app_output_format(config, false, "  - %s", argv[i]);
     }
-
-    printf("\nHave a great day!\n");
+    app_output("", config, false);
+    app_output("Have a great day!", config, false);
     return APP_SUCCESS;
 }
 ```
+
+Use `app_output` for plain strings and `app_output_format` for printf-style output (see
+`src/cli/commands_basic.c` for the real `hello` and `echo` handlers). Both honour
+`--json`, `--quiet`, and color flags; `fprintf(stderr, …)` is fine for the error path.
 
 Add the new file to the `base_sources` array in `build.zig` so it is compiled (see [ZIG_PRIMER.md](../docs/ZIG_PRIMER.md#adding-a-c-file)).
 

@@ -1,6 +1,10 @@
 # Public Contracts
 
-This template is an opinionated reference app built on two reusable seams: a machine-readable CLI contract and a small C TUI menu primitive. A "contract" here is a stability promise. The surfaces listed as *supported* are safe to build automation or downstream code on; everything else (help wording, colors, file layout, internal helpers) can change without notice.
+This template is an opinionated reference app built on two reusable seams: a
+machine-readable CLI contract and a small C TUI menu primitive. A "contract" here is a
+stability promise. The surfaces listed as *supported* are safe to build automation or
+downstream code on; everything else (help wording, colors, file layout, internal
+helpers) can change without notice.
 
 Keep mechanism in these seams. Keep local workflow policy in the generated app.
 
@@ -75,7 +79,9 @@ zig-out/include/c23-cli-template/tui/tui_progress.h
 
 ## Not yet
 
-Do not add a plugin API, stable ABI promise, headless service, or broad TUI framework until multiple generated projects need the same unsupported behavior. Prefer a CLI/spec addition or a small library function before any in-process extension system.
+Do not add a plugin API, stable ABI promise, headless service, or broad TUI framework
+until multiple generated projects need the same unsupported behavior. Prefer a CLI/spec
+addition or a small library function before any in-process extension system.
 
 ## See also
 

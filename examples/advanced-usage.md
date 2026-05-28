@@ -1,6 +1,9 @@
 # Advanced Usage
 
-How to script and integrate the CLI. Every example here runs against the template's real commands (`hello`, `echo`, `info`, `doctor`, and `opencli`) plus the global flags. As you add your own commands ([adding a command](adding-a-command.md)), the same patterns apply.
+How to script and integrate the CLI. Every example here runs against the template's
+real commands (`hello`, `echo`, `info`, `doctor`, and `opencli`) plus the global flags.
+As you add your own commands ([adding a command](adding-a-command.md)), the same
+patterns apply.
 
 - [Output formats and streams](#output-formats-and-streams)
 - [Parsing output with jq](#parsing-output-with-jq)
@@ -12,7 +15,9 @@ How to script and integrate the CLI. Every example here runs against the templat
 
 ## Output formats and streams
 
-The CLI keeps a stable I/O contract: results go to **stdout**, errors and diagnostics go to **stderr**, and `--json` produces machine-readable output (always including a `format_version`) where a command supports it.
+The CLI keeps a stable I/O contract: results go to **stdout**, errors and diagnostics
+go to **stderr**, and `--json` produces machine-readable output (always including a
+`format_version`) where a command supports it.
 
 ```bash
 myapp info                       # human-readable

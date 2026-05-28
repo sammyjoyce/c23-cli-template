@@ -1,6 +1,8 @@
 # Zig Primer for C Developers
 
-You do not need to know Zig to work on this project. Zig is only the build system: it replaces Make or CMake, and it bundles the C compiler. This guide covers the handful of commands and the `build.zig` structure you will actually touch.
+You do not need to know Zig to work on this project. Zig is only the build system: it
+replaces Make or CMake, and it bundles the C compiler. This guide covers the handful of
+commands and the `build.zig` structure you will actually touch.
 
 - [Why Zig here?](#why-zig-here)
 - [The commands you actually need](#the-commands-you-actually-need)
@@ -34,7 +36,9 @@ A `justfile` wraps the common ones if you prefer: `just build`, `just check`, `j
 
 ## How this build.zig is organized
 
-The script builds **one executable from a list of C files.** There is no Zig source in the binary. This excerpt is simplified from the real `build.zig`; open that file for the full source list and flag handling.
+The script builds **one executable from a list of C files.** There is no Zig source in
+the binary. This excerpt is simplified from the real `build.zig`; open that file for
+the full source list and flag handling.
 
 ```zig
 const std = @import("std");
@@ -69,7 +73,13 @@ pub fn build(b: *std.Build) void {
 
     if (enable_tui) {
         exe.root_module.addCSourceFiles(.{
-            .files = &.{ "src/tui/tui.c", "src/tui/tui_menu.c", "src/tui/tui_progress.c" },
+            .files = &.{
+                "src/tui/tui.c",
+                "src/tui/tui_app.c",
+                "src/tui/tui_menu.c",
+                "src/tui/tui_menu_model.c",
+                "src/tui/tui_progress.c",
+            },
             .flags = &base_flags,
         });
         if (target.result.os.tag == .windows)
@@ -186,9 +196,14 @@ b.installArtifact(exe);
 
 **`zig: command not found`**. Install Zig 0.16.0. The simplest route is [zvm](https://github.com/tristanisham/zvm): `zvm install 0.16.0 && zvm use 0.16.0`.
 
-**ncurses/PDCurses headers or library not found.** Only happens with `-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew install ncurses`, `dnf install ncurses-devel`), or point at a custom install with `-Dcurses-prefix=/path`.
+**ncurses/PDCurses headers or library not found.** Only happens with
+`-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew
+install ncurses`, `dnf install ncurses-devel`), or point at a custom install with
+`-Dcurses-prefix=/path`.
 
-**libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See [TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build test` and the CLI portion of `terminal-test` still run.
+**libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See
+[TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build
+test` and the CLI portion of `terminal-test` still run.
 
 **Stale build.** `zig build clean` removes `zig-out` and `.zig-cache`. (Equivalent: `rm -rf zig-out .zig-cache`.)
 

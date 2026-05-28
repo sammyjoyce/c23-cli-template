@@ -7,7 +7,10 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
 
-A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this template**, run the cleanup script, and you have a cross-compiling C project with argument parsing, an optional ncurses TUI, end-to-end tests, and a hardened GitHub Actions pipeline.
+A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this
+template**, run the cleanup script, and you have a cross-compiling C project with
+argument parsing, an optional ncurses TUI, end-to-end tests, and a hardened GitHub
+Actions pipeline.
 
 [Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
 
@@ -54,8 +57,8 @@ zig build -Doptimize=ReleaseSafe
 # Build with the optional ncurses/PDCurses TUI
 zig build -Doptimize=ReleaseSafe -Denable-tui=true
 
-# Run
-./zig-out/bin/YOUR-REPO --help
+# Run (the default binary is named `myapp`; override with `-Dapp-name=`)
+./zig-out/bin/myapp --help
 ```
 
 ## Example Commands
@@ -100,27 +103,7 @@ $ zig build -Denable-tui=true run -- menu
 
 ## Project Layout
 
-```text
-your-cli/
-├── src/
-│   ├── main.c              # Entry point
-│   ├── core/               # Core functionality
-│   │   ├── config.c/h      # Configuration
-│   │   ├── error.c/h       # Error handling
-│   │   └── types.h         # Type definitions
-│   ├── cli/                # CLI interface
-│   │   ├── args.c/h        # Argument parsing
-│   │   └── help.c/h        # Help text
-│   ├── io/                 # Input/Output
-│   ├── tui/                # ncurses windows, menus, dialogs, progress bars
-│   └── utils/              # Utilities
-├── test/                   # C23 CLI tests + Ghostty VT terminal scenarios
-│   ├── cli_contract_runner.c # C23 CLI contract tests
-│   ├── cli_contract_helpers.c # Shared C integration-test helpers
-│   └── terminal_vt_*       # C PTY/TUI scenario harness
-├── build.zig               # Build config
-└── opencli.json            # CLI specification
-```
+See [docs/ARCHITECTURE.md#module-map](docs/ARCHITECTURE.md#module-map) for what each directory under `src/` owns, plus the representative public functions in each module.
 
 ## Customize It
 
@@ -141,33 +124,17 @@ Check the **Actions** tab to see progress.
 Generated repositories default to GitHub-hosted runners so the cleanup workflow and first CI run work without extra infrastructure.
 To opt into Namespace or another self-hosted fleet, configure `CI_LINUX_RUNNER`, `CI_MACOS_RUNNER`, and `CI_WINDOWS_RUNNER` as described in [Using This Template](.template/TEMPLATE_USAGE.md#ci-runner-selection).
 
-### 3. Add your commands
+### 3. Add a command
 
-Edit `src/main.c`:
+Commands are table-driven. Write a handler, register it in `src/cli/commands.c`,
+regenerate `opencli.json`, add a contract test, and add the new file to
+`base_sources` in `build.zig`. The full five-step flow is in
+[examples/adding-a-command.md](examples/adding-a-command.md).
 
-```c
-if (strcmp(command, "deploy") == 0) {
-    printf("Deploying application...\n");
-    // Your deployment logic
-    return APP_SUCCESS;
-}
-```
+Help text and the OpenCLI contract update automatically from the command table;
+you do not edit `help.c` by hand.
 
-### 4. Update help text
-
-Edit `src/cli/help.c` to describe your commands.
-
-### 5. Add source files
-
-1. Create your `.c` file in `src/`
-2. Add to `build.zig`:
-
-```zig
-const c_sources = [_][]const u8{
-    // ... existing files ...
-    "src/features/deploy.c",  // Your new file
-};
-```
+For TUI screens, see [examples/custom-tui.md](examples/custom-tui.md).
 
 ## Develop
 
@@ -193,22 +160,23 @@ This template provides several tools to enhance your development experience:
 
 ```bash
 # Build
-zig build                    # Debug build
-zig build -Doptimize=ReleaseSafe  # Release build
-zig build -Denable-tui=true  # Build with the TUI showcase
-zig build tui-menu-lib       # Build reusable TUI menu static library
+zig build                                  # Debug build
+zig build -Doptimize=ReleaseSafe           # Release build
+zig build -Denable-tui=true                # Build with the ncurses/PDCurses TUI
+zig build tui-menu-lib                     # Build the reusable TUI menu static library
 
 # Test
-zig build test              # Run fast C23 CLI contract tests
-zig build terminal-test     # Run terminal scenarios with the selected backend
-zig build -Denable-tui=true terminal-test  # Run TUI scenarios through Ghostty VT when available
-zig build -Dterminal-backend=ghostty terminal-test  # Require the C Ghostty VT test backend
-
-# Clean
-zig build clean             # Remove build artifacts
+zig build unit-test                        # In-process unit tests
+zig build test                             # Unit tests + CLI contract tests
+zig build terminal-test                    # The above + PTY/TUI scenarios when available
+zig build -Denable-tui=true terminal-test  # Run PTY/TUI scenarios against the TUI build
+zig build check                            # fmt-check + tests (the CI gate)
 
 # Format
-zig fmt build.zig          # Format build file
+zig build fmt                              # Format build.zig, src, test
+
+# Clean
+zig build clean                            # Remove zig-out and .zig-cache
 ```
 
 ### Configuration
@@ -232,7 +200,7 @@ The template wires up far more than the starter code. The full inventory:
 - **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - **Zig Build System** - Fast, reliable builds with cross-compilation
 - **Minimal Dependencies** - Zig and libc by default; curses only for TUI builds
-- **Dynamic Binary Naming** - Extracts binary name from build.zig.zon
+- **Configurable binary name** - Set via `-Dapp-name=` (default `myapp`)
 
 ### CLI and TUI
 

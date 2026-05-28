@@ -1,10 +1,16 @@
 # Example: Creating a Custom TUI Screen
 
-The terminal UI is opt-in: it only compiles with `-Denable-tui=true` (which defines `ENABLE_TUI`). `tui.h` gives you a window wrapper, dialogs, a progress bar, and one modal menu primitive, so command code never calls ncurses directly. Every screen follows the same rule: call `tui_init()` first, and `tui_cleanup()` before you return, on every path.
+The terminal UI is opt-in: it only compiles with `-Denable-tui=true` (which defines
+`ENABLE_TUI`). `tui.h` gives you a window wrapper, dialogs, a progress bar, and one
+modal menu primitive, so command code never calls ncurses directly. Every screen
+follows the same rule: call `tui_init()` first, and `tui_cleanup()` before you return,
+on every path.
 
 ## 1. A complete screen
 
-This handler opens a bordered window, draws a live value with a bar, and loops on keypresses. It drops to raw ncurses (`mvwprintw`, `waddch`) for the drawing, which is fine; the wrapper manages lifecycle and layout, not every cell.
+This handler opens a bordered window, draws a live value with a bar, and loops on
+keypresses. It drops to raw ncurses (`mvwprintw`, `waddch`) for the drawing, which is
+fine; the wrapper manages lifecycle and layout, not every cell.
 
 ```c
 #ifdef ENABLE_TUI
@@ -44,7 +50,8 @@ static app_error show_data_viewer(void) {
         mvwprintw(data_win->win, 2, 2, "Current Value: %d", data_value);
         tui_unset_color(data_win->win, TUI_COLOR_INFO);
 
-        int bar_width = (data_win->width - 4) * data_value / 100;
+        int inner = data_win->width > 4 ? data_win->width - 4 : 0;
+        int bar_width = inner * data_value / 100;
         mvwprintw(data_win->win, 4, 2, "[");
         tui_set_color(data_win->win, TUI_COLOR_SUCCESS);
         for (int i = 0; i < bar_width; i++) {
@@ -128,7 +135,10 @@ tui_progress_destroy(progress);
 
 ### Menu
 
-The menu is the one reusable primitive that is also shipped as a library (`tui-menu-lib`) and covered by the [TUI menu contract](../docs/CONTRACTS.md#tui-menu-contract). All pointers in the config must outlive the call; the menu copies nothing.
+The menu is the one reusable primitive that is also shipped as a library
+(`tui-menu-lib`) and covered by the
+[TUI menu contract](../docs/CONTRACTS.md#tui-menu-contract). All pointers in the config
+must outlive the call; the menu copies nothing.
 
 ```c
 enum { MENU_OPTION_ONE = 1, MENU_OPTION_TWO, MENU_EXIT };

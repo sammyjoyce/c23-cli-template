@@ -27,9 +27,17 @@ zig build -Denable-tui=true terminal-test
 
 ## The Ghostty VT backend
 
-`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the Ghostty VT backend when `pkg-config` finds libghostty-vt and its headers expose the Terminal and Formatter APIs. The backend is a C runner (`test/terminal_vt_*.c`) that runs the app in a real PTY, feeds output through [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the virtual terminal with Ghostty's formatter API, and drives deterministic input and resize sequences.
+`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the
+Ghostty VT backend when `pkg-config` finds libghostty-vt and its headers expose the
+Terminal and Formatter APIs. The backend is a C runner (`test/terminal_vt_*.c`) that
+runs the app in a real PTY, feeds output through
+[`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the virtual
+terminal with Ghostty's formatter API, and drives deterministic input and resize
+sequences.
 
-Use `-Dterminal-backend=ghostty` to *require* it on POSIX hosts (the build fails if libghostty-vt is missing). Without the backend, `zig build terminal-test` still runs the unit and CLI contract suites and skips PTY/TUI coverage.
+Use `-Dterminal-backend=ghostty` to *require* it on POSIX hosts (the build fails if
+libghostty-vt is missing). Without the backend, `zig build terminal-test` still runs the
+unit and CLI contract suites and skips PTY/TUI coverage.
 
 The Nix dev shell wires Zig, the C toolchain, and nixpkgs `libghostty-vt` into `PATH` and `pkg-config`:
 
@@ -38,7 +46,11 @@ nix develop
 zig build -Denable-tui=true terminal-test
 ```
 
-Outside Nix, install a libghostty-vt build that exposes the development [Terminal](https://libghostty.tip.ghostty.org/group__terminal.html) and [Formatter](https://libghostty.tip.ghostty.org/group__formatter.html) APIs so `pkg-config` can find `libghostty-vt.pc`. If it lives outside a standard path, pass its prefix:
+Outside Nix, install a libghostty-vt build that exposes the development
+[Terminal](https://libghostty.tip.ghostty.org/group__terminal.html) and
+[Formatter](https://libghostty.tip.ghostty.org/group__formatter.html) APIs so
+`pkg-config` can find `libghostty-vt.pc`. If it lives outside a standard path, pass its
+prefix:
 
 ```bash
 zig build -Denable-tui=true terminal-test \
@@ -48,13 +60,19 @@ zig build -Denable-tui=true terminal-test \
 
 ## Writing unit tests
 
-Unit tests link a subset of the production sources directly, so they exercise modules like `core/config.c`, `core/error.c`, and `tui/tui_menu_model.c` without spawning a process. Add cases to `test/unit_config_tests.c` or `test/unit_tui_menu_tests.c` (or a new file registered in the `unit-test` sources in `build.zig`), then run `zig build unit-test`.
+Unit tests link a subset of the production sources directly, so they exercise modules
+like `core/config.c`, `core/error.c`, and `tui/tui_menu_model.c` without spawning a
+process. Add cases to `test/unit_config_tests.c` or `test/unit_tui_menu_tests.c` (or a
+new file registered in the `unit-test` sources in `build.zig`), then run `zig build
+unit-test`.
 
 Reach for a unit test when you can call a function and check its result directly. Reach for a CLI contract test when the behavior is only observable from the outside (exit code, stdout, JSON).
 
 ## Writing CLI scenario tests
 
-Add cases to `test/cli_contract_cases.c`; the runner in `test/cli_contract_runner.c` executes them against the built binary. Keep the CLI suite the single source of truth for non-interactive behavior; the Ghostty runner is scoped to PTY/TUI only.
+Add cases to `test/cli_contract_cases.c`; the runner in `test/cli_contract_runner.c`
+executes them against the built binary. Keep the CLI suite the single source of truth
+for non-interactive behavior; the Ghostty runner is scoped to PTY/TUI only.
 
 Prefer stable contracts over incidental prose:
 
@@ -66,13 +84,21 @@ Prefer stable contracts over incidental prose:
 
 ## Writing TUI scenario tests
 
-The Ghostty VT backend has fixed C scenarios for the demo menu, including a deterministic input/resize smoke test. Add project-specific scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate screen snapshots or resize coverage.
+The Ghostty VT backend has fixed C scenarios for the demo menu, including a
+deterministic input/resize smoke test. Add project-specific scenarios in
+`test/terminal_vt_scenarios.c` when you need cell-accurate screen snapshots or resize
+coverage.
 
 Prefer small step tables (`expect`, `send`, `resize`, `wait`) over long branch ladders, so a new screen does not require a second harness.
 
 ## What CI runs
 
-CI runs `zig build check` on Linux, macOS, and Windows, so the unit and CLI contract suites are enforced on every platform. Linux additionally builds libghostty-vt from the Ghostty flake and runs `zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test`, making PTY-backed TUI coverage a required gate there. macOS and Windows build the TUI binary and run the `--json info` smoke check, but do not run PTY scenarios by default.
+CI runs `zig build check` on Linux, macOS, and Windows, so the unit and CLI contract
+suites are enforced on every platform. Linux additionally builds libghostty-vt from the
+Ghostty flake and runs `zig build -Denable-tui=true -Dterminal-backend=ghostty
+terminal-test`, making PTY-backed TUI coverage a required gate there. macOS and Windows
+build the TUI binary and run the `--json info` smoke check, but do not run PTY
+scenarios by default.
 
 ## Choosing a richer tool
 
