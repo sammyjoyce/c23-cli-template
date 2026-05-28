@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "commands.h"
+
 // Display concise help when no arguments are provided.
 // Shows only essential usage to avoid overwhelming new users while encouraging
 // them to use --help for detailed information. This appears on stderr to keep
@@ -19,3 +21,7 @@ void app_print_concise_help(const char *program_name);
 // Includes all options, environment variables, and examples. Goes to stdout
 // as this is explicitly requested documentation, not an error condition.
 void app_print_verbose_usage(const char *program_name);
+
+// Display command-specific help for `<command> --help`.
+void app_print_command_help(const char *program_name,
+                            const app_command_t *command);

@@ -13,6 +13,7 @@ int main(void) {
   printf("TAP version 13\n");
 
   run_config_unit_tests(&stats);
+  run_input_unit_tests(&stats);
   run_tui_menu_unit_tests(&stats);
 
   printf("1..%d\n", stats.passed + stats.failed);

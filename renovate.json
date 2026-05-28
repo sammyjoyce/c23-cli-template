@@ -12,10 +12,6 @@
   ],
   "packageRules": [
     {
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
-    },
-    {
       "matchUpdateTypes": ["major"],
       "labels": ["dependencies", "major-update"]
     }

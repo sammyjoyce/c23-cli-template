@@ -65,17 +65,12 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
 
   err = app_config_load_file(*config, explicit_config_path);
   if (err != APP_SUCCESS) {
-    if (explicit_config_path) {
-      fprintf(stderr, "Error: failed to load config '%s': %s\n",
-              explicit_config_path, app_strerror(err));
-      app_config_destroy(*config);
-      return err;
-    }
-    if (err == APP_ERROR_MEMORY) {
-      app_config_destroy(*config);
-      return err;
-    }
-    LOG_WARNING("Ignoring default configuration: %s", app_strerror(err));
+    const char *config_label =
+        explicit_config_path ? explicit_config_path : "discovered config";
+    fprintf(stderr, "Error: failed to load config '%s': %s\n", config_label,
+            app_strerror(err));
+    app_config_destroy(*config);
+    return err;
   }
   err = app_config_load_env(*config);
   if (err != APP_SUCCESS) {
@@ -120,7 +115,7 @@ int main(int argc, char *argv[]) {
   }
 
   int cmd_argc = 0;
-  char **cmd_argv = app_config_get_command_args(config, &cmd_argc);
+  char *const *cmd_argv = app_config_get_command_args(config, &cmd_argc);
 
   const app_command_t *entry = app_command_find(command);
   if (!entry) {
@@ -131,6 +126,14 @@ int main(int argc, char *argv[]) {
     return APP_ERROR_INVALID_COMMAND;
   }
 
+  for (int i = 0; i < cmd_argc; i++) {
+    if (cmd_argv[i] && strcmp(cmd_argv[i], "--help") == 0) {
+      app_print_command_help(app_config_get_program_name(config), entry);
+      app_config_destroy(config);
+      return APP_SUCCESS;
+    }
+  }
+
   if (entry->requires_terminal && !app_has_interactive_terminal()) {
     app_output_format(config, true,
                       "Command '%s' requires an interactive terminal", command);
@@ -138,7 +141,14 @@ int main(int argc, char *argv[]) {
     return APP_ERROR_IO;
   }
 
-  err = entry->handler(config, cmd_argc, cmd_argv);
+  err = app_command_validate_invocation(entry, cmd_argc, cmd_argv,
+                                        app_config_get_program_name(config));
+  if (err != APP_SUCCESS) {
+    app_config_destroy(config);
+    return err;
+  }
+
+  err = entry->handler(config, cmd_argc, (char **)cmd_argv);
 
   int64_t elapsed_ms = app_now_millis() - start_ms;
   if (elapsed_ms < 0) {

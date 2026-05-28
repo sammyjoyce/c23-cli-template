@@ -54,8 +54,15 @@ fi
 declare -A VAR_VALUES=()
 declare -A VAR_OVERRIDDEN=()
 declare -A VAR_TRANSFORM=()
+declare -A VAR_VALIDATION=()
+declare -A VAR_REQUIRED=()
 declare -A PLACEHOLDER_MAP=()
 declare -a VAR_KEYS=()
+
+die() {
+    printf 'Error: %s\n' "$1" >&2
+    exit 1
+}
 
 detect_repository_url() {
     git -C "$repo_root" config --get remote.origin.url 2>/dev/null || true
@@ -169,6 +176,8 @@ while IFS= read -r entry; do
 
     VAR_KEYS+=("$safe_key")
     VAR_TRANSFORM[$safe_key]=$(jq -r '.value.transform // empty' <<<"$entry")
+    VAR_VALIDATION[$safe_key]=$(jq -r '.value.validation // empty' <<<"$entry")
+    VAR_REQUIRED[$safe_key]=$(jq -r 'if .value.required == false then "0" else "1" end' <<<"$entry")
 
     default_value=$(jq -r '(.value.value // .value.fallback // empty)' <<<"$entry")
     [[ $default_value == "null" ]] && default_value=""
@@ -259,6 +268,28 @@ for key in "${VAR_KEYS[@]}"; do
     VAR_VALUES[$key]="$(apply_transform "$transform" "$source")"
 done
 
+validate_value() {
+    local key="$1"
+    local value="${VAR_VALUES[$key]:-}"
+    local regex="${VAR_VALIDATION[$key]:-}"
+    local required="${VAR_REQUIRED[$key]:-1}"
+
+    if [[ -z $value ]]; then
+        if [[ $required == 1 ]]; then
+            die "$key is required but resolved to an empty value."
+        fi
+        return
+    fi
+
+    if [[ -n $regex && ! $value =~ $regex ]]; then
+        die "$key='$value' does not match validation regex: $regex"
+    fi
+}
+
+for key in "${VAR_KEYS[@]}"; do
+    validate_value "$key"
+done
+
 if (( verbose )); then
     for key in "${VAR_KEYS[@]}"; do
         printf '[replacer] %s=%s\n' "$key" "${VAR_VALUES[$key]:-}" >&2
@@ -300,23 +331,9 @@ for pattern in "${!PLACEHOLDER_MAP[@]}"; do
     add_generic "$pattern" "${VAR_VALUES[$key]:-}"
 done
 
-project_kebab="${VAR_VALUES[PROJECT_NAME_KEBAB]:-}"
+# Generic replacements come only from placeholders declared in template-vars.json.
+# Add new placeholders there rather than growing an ad-hoc broad replacement list.
 project_snake="${VAR_VALUES[PROJECT_NAME_SNAKE]:-}"
-author_name="${VAR_VALUES[AUTHOR_NAME]:-}"
-author_email="${VAR_VALUES[AUTHOR_EMAIL]:-}"
-github_user="${VAR_VALUES[GITHUB_USERNAME]:-}"
-
-[[ -n $project_kebab ]] && add_generic "myapp" "$project_kebab"
-[[ -n $project_kebab ]] && add_generic "yourproject" "$project_kebab"
-if [[ -n $author_name ]]; then
-    add_generic '"Your Name"' "$author_name"
-    add_generic 'Your Name' "$author_name"
-fi
-[[ -n $author_email ]] && add_generic "you@example.com" "$author_email"
-if [[ -n $github_user && -n $project_kebab ]]; then
-    add_generic "https://github.com/yourusername/yourproject" \
-        "https://github.com/$github_user/$project_kebab"
-fi
 # shellcheck disable=SC2088 # Literal documentation/config placeholder.
 [[ -n $project_snake ]] && add_generic "~/.config/myapp" "~/.config/$project_snake"
 

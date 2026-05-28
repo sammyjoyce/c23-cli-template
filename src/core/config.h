@@ -76,13 +76,14 @@ APP_NODISCARD app_error app_config_load_file(app_config_t *config,
                                              const char *path);
 APP_NODISCARD app_error app_config_load_env(app_config_t *config);
 
-// Configuration getters provide read-only access to ensure thread safety.
-// By returning const pointers and values, we prevent accidental modification
-// of shared configuration state and enable safe concurrent access from multiple
-// threads.
+// Configuration getters return pointers owned by the config object. The values
+// remain valid until the next setter call or app_config_destroy(). The config
+// object is mutable and not internally synchronized; callers that share it
+// across threads must provide their own locking or publish it read-only.
 const char *app_config_get_program_name(const app_config_t *config);
 const char *app_config_get_command(const app_config_t *config);
-char **app_config_get_command_args(const app_config_t *config, int *count);
+char *const *app_config_get_command_args(const app_config_t *config,
+                                         int *count);
 const char *app_config_get_config_file(const app_config_t *config);
 bool app_config_get_flag(const app_config_t *config, app_flag_id id);
 
@@ -96,15 +97,24 @@ bool app_config_is_verbose(const app_config_t *config);
 // Generic flag setter that also enforces exclusivity (e.g. setting json
 // clears plain). Prefer this from new code; the named setters below remain
 // for source compatibility.
-void app_config_set_flag(app_config_t *config, app_flag_id id, bool value);
+APP_NODISCARD app_error app_config_set_flag(app_config_t *config,
+                                            app_flag_id id, bool value);
 
-void app_config_set_debug(app_config_t *config, bool debug);
-void app_config_set_quiet(app_config_t *config, bool quiet);
-void app_config_set_verbose(app_config_t *config, bool verbose);
-void app_config_set_json_output(app_config_t *config, bool json);
-void app_config_set_plain_output(app_config_t *config, bool plain);
-void app_config_set_no_color(app_config_t *config, bool no_color);
-void app_config_set_program_name(app_config_t *config, const char *name);
-void app_config_set_command(app_config_t *config, const char *command);
-void app_config_add_command_arg(app_config_t *config, const char *arg);
-void app_config_set_config_file(app_config_t *config, const char *path);
+APP_NODISCARD app_error app_config_set_debug(app_config_t *config, bool debug);
+APP_NODISCARD app_error app_config_set_quiet(app_config_t *config, bool quiet);
+APP_NODISCARD app_error app_config_set_verbose(app_config_t *config,
+                                               bool verbose);
+APP_NODISCARD app_error app_config_set_json_output(app_config_t *config,
+                                                   bool json);
+APP_NODISCARD app_error app_config_set_plain_output(app_config_t *config,
+                                                    bool plain);
+APP_NODISCARD app_error app_config_set_no_color(app_config_t *config,
+                                                bool no_color);
+APP_NODISCARD app_error app_config_set_program_name(app_config_t *config,
+                                                    const char *name);
+APP_NODISCARD app_error app_config_set_command(app_config_t *config,
+                                               const char *command);
+APP_NODISCARD app_error app_config_add_command_arg(app_config_t *config,
+                                                   const char *arg);
+APP_NODISCARD app_error app_config_set_config_file(app_config_t *config,
+                                                   const char *path);

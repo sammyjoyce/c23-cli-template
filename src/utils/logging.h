@@ -50,19 +50,23 @@ void app_log_with_location(app_log_level level, const char *file, int line,
 
 // Convenience macros automatically capture source location.
 // These macros make logging effortless while providing crucial debugging
-// context. The ##__VA_ARGS__ syntax handles both with and without arguments.
-#define LOG_ERROR(fmt, ...) \
-  app_log_with_location(LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+// context. C23's __VA_OPT__ handles both with and without arguments without
+// relying on the GNU ##__VA_ARGS__ extension.
+#define LOG_ERROR(fmt, ...)                                  \
+  app_log_with_location(LOG_LEVEL_ERROR, __FILE__, __LINE__, \
+                        fmt __VA_OPT__(, ) __VA_ARGS__)
 
-#define LOG_WARNING(fmt, ...)                                       \
-  app_log_with_location(LOG_LEVEL_WARNING, __FILE__, __LINE__, fmt, \
-                        ##__VA_ARGS__)
+#define LOG_WARNING(fmt, ...)                                  \
+  app_log_with_location(LOG_LEVEL_WARNING, __FILE__, __LINE__, \
+                        fmt __VA_OPT__(, ) __VA_ARGS__)
 
-#define LOG_INFO(fmt, ...) \
-  app_log_with_location(LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...)                                  \
+  app_log_with_location(LOG_LEVEL_INFO, __FILE__, __LINE__, \
+                        fmt __VA_OPT__(, ) __VA_ARGS__)
 
-#define LOG_DEBUG(fmt, ...) \
-  app_log_with_location(LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LOG_DEBUG(fmt, ...)                                  \
+  app_log_with_location(LOG_LEVEL_DEBUG, __FILE__, __LINE__, \
+                        fmt __VA_OPT__(, ) __VA_ARGS__)
 
 // Verification macro for debug-mode sanity checks.
 // Use for conditions that should always be true in correct code.
@@ -91,10 +95,10 @@ void app_log_with_location(app_log_level level, const char *file, int line,
 // Combines validation with logging for clean error handling.
 // Use when specific error context is needed beyond a simple condition check.
 // The do-while(0) wrapper ensures macro works correctly in all contexts.
-#define CHECK_COND(cond, ret, fmt, ...) \
-  do {                                  \
-    if (!(cond)) {                      \
-      LOG_ERROR(fmt, ##__VA_ARGS__);    \
-      return (ret);                     \
-    }                                   \
+#define CHECK_COND(cond, ret, fmt, ...)          \
+  do {                                           \
+    if (!(cond)) {                               \
+      LOG_ERROR(fmt __VA_OPT__(, ) __VA_ARGS__); \
+      return (ret);                              \
+    }                                            \
   } while (0)

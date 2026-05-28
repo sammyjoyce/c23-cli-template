@@ -39,7 +39,7 @@ app_error app_cmd_greet(const app_config_t *config, int argc, char **argv);
 static const app_command_arg_t greet_args[] = {
     {.name = "names",
      .required = true,
-     .ordinal = 1,
+     .ordinal = 1,  // internal ordering only; OpenCLI output omits ordinal
      .arity_minimum = 1,
      .arity_maximum = APP_ARG_ARITY_UNBOUNDED,
      .description = "Names of people to greet"},
@@ -71,7 +71,7 @@ The contract is checked in, and `zig build test` fails if it drifts from the bin
 zig build run -- opencli > opencli.json
 ```
 
-Your command should now appear in the `commands` array:
+Your command should now appear in the root command's `commands` array:
 
 ```json
 {
@@ -82,7 +82,6 @@ Your command should now appear in the `commands` array:
     {
       "name": "names",
       "required": true,
-      "ordinal": 1,
       "arity": {
         "minimum": 1,
         "maximum": null

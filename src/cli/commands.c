@@ -5,6 +5,7 @@
 #include "commands.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 // Forward declarations for handlers defined in their own translation units.
@@ -233,4 +234,81 @@ const app_command_option_t *app_command_option_find(
     }
   }
   return NULL;
+}
+
+static int app_command_min_positionals(const app_command_t *command) {
+  int minimum = 0;
+  if (!command) {
+    return minimum;
+  }
+
+  for (size_t i = 0; i < command->argument_count; i++) {
+    minimum += command->arguments[i].arity_minimum;
+  }
+  return minimum;
+}
+
+static int app_command_max_positionals(const app_command_t *command) {
+  int maximum = 0;
+  if (!command) {
+    return maximum;
+  }
+
+  for (size_t i = 0; i < command->argument_count; i++) {
+    if (command->arguments[i].arity_maximum == APP_ARG_ARITY_UNBOUNDED) {
+      return APP_ARG_ARITY_UNBOUNDED;
+    }
+    maximum += command->arguments[i].arity_maximum;
+  }
+  return maximum;
+}
+
+app_error app_command_validate_invocation(const app_command_t *command,
+                                          int argc, char *const argv[],
+                                          const char *program_name) {
+  if (!command || argc < 0 || (argc > 0 && !argv)) {
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  bool end_of_options = false;
+  int positional_count = 0;
+  for (int i = 0; i < argc; i++) {
+    const char *arg = argv[i];
+    if (!arg) {
+      return APP_ERROR_INVALID_ARG;
+    }
+
+    if (!end_of_options && strcmp(arg, "--") == 0) {
+      end_of_options = true;
+      continue;
+    }
+
+    if (!end_of_options && strncmp(arg, "--", 2) == 0 && arg[2] != '\0') {
+      if (app_command_option_find(command, arg)) {
+        continue;
+      }
+      fprintf(stderr, "Error: Unknown option '%s' for command '%s'\n", arg,
+              command->name);
+      fprintf(stderr, "Run '%s --help' for usage information\n",
+              program_name ? program_name : APP_NAME);
+      return APP_ERROR_UNKNOWN_OPTION;
+    }
+
+    positional_count++;
+  }
+
+  const int minimum = app_command_min_positionals(command);
+  const int maximum = app_command_max_positionals(command);
+  if (positional_count < minimum) {
+    fprintf(stderr, "Error: Command '%s' expects at least %d argument%s\n",
+            command->name, minimum, minimum == 1 ? "" : "s");
+    return APP_ERROR_MISSING_ARG;
+  }
+  if (maximum != APP_ARG_ARITY_UNBOUNDED && positional_count > maximum) {
+    fprintf(stderr, "Error: Command '%s' expects at most %d argument%s\n",
+            command->name, maximum, maximum == 1 ? "" : "s");
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  return APP_SUCCESS;
 }

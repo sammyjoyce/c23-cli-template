@@ -2,6 +2,7 @@
  * Built-in "hello" and "echo" commands.
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +27,16 @@ app_error app_cmd_echo(const app_config_t *config, int argc, char **argv) {
   size_t total = 0;
   for (int i = 0; i < argc; i++) {
     const char *arg = argv[i] ? argv[i] : "";
-    total += (i == 0 ? 0 : 1) + strlen(arg);
+    const size_t separator = i == 0 ? 0U : 1U;
+    const size_t len = strlen(arg);
+    if (SIZE_MAX - total < separator || SIZE_MAX - total - separator < len) {
+      return APP_ERROR_OVERFLOW;
+    }
+    total += separator + len;
+  }
+
+  if (SIZE_MAX - total < 1U) {
+    return APP_ERROR_OVERFLOW;
   }
 
   char *buf = malloc(total + 1);

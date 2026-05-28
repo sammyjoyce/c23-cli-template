@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
   test_stats_t stats = {0};
   printf("TAP version 13\n");
   run_tui_menu_test(&stats, binary, tui_enabled);
-  run_tui_fuzz_smoke(&stats, binary, tui_enabled);
+  run_tui_stress_smoke(&stats, binary, tui_enabled);
   run_tui_menu_search(&stats, binary, tui_enabled);
   run_tui_menu_mnemonic(&stats, binary, tui_enabled);
   run_tui_menu_separator(&stats, binary, tui_enabled);

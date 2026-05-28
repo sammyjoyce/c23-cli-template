@@ -96,6 +96,13 @@ const app_command_t *app_command_find(const char *name);
 const app_command_option_t *app_command_option_find(
     const app_command_t *command, const char *arg);
 
+// Validate an invocation against command metadata before dispatch. Command
+// options are recognized as --name before a -- delimiter; remaining tokens are
+// positionals and must satisfy the declared arity.
+APP_NODISCARD app_error
+app_command_validate_invocation(const app_command_t *command, int argc,
+                                char *const argv[], const char *program_name);
+
 static inline const char *app_yes_no(bool value) {
   return value ? "yes" : "no";
 }

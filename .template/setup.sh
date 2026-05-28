@@ -167,6 +167,33 @@ fi
 
 export CURRENT_YEAR="${CURRENT_YEAR:-$(date +%Y)}"
 
+validate_value() {
+    local key="$1"
+    local value="$2"
+    local required regex
+    required=$(jq -r --arg key "$key" 'if (.variables[$key].required // true) then "1" else "0" end' "$vars_json")
+    regex=$(jq -r --arg key "$key" '.variables[$key].validation // empty' "$vars_json")
+
+    if [[ -z $value ]]; then
+        if [[ $required == 1 ]]; then
+            die "$key is required but resolved to an empty value."
+        fi
+        return
+    fi
+
+    if [[ -n $regex && ! $value =~ $regex ]]; then
+        die "$key='$value' does not match validation regex: $regex"
+    fi
+}
+
+validate_value PROJECT_NAME "$PROJECT_NAME"
+validate_value PROJECT_DESCRIPTION "$PROJECT_DESCRIPTION"
+validate_value AUTHOR_NAME "$AUTHOR_NAME"
+validate_value AUTHOR_EMAIL "$AUTHOR_EMAIL"
+validate_value GITHUB_USERNAME "$GITHUB_USERNAME"
+validate_value PROJECT_LICENSE "$PROJECT_LICENSE"
+validate_value CURRENT_YEAR "$CURRENT_YEAR"
+
 if [[ -f "$script_dir/TEMPLATE_README.md" ]]; then
     cp "$script_dir/TEMPLATE_README.md" "$repo_root/README.md"
 fi

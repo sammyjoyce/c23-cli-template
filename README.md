@@ -9,8 +9,8 @@
 
 A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this
 template**, run the cleanup script, and you have a cross-compiling C project with
-argument parsing, an optional ncurses TUI, end-to-end tests, and a hardened GitHub
-Actions pipeline.
+argument parsing, an optional ncurses TUI, end-to-end tests, and a GitHub
+Actions CI/CD scaffold.
 
 [Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
 
@@ -22,8 +22,8 @@ Actions pipeline.
 - **CLI and TUI in one** - Argument parsing and colored output, plus an optional ncurses/PDCurses interface (`-Denable-tui=true`).
 - **Fast, cross-compiling builds** - The Zig build system replaces Make/CMake and targets other platforms out of the box.
 - **Tested end to end** - Three test layers: in-process unit tests, C23 CLI contract tests, and PTY-driven terminal scenarios for real CLI/TUI behavior.
-- **Production CI/CD included** - GitHub Actions with security scanning, release gating, SBOMs, and pinned action versions.
-- **OpenCLI compliant** - A checked-in CLI contract your tool can print on demand with `myapp opencli`.
+- **CI/CD scaffold included** - GitHub Actions for builds, tests, linting, release artifacts, and optional security checks.
+- **OpenCLI-style contract** - A checked-in machine-readable CLI contract your tool can print on demand with `myapp opencli`.
 
 ## Quick Start
 
@@ -81,7 +81,7 @@ Hello from CLI
 $ myapp info
 Application: myapp
 Version: 0.1.0
-Build: reproducible
+Build: omitted
 
 $ myapp --json info
 {"format_version":"1.0", ...}
@@ -217,23 +217,22 @@ The template wires up far more than the starter code. The full inventory:
 - **TUI Support** - ncurses/PDCurses integration for interactive terminal UIs
 - **Reusable TUI Menu** - Optional `tui-menu-lib` target for downstream C apps
 - **Configuration** - Layered config system (file → env → args)
-- **OpenCLI Compliant** - Standardized CLI behavior
+- **OpenCLI-style contract** - Standardized CLI metadata under `myapp opencli`
 - **Live CLI Contract** - `myapp opencli` prints the checked-in OpenCLI spec
 
 ### Testing and quality
 
-- **Testing Included** - Three layers: in-process unit tests, C23 CLI contract tests, and PTY terminal scenarios for CLI/TUI flows
+- **Testing Included** - In-process unit tests, C23 CLI contract tests, and optional PTY terminal scenarios for CLI/TUI flows
 - **Markdown Linting** - Documentation checks in local tooling and CI
 
 ### CI/CD and releases
 
 - **CI/CD Ready** - GitHub Actions workflow included
-- **Caching** - Speeds up builds by caching Zig dependencies and build artifacts
+- **Caching** - Speeds up builds by caching Zig dependencies
 - **Concurrency Control** - Cancels redundant CI runs on same branch
-- **Release Gating** - Ensures releases only happen on tags in main branch
+- **Release Gating** - Ensures releases only happen on version tags after required quality jobs pass
 - **Artifact Management** - Unique artifact naming to avoid collisions
-- **Version Pinning** - Pinned GitHub Actions versions for reproducibility
-- **Security Scanning** - Gitleaks, OpenSSF Scorecard, and SBOM generation
+- **Security Scanning** - Gitleaks, CodeQL, OpenSSF Scorecard, and SBOM generation scaffolds
 - **Dependency Updates** - Automated updates with Dependabot/Renovate
 
 ### Project and developer experience
@@ -245,7 +244,7 @@ The template wires up far more than the starter code. The full inventory:
 
 ## Why this stack?
 
-- **C23** - Latest features: `typeof`, `_BitInt`, better type safety
+- **C23** - Current standard mode with `nullptr`, attributes, and other portable language improvements
 - **Zig Build** - Superior to Make/CMake, built-in cross-compilation
 - **ncurses/PDCurses** - Proven terminal UI primitives with a small wrapper API
 - **Minimal Dependencies** - Zig and libc by default, with curses behind `-Denable-tui=true`

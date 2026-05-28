@@ -4,11 +4,25 @@
 
 #include "colors.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "../core/config.h"
+
+static bool app_stderr_is_terminal(void) {
+#ifdef _WIN32
+  return _isatty(_fileno(stderr)) != 0;
+#else
+  return isatty(STDERR_FILENO) != 0;
+#endif
+}
 
 bool app_use_colors(const app_config_t *config) {
   // Explicit plain/no-color modes take precedence over terminal heuristics.
@@ -34,5 +48,5 @@ bool app_use_colors(const app_config_t *config) {
   }
 
   // Check if output is to a terminal
-  return isatty(STDERR_FILENO);
+  return app_stderr_is_terminal();
 }
