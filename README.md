@@ -21,7 +21,7 @@ Actions pipeline.
 - **Modern C23, no compiler wrangling** - The latest C standard through Zig's bundled toolchain.
 - **CLI and TUI in one** - Argument parsing and colored output, plus an optional ncurses/PDCurses interface (`-Denable-tui=true`).
 - **Fast, cross-compiling builds** - The Zig build system replaces Make/CMake and targets other platforms out of the box.
-- **Tested end to end** - C23 CLI contract tests plus PTY-driven terminal scenarios that exercise real CLI/TUI behavior.
+- **Tested end to end** - Three test layers: in-process unit tests, C23 CLI contract tests, and PTY-driven terminal scenarios for real CLI/TUI behavior.
 - **Production CI/CD included** - GitHub Actions with security scanning, release gating, SBOMs, and pinned action versions.
 - **OpenCLI compliant** - A checked-in CLI contract your tool can print on demand with `myapp opencli`.
 
@@ -213,7 +213,7 @@ The template wires up far more than the starter code. The full inventory:
 
 ### Testing and quality
 
-- **Testing Included** - C23 CLI contract tests plus PTY terminal scenario tests for CLI/TUI flows
+- **Testing Included** - Three layers: in-process unit tests, C23 CLI contract tests, and PTY terminal scenarios for CLI/TUI flows
 - **Markdown Linting** - Documentation checks in local tooling and CI
 
 ### CI/CD and releases
