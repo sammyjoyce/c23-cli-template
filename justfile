@@ -27,9 +27,14 @@ tui-menu-lib:
 
 # --- Run ---
 
-# Run the application
+# Run the application. Automatically enable TUI support for TUI commands.
 run *args:
-    zig build run -- {{ args }}
+    set -- {{ args }}; \
+    if [ "${1:-}" = "menu" ]; then \
+        zig build -Denable-tui=true run -- "$@"; \
+    else \
+        zig build run -- "$@"; \
+    fi
 
 # Run the application with TUI support
 run-tui *args:
