@@ -8,7 +8,7 @@ patterns apply.
 - [Output formats and streams](#output-formats-and-streams)
 - [Parsing output with jq](#parsing-output-with-jq)
 - [Exit codes in scripts](#exit-codes-in-scripts)
-- [Health checks and smoke tests](#health-checks-and-smoke-tests)
+- [Diagnostics](#diagnostics)
 - [Pipelines](#pipelines)
 - [Configuration and environment](#configuration-and-environment)
 - [Integration patterns](#integration-patterns)

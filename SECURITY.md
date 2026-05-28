@@ -27,7 +27,10 @@ This template is pre-1.0; security fixes land on `main` and ship in the next tag
 
 The repository ships these baseline defenses; review them and tighten if your threat model warrants:
 
-- **Secret-zeroing helper.** `src/utils/memory.h` exports `app_secret_zero()` for clearing sensitive buffers. The template ships it as a primitive but does not call it from any production path yet — invoke it where your code holds secrets. Memory locking (`mlock` / `VirtualLock`) is not wired in either.
+- **Secret-zeroing helper.** `src/utils/memory.h` exports `app_secret_zero()` for
+  clearing sensitive buffers. The template ships it as a primitive but no production
+  path calls it yet; invoke it where your code holds secrets. Memory locking
+  (`mlock` / `VirtualLock`) is not wired in either.
 - **Static analysis in CI**. `clang-tidy` and `cppcheck` run on every change.
 - **Supply chain in CI**. Gitleaks secret scanning, OpenSSF Scorecard, SBOM generation, and pinned GitHub Actions versions.
 - **Runtime safety**. `Debug` and `ReleaseSafe` builds keep Zig's runtime safety checks; C sources compile with `-Wall -Wextra -std=c23`.
