@@ -100,9 +100,7 @@ Prefer small step tables (`expect`, `send`, `resize`, `wait`) over long branch l
 
 CI runs `zig build check` on Linux, macOS, and Windows without Nix, so the unit and CLI
 contract suites are enforced on every platform. CI also builds the TUI with platform
-package managers and runs a `--json info` smoke check. Linux runs `zig build
--Denable-tui=true terminal-test` in auto mode, so PTY/TUI coverage runs automatically if
-libghostty-vt is available and otherwise reports a skip.
+package managers and runs a `--json info` smoke check.
 
 Maintainers who want required Ghostty VT coverage can set `CI_ENABLE_NIX_GHOSTTY=true`
 to enable the separate Nix-backed job. That job is intentionally not part of the default

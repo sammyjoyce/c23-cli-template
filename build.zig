@@ -6,6 +6,40 @@ const TerminalTestBackend = enum {
     ghostty,
 };
 
+const TerminalTestPlan = union(enum) {
+    run_ghostty,
+    skip: []const u8,
+    fail: []const u8,
+};
+
+fn resolveTerminalTestPlan(enable_tui: bool, terminal_backend: TerminalTestBackend, target: std.Build.ResolvedTarget, have_ghostty_vt: bool) TerminalTestPlan {
+    const target_is_windows = target.result.os.tag == .windows;
+
+    if (terminal_backend == .ghostty and target_is_windows) {
+        return .{ .fail = "-Dterminal-backend=ghostty is not supported on Windows" };
+    }
+    if (terminal_backend == .ghostty and !enable_tui) {
+        return .{ .fail = "-Dterminal-backend=ghostty requires -Denable-tui=true because the PTY scenarios exercise the TUI." };
+    }
+    if (terminal_backend == .ghostty and !have_ghostty_vt) {
+        return .{ .fail = "-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API.\n  Install it so pkg-config can find libghostty-vt.pc, or pass -Dghostty-vt-prefix=/path." };
+    }
+    if (terminal_backend == .none) {
+        return .{ .skip = "Skipping PTY/TUI terminal scenarios: disabled by -Dterminal-backend=none." };
+    }
+    if (!enable_tui) {
+        return .{ .skip = "Skipping PTY/TUI terminal scenarios: pass -Denable-tui=true to build the TUI." };
+    }
+    if (target_is_windows) {
+        return .{ .skip = "Skipping PTY/TUI terminal scenarios: Ghostty VT backend is POSIX-only." };
+    }
+    if (!have_ghostty_vt) {
+        return .{ .skip = "Skipping PTY/TUI terminal scenarios: libghostty-vt was not found; use -Dterminal-backend=ghostty to require it." };
+    }
+
+    return .run_ghostty;
+}
+
 fn commandSucceeds(b: *std.Build, argv: []const []const u8) bool {
     const child_res = std.process.run(b.allocator, b.graph.io, .{ .argv = argv }) catch return false;
     defer b.allocator.free(child_res.stdout);
@@ -346,27 +380,11 @@ pub fn build(b: *std.Build) void {
     unit_step.dependOn(&unit_cmd.step);
     test_step.dependOn(&unit_cmd.step);
 
-    const is_windows = target.result.os.tag == .windows;
-    if (terminal_backend == .ghostty and is_windows) {
-        std.log.err("-Dterminal-backend=ghostty is not supported on Windows", .{});
-        std.process.exit(1);
-    }
-    if (terminal_backend == .ghostty and !enable_tui) {
-        std.log.err(
-            "-Dterminal-backend=ghostty requires -Denable-tui=true because the PTY scenarios exercise the TUI.",
-            .{},
-        );
-        std.process.exit(1);
-    }
-
-    const should_probe_ghostty = enable_tui and !is_windows and terminal_backend != .none;
+    const should_probe_ghostty = enable_tui and target.result.os.tag != .windows and terminal_backend != .none;
     const have_ghostty_vt = should_probe_ghostty and hasGhosttyTerminalApi(b, ghostty_vt_prefix);
-    if (terminal_backend == .ghostty and !have_ghostty_vt) {
-        std.log.err(
-            "-Dterminal-backend=ghostty requires libghostty-vt with the terminal/formatter API.\n" ++
-                "  Install it so pkg-config can find libghostty-vt.pc, or pass -Dghostty-vt-prefix=/path.",
-            .{},
-        );
+    const terminal_test_plan = resolveTerminalTestPlan(enable_tui, terminal_backend, target, have_ghostty_vt);
+    if (terminal_test_plan == .fail) {
+        std.log.err("{s}", .{terminal_test_plan.fail});
         std.process.exit(1);
     }
     const ghostty_pkg_lib_dir = if (have_ghostty_vt and ghostty_vt_prefix == null)
@@ -380,11 +398,9 @@ pub fn build(b: *std.Build) void {
             b.fmt("{s}/lib64", .{pref})
     else
         null;
-    const use_ghostty_terminal_tests = enable_tui and !is_windows and have_ghostty_vt and terminal_backend != .none;
-
     const terminal_test_step = b.step("terminal-test", "Run CLI contracts and optional PTY/TUI terminal scenarios");
     terminal_test_step.dependOn(test_step);
-    if (use_ghostty_terminal_tests) {
+    if (terminal_test_plan == .run_ghostty) {
         const vt_test_mod = b.createModule(.{
             .root_source_file = null,
             .target = target,
@@ -442,16 +458,8 @@ pub fn build(b: *std.Build) void {
         }
         vt_test_cmd.step.dependOn(b.getInstallStep());
         terminal_test_step.dependOn(&vt_test_cmd.step);
-    } else {
-        const skip_reason = if (terminal_backend == .none)
-            "Skipping PTY/TUI terminal scenarios: disabled by -Dterminal-backend=none."
-        else if (!enable_tui)
-            "Skipping PTY/TUI terminal scenarios: pass -Denable-tui=true to build the TUI."
-        else if (is_windows)
-            "Skipping PTY/TUI terminal scenarios: Ghostty VT backend is POSIX-only."
-        else
-            "Skipping PTY/TUI terminal scenarios: libghostty-vt was not found; use -Dterminal-backend=ghostty to require it.";
-        const skip_cmd = addMessageCommand(b, skip_reason);
+    } else if (terminal_test_plan == .skip) {
+        const skip_cmd = addMessageCommand(b, terminal_test_plan.skip);
         terminal_test_step.dependOn(&skip_cmd.step);
     }
 

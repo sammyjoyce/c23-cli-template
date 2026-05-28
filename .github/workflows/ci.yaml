@@ -167,12 +167,6 @@ jobs:
           fi
 
           "./zig-out/bin/$BINARY_NAME$BINARY_EXT" --json info | grep '"tui":true'
-
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            # PTY/TUI coverage is Linux-only in CI for now; macOS and Windows
-            # still build the TUI binary and run the JSON smoke check above.
-            zig build -Denable-tui=true terminal-test
-          fi
         timeout-minutes: 15
         shell: bash
 

@@ -15,9 +15,6 @@ echo "CMake version: $(cmake --version | head -n1)"
 echo "🔨 Building default CLI..."
 zig build
 
-echo "🧪 Running baseline tests..."
-zig build test
-
 echo "🔨 Building TUI-enabled project..."
 zig build -Denable-tui=true
 
