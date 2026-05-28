@@ -52,7 +52,7 @@ The command table is the seam to extend. `commands.c` registers the built-in com
 5. On failure a handler returns an `app_error` value (see `core/error.c`). `app_strerror()` describes it, and the numeric code becomes the exit status. The public codes are listed in `opencli.json`.
 6. Commands that need the terminal UI (`menu`, and `doctor --deep`) call `tui_init()` and always pair it with `tui_cleanup()`, including on interrupt.
 
-The stable shape of this surface — commands, flags, exit codes, JSON envelopes — is documented in [CONTRACTS.md](CONTRACTS.md).
+The stable shape of this surface (commands, flags, exit codes, JSON envelopes) is documented in [CONTRACTS.md](CONTRACTS.md).
 
 ## Build system
 
@@ -73,7 +73,7 @@ Cross-compilation is a `-Dtarget=` flag away because Zig ships every target's he
 
 ## Security model
 
-The template's defenses are the ones actually wired into the code and CI — not compiler hardening flags, which are left for you to opt into.
+The template's defenses are the ones actually wired into the code and CI, not compiler hardening flags. Those are left for you to opt into.
 
 - **Memory hygiene.** Sensitive buffers are overwritten with `app_secret_zero()` before they are freed, and the input path locks them out of swap where the platform supports it (`mlock` / `VirtualLock`).
 - **Runtime safety.** The default and `ReleaseSafe` builds keep Zig's runtime safety checks. C sources compile with `-Wall -Wextra -std=c23`.

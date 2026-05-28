@@ -36,7 +36,7 @@ Before opening one, search [existing issues](https://github.com/sammyjoyce/c23-c
 
 ## Suggesting features
 
-Open an issue describing the use case and how it fits the template's scope. Keep an eye on [docs/CONTRACTS.md](docs/CONTRACTS.md) — the supported seams document what's intentionally in or out.
+Open an issue describing the use case and how it fits the template's scope. Keep an eye on [docs/CONTRACTS.md](docs/CONTRACTS.md); the supported seams document what's intentionally in or out.
 
 ## Setting up
 
@@ -69,7 +69,7 @@ The repository also ships a devcontainer (open in VS Code, choose **Reopen in Co
 
 ## Build and test
 
-For every `-D` option and step — and why Zig is the build system — see [docs/ZIG_PRIMER.md](docs/ZIG_PRIMER.md). The day-to-day commands:
+For every `-D` option and step (and why Zig is the build system), see [docs/ZIG_PRIMER.md](docs/ZIG_PRIMER.md). The day-to-day commands:
 
 ```bash
 zig build                                # debug build
@@ -96,7 +96,7 @@ Append the path to `base_sources` in `build.zig` (TUI-only files belong in `tui_
 
 1. Branch from `main`.
 2. Run `zig build check`.
-3. Use [Conventional Commits](https://www.conventionalcommits.org/) — a pre-commit hook validates the format:
+3. Use [Conventional Commits](https://www.conventionalcommits.org/); a pre-commit hook validates the format:
 
    ```
    <type>(<scope>): <subject>
@@ -116,7 +116,7 @@ Local pre-commit hooks (install with `pre-commit install`) run clang-format, mar
 
 ## Coding standards
 
-`.clang-format` is the source of truth — `zig build fmt` applies it.
+`.clang-format` is the source of truth; `zig build fmt` applies it.
 
 Conventions in this codebase:
 
@@ -164,7 +164,7 @@ app_error process_input(const char *input, size_t len) {
 
 ## Getting help
 
-- [docs/](docs/) — architecture, contracts, testing, Zig primer
+- [docs/](docs/): architecture, contracts, testing, Zig primer
 - [Existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
 
 ## License

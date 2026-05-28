@@ -1,6 +1,6 @@
 # Demo Gallery
 
-Animated demonstrations of the CLI. The `.gif` files are not checked in — build the project and run `./scripts/create-demo.sh` to produce them locally, then uncomment the image lines below.
+Animated demonstrations of the CLI. The `.gif` files are not checked in. Build the project and run `./scripts/create-demo.sh` to produce them locally, then uncomment the image lines below.
 
 ## Demos
 

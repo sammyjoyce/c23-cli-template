@@ -25,17 +25,17 @@ This template is pre-1.0; security fixes land on `main` and ship in the next tag
 
 The repository ships these baseline defenses; review them and tighten if your threat model warrants:
 
-- **Memory hygiene** — `app_secret_zero()` overwrites sensitive buffers before they are freed, and the input path locks them out of swap where the platform supports it.
-- **Static analysis in CI** — `clang-tidy` and `cppcheck` run on every change.
-- **Supply chain in CI** — Gitleaks secret scanning, OpenSSF Scorecard, SBOM generation, and pinned GitHub Actions versions.
-- **Runtime safety** — `Debug` and `ReleaseSafe` builds keep Zig's runtime safety checks; C sources compile with `-Wall -Wextra -std=c23`.
+- **Memory hygiene**. `app_secret_zero()` overwrites sensitive buffers before they are freed, and the input path locks them out of swap where the platform supports it.
+- **Static analysis in CI**. `clang-tidy` and `cppcheck` run on every change.
+- **Supply chain in CI**. Gitleaks secret scanning, OpenSSF Scorecard, SBOM generation, and pinned GitHub Actions versions.
+- **Runtime safety**. `Debug` and `ReleaseSafe` builds keep Zig's runtime safety checks; C sources compile with `-Wall -Wextra -std=c23`.
 
 Compiler hardening (`-fstack-protector-strong`, `_FORTIFY_SOURCE=2`, PIE/RELRO) is **not** enabled by default. Add the flags to `base_flags` in `build.zig` if you need them. See [docs/ARCHITECTURE.md#security-model](docs/ARCHITECTURE.md#security-model) for the full security model.
 
 ## Practices when adopting the template
 
-- Keep dependencies current — Dependabot is preconfigured.
-- Never commit secrets — Gitleaks runs in CI; the pre-commit configuration also catches large files and broken YAML.
+- Keep dependencies current; Dependabot is preconfigured.
+- Never commit secrets. Gitleaks runs in CI, and the pre-commit configuration also catches large files and broken YAML.
 - Treat the config file (`~/.config/<name>/config.json`) as user-private; prefer environment variables for runtime secrets.
 - Enable GitHub's code scanning and Dependabot alerts on your generated repository.
 

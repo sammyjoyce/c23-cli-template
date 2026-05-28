@@ -1,6 +1,6 @@
 # Public Contracts
 
-This template is an opinionated reference app built on two reusable seams: a machine-readable CLI contract and a small C TUI menu primitive. A "contract" here is a stability promise — the surfaces listed as *supported* are safe to build automation or downstream code on; everything else (help wording, colors, file layout, internal helpers) can change without notice.
+This template is an opinionated reference app built on two reusable seams: a machine-readable CLI contract and a small C TUI menu primitive. A "contract" here is a stability promise. The surfaces listed as *supported* are safe to build automation or downstream code on; everything else (help wording, colors, file layout, internal helpers) can change without notice.
 
 Keep mechanism in these seams. Keep local workflow policy in the generated app.
 

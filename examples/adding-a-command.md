@@ -159,4 +159,4 @@ The command now:
 - returns a meaningful exit code on error (`APP_ERROR_MISSING_ARG`)
 - is covered by a contract test
 
-Repeat the same pattern for any command. Commands that open the TUI set `.requires_terminal = true` — see [custom-tui.md](custom-tui.md).
+Repeat the same pattern for any command. Commands that open the TUI set `.requires_terminal = true`. See [custom-tui.md](custom-tui.md).

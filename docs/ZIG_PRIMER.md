@@ -34,7 +34,7 @@ A `justfile` wraps the common ones if you prefer: `just build`, `just check`, `j
 
 ## How this build.zig is organized
 
-The script builds **one executable from a list of C files** — there is no Zig source in the binary. This excerpt is simplified from the real `build.zig`; open that file for the full source list and flag handling.
+The script builds **one executable from a list of C files.** There is no Zig source in the binary. This excerpt is simplified from the real `build.zig`; open that file for the full source list and flag handling.
 
 ```zig
 const std = @import("std");
@@ -184,15 +184,15 @@ b.installArtifact(exe);
 
 ## Troubleshooting
 
-**`zig: command not found`** — install Zig 0.16.0. The simplest route is [zvm](https://github.com/tristanisham/zvm): `zvm install 0.16.0 && zvm use 0.16.0`.
+**`zig: command not found`**. Install Zig 0.16.0. The simplest route is [zvm](https://github.com/tristanisham/zvm): `zvm install 0.16.0 && zvm use 0.16.0`.
 
-**ncurses/PDCurses headers or library not found** — only happens with `-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew install ncurses`, `dnf install ncurses-devel`), or point at a custom install with `-Dcurses-prefix=/path`.
+**ncurses/PDCurses headers or library not found.** Only happens with `-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew install ncurses`, `dnf install ncurses-devel`), or point at a custom install with `-Dcurses-prefix=/path`.
 
-**libghostty-vt not found for terminal tests** — the PTY/TUI backend is optional. See [TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build test` and the CLI portion of `terminal-test` still run.
+**libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See [TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build test` and the CLI portion of `terminal-test` still run.
 
-**Stale build** — `zig build clean` removes `zig-out` and `.zig-cache`. (Equivalent: `rm -rf zig-out .zig-cache`.)
+**Stale build.** `zig build clean` removes `zig-out` and `.zig-cache`. (Equivalent: `rm -rf zig-out .zig-cache`.)
 
-**Need to see what the compiler is doing** — `zig build --verbose` shows commands; `zig build --verbose-cc` shows the C compiler invocations.
+**Need to see what the compiler is doing.** `zig build --verbose` shows commands; `zig build --verbose-cc` shows the C compiler invocations.
 
 ## A real custom build step
 

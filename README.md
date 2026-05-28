@@ -7,7 +7,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
 
-A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this template**, run the cleanup script, and you have a cross-compiling C project with argument parsing, an optional ncurses TUI, end-to-end tests, and a hardened GitHub Actions pipeline — ready to grow into your app.
+A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this template**, run the cleanup script, and you have a cross-compiling C project with argument parsing, an optional ncurses TUI, end-to-end tests, and a hardened GitHub Actions pipeline.
 
 [Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
 
@@ -266,7 +266,7 @@ The template wires up far more than the starter code. The full inventory:
 - **Devcontainer Support** - Consistent development environments
 - **Comprehensive Documentation** - Detailed guides and examples
 
-## Why This Stack?
+## Why this stack?
 
 - **C23** - Latest features: `typeof`, `_BitInt`, better type safety
 - **Zig Build** - Superior to Make/CMake, built-in cross-compilation
@@ -302,7 +302,7 @@ Start with [**Using This Template**](/.template/TEMPLATE_USAGE.md) for the full 
 
 ## Getting Help
 
-### Template Issues
+### Template issues
 
 For problems with the template itself:
 
@@ -310,7 +310,7 @@ For problems with the template itself:
 - Create a new issue
 - Read [template support](/.template/TEMPLATE_SUPPORT.md)
 
-### Your Project Issues
+### Your project issues
 
 For issues with your generated project:
 
@@ -318,7 +318,7 @@ For issues with your generated project:
 - Check Zig [documentation](https://ziglang.org/documentation/)
 - See C23 [reference](https://en.cppreference.com/w/c/23)
 
-## Projects Using This Template
+## Projects using this template
 
 > Using this template? [Add your project!](https://github.com/sammyjoyce/c23-cli-template/edit/main/README.md)
 

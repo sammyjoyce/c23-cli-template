@@ -1,6 +1,6 @@
 # Advanced Usage
 
-How to script and integrate the CLI. Every example here runs against the template's real commands — `hello`, `echo`, `info`, `doctor`, and `opencli` — plus the global flags. As you add your own commands ([adding a command](adding-a-command.md)), the same patterns apply.
+How to script and integrate the CLI. Every example here runs against the template's real commands (`hello`, `echo`, `info`, `doctor`, and `opencli`) plus the global flags. As you add your own commands ([adding a command](adding-a-command.md)), the same patterns apply.
 
 - [Output formats and streams](#output-formats-and-streams)
 - [Parsing output with jq](#parsing-output-with-jq)
@@ -54,7 +54,7 @@ myapp --json info | jq -r '.format_version'
 
 ## Exit codes in scripts
 
-Commands return specific exit codes — `0` for success, non-zero for a categorized failure (for example `2` unknown command, `6` missing argument, `7` unknown option). The full list is in the contract:
+Commands return specific exit codes: `0` for success, non-zero for a categorized failure (for example `2` unknown command, `6` missing argument, `7` unknown option). The full list is in the contract:
 
 ```bash
 myapp opencli | jq -r '.exitCodes[] | "\(.code) \(.description)"'
@@ -111,7 +111,7 @@ myapp opencli | jq '.commands | length'
 
 Configuration resolves by precedence: **CLI args > environment > config file > defaults**.
 
-- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans — see [config.json](config.json).
+- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans (see [config.json](config.json)).
 - **Environment:** `APP_LOG_LEVEL` (`ERROR`, `WARNING`, `INFO`, `DEBUG`) and `NO_COLOR`.
 
 ```bash
@@ -124,7 +124,7 @@ myapp --quiet info                 # a CLI flag overrides file and environment
 
 ### Docker
 
-The default build links only libc — no ncurses — so the image stays small. Add ncurses only if you ship the TUI build (`-Denable-tui=true`).
+The default build links only libc (no ncurses), so the image stays small. Add ncurses only if you ship the TUI build (`-Denable-tui=true`).
 
 ```dockerfile
 FROM debian:stable-slim
@@ -178,7 +178,7 @@ WantedBy=timers.target
 
 ### CI contract check
 
-Assert the binary's contract still matches the checked-in spec — the same invariant `zig build test` enforces:
+Assert the binary's contract still matches the checked-in spec, the same invariant `zig build test` enforces:
 
 ```bash
 diff <(myapp opencli) opencli.json

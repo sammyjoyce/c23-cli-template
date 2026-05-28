@@ -54,7 +54,7 @@ Reach for a unit test when you can call a function and check its result directly
 
 ## Writing CLI scenario tests
 
-Add cases to `test/cli_contract_cases.c`; the runner in `test/cli_contract_runner.c` executes them against the built binary. Keep the CLI suite the single source of truth for non-interactive behavior — the Ghostty runner is scoped to PTY/TUI only.
+Add cases to `test/cli_contract_cases.c`; the runner in `test/cli_contract_runner.c` executes them against the built binary. Keep the CLI suite the single source of truth for non-interactive behavior; the Ghostty runner is scoped to PTY/TUI only.
 
 Prefer stable contracts over incidental prose:
 
