@@ -68,31 +68,31 @@ myapp opencli | jq -r '.exitCodes[] | "\(.code) \(.description)"'
 Branch on them like any Unix tool:
 
 ```bash
-if myapp doctor > /dev/null 2>&1; then
-  echo "healthy"
-else
-  echo "doctor reported problems (exit $?)" >&2
-fi
-
 # Fail fast in a pipeline
 set -euo pipefail
 myapp --json info > build-info.json
 
 # Inspect a specific failure
 myapp frobnicate || echo "exit code: $?"   # unknown command -> 2
+myapp --unknown-option || echo "exit code: $?"   # unknown option -> 7
 ```
 
-## Health checks and smoke tests
+## Diagnostics
 
-`doctor` exists for exactly this: it reports environment status and exits non-zero on failure. `--deep` also exercises the TUI runtime when a terminal is available (and the TUI build is in use).
+`doctor` reports environment status to stdout, or as a JSON document with
+`--json`. `--deep` also exercises the TUI runtime when a terminal is available
+and the TUI build is in use.
 
 ```bash
-myapp doctor            # quick diagnostics
-myapp --json doctor     # machine-readable, for monitoring
+myapp doctor            # human-readable
+myapp --json doctor     # machine-readable
 myapp doctor --deep     # also smoke-test the TUI
 ```
 
-It makes a natural CI smoke test or container health check.
+The current implementation is **informational only** — it always exits `0`,
+even when checks report problems. To use it as a hard gate (CI smoke test,
+container health check, monitoring alert), parse the `--json` output and
+inspect the per-check statuses rather than relying on the exit code.
 
 ## Pipelines
 
@@ -134,10 +134,14 @@ The default build links only libc (no ncurses), so the image stays small. Add nc
 ```dockerfile
 FROM debian:stable-slim
 COPY zig-out/bin/myapp /usr/local/bin/myapp
-HEALTHCHECK CMD myapp doctor || exit 1
 ENTRYPOINT ["myapp"]
 CMD ["--help"]
 ```
+
+A `HEALTHCHECK` is intentionally omitted: the bundled `doctor` is
+informational (always exits 0), so it cannot act as a Docker health gate as
+written. Add your own check that parses `myapp --json doctor` once you have a
+field worth gating on.
 
 ```bash
 docker build -t myapp .
@@ -176,10 +180,10 @@ WantedBy=timers.target
 ```bash
 # Log machine-readable info hourly
 0 * * * * /usr/local/bin/myapp --json info >> /var/log/myapp-info.log
-
-# Nightly health check, mail on failure
-0 2 * * * /usr/local/bin/myapp doctor || echo "myapp doctor failed" | mail -s "myapp" you@example.com
 ```
+
+(`doctor` cannot drive a "mail on failure" cron line as written — it always
+exits 0. Parse `myapp --json doctor` with `jq -e` for a real gate.)
 
 ### CI contract check
 

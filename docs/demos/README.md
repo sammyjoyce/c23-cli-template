@@ -33,7 +33,7 @@ myapp --json info
 
 <!-- ![Diagnostics](doctor.gif) -->
 
-`doctor` reports environment status and exits non-zero on failure.
+`doctor` reports environment status. The current implementation is informational and always exits `0`; use `--json` and parse the checks if you need a hard gate.
 
 ```bash
 myapp doctor
@@ -54,10 +54,9 @@ myapp opencli
 
 <!-- ![Error handling](error-handling.gif) -->
 
-A missing command, an unknown command (exit 2), and an unknown option (exit 7).
+An unknown command (exit 2) and an unknown option (exit 7).
 
 ```bash
-myapp
 myapp frobnicate
 myapp --unknown-option
 ```

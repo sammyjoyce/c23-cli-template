@@ -78,7 +78,7 @@ For the build options, steps, and how to add a source file, see the [Zig Primer]
 | Concern | Linux / macOS | Windows |
 | --- | --- | --- |
 | Terminal UI | ncurses (`ncursesw`) | pdcurses |
-| Secret memory | zero + lock out of swap where supported | zero + `VirtualLock` where supported |
+| Secret memory | `app_secret_zero()` helper (not wired by default) | `app_secret_zero()` helper (not wired by default) |
 | Config path | `~/.config/myapp/config.json` | `%USERPROFILE%\AppData\Local\myapp\config.json` |
 | Binary name | `myapp` | `myapp.exe` |
 
@@ -88,7 +88,7 @@ Cross-compilation is a `-Dtarget=` flag away because Zig ships every target's he
 
 The template's defenses are the ones actually wired into the code and CI, not compiler hardening flags. Those are left for you to opt into.
 
-- **Memory hygiene.** Sensitive buffers are overwritten with `app_secret_zero()` before they are freed, and the input path locks them out of swap where the platform supports it (`mlock` / `VirtualLock`).
+- **Secret-zeroing helper.** `src/utils/memory.h` exports `app_secret_zero()` for clearing sensitive buffers. The template ships it as a primitive but does not call it from any production path yet — invoke it where your code holds secrets. Memory locking (`mlock` / `VirtualLock`) is not wired in either.
 - **Runtime safety.** The default and `ReleaseSafe` builds keep Zig's runtime safety checks. C sources compile with `-Wall -Wextra -std=c23`.
 - **Static analysis in CI.** GitHub Actions runs `clang-tidy` and `cppcheck` over the C sources on every change.
 - **Supply chain in CI.** Gitleaks secret scanning, an OpenSSF Scorecard run, SBOM generation, and pinned action versions.

@@ -155,8 +155,6 @@ sleep 4
 # Demo 5: Error handling
 demo_error_handling() {
     record_demo "error-handling" "Error Handling" '
-'$BINARY' || true
-sleep 2
 '$BINARY' frobnicate || true
 sleep 3
 '$BINARY' --unknown-option || true

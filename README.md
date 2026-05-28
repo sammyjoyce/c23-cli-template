@@ -173,7 +173,7 @@ zig build -Denable-tui=true terminal-test  # Run PTY/TUI scenarios against the T
 zig build check                            # fmt-check + tests (the CI gate)
 
 # Format
-zig build fmt                              # Format build.zig, src, test
+zig build fmt                              # Format build.zig (Zig formatter; C uses clang-format via pre-commit + CI)
 
 # Clean
 zig build clean                            # Remove zig-out and .zig-cache
