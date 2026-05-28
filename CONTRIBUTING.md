@@ -116,6 +116,7 @@ Append the path to `base_sources` in `build.zig` (TUI-only files belong in `tui_
 
 Local pre-commit hooks (install with `pre-commit install`) run clang-format, markdownlint, and the conventional-commit validator.
 CI runs `zig build check` on three platforms plus `clang-tidy` and `cppcheck`; optional Ghostty VT coverage can be enabled with `CI_ENABLE_NIX_GHOSTTY=true`.
+That optional job uses the nixpkgs `libghostty-vt` package pinned by `flake.lock`, so review lockfile bumps if you make it branch-protected.
 
 ## Coding standards
 

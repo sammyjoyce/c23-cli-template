@@ -103,8 +103,10 @@ contract suites are enforced on every platform. CI also builds the TUI with plat
 package managers and runs a `--json info` smoke check.
 
 Maintainers who want required Ghostty VT coverage can set `CI_ENABLE_NIX_GHOSTTY=true`
-to enable the separate Nix-backed job. That job is intentionally not part of the default
-release gate.
+to enable the separate Nix-backed job. That job uses `nix develop`, so its Ghostty VT
+coverage comes from the nixpkgs `libghostty-vt` package pinned by this repository's
+`flake.lock`, not the older direct Ghostty source flake build. It is intentionally not
+part of the default release gate.
 
 ## Choosing a richer tool
 
