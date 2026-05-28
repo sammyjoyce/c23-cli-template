@@ -1,352 +1,110 @@
 # Architecture Overview
 
-This document provides a comprehensive overview of the C23 CLI Template architecture, designed to help new contributors understand the codebase structure and build system.
+A map of how a project generated from this template is put together: the layers, the real modules, how a command runs, and where to add your own code.
 
-## Table of Contents
+- [The mental model](#the-mental-model)
+- [Module map](#module-map)
+- [Request lifecycle](#request-lifecycle)
+- [Build system](#build-system)
+- [Platform differences](#platform-differences)
+- [Security model](#security-model)
+- [Where to add code](#where-to-add-code)
 
-- [High-Level Architecture](#high-level-architecture)
-- [Module Structure](#module-structure)
-- [Build System](#build-system)
-- [Data Flow](#data-flow)
-- [Platform Abstraction](#platform-abstraction)
-- [Security Architecture](#security-architecture)
+## The mental model
 
-## High-Level Architecture
+It is a small, layered C23 program. `main.c` parses arguments, resolves configuration,
+looks up a command in a table, and runs its handler. Handlers write text (or JSON with
+`--json`) through one I/O layer and signal failure with a typed error code that becomes
+the process exit status.
 
-```mermaid
-graph TB
-    subgraph "User Space"
-        USER[User Input]
-        TERM[Terminal Output]
-    end
-
-    subgraph "Application Layer"
-        MAIN[main.c<br/>Entry Point]
-        CLI[CLI Module<br/>args.c/help.c]
-        CORE[Core Module<br/>config.c/error.c]
-        TUI[TUI Module<br/>tui.c/tui_app.c/tui_menu.c/progress.c]
-        IO[I/O Module<br/>input.c/output.c]
-    end
-
-    subgraph "Utility Layer"
-        UTILS[Utils Module<br/>colors.c/logging.c/memory.c]
-    end
-
-    subgraph "Platform Layer"
-        NCURSES[ncurses<br/>Linux/macOS]
-        PDCURSES[pdcurses<br/>Windows]
-        LIBC[Platform libc]
-    end
-
-    USER --> MAIN
-    MAIN --> CLI
-    CLI --> CORE
-    CLI --> TUI
-    CORE --> IO
-    TUI --> IO
-    IO --> UTILS
-    TUI --> NCURSES
-    TUI --> PDCURSES
-    UTILS --> LIBC
-    IO --> TERM
-```
-
-## Module Structure
-
-### Core Modules
-
-```mermaid
-graph LR
-    subgraph "src/cli"
-        ARGS[args.c<br/>Argument Parsing]
-        HELP[help.c<br/>Help Generation]
-    end
-
-    subgraph "src/core"
-        CONFIG[config.c<br/>Configuration]
-        ERROR[error.c<br/>Error Handling]
-        TYPES[types.h<br/>Core Types]
-    end
-
-    subgraph "src/io"
-        INPUT[input.c<br/>User Input]
-        OUTPUT[output.c<br/>Formatted Output]
-    end
-
-    subgraph "src/tui"
-        TUIDEF[tui.c<br/>TUI Primitives]
-        TUIMENU[tui_menu.c<br/>Menu Component]
-        TUIAPP[tui_app.c<br/>Starter Showcase]
-        PROGRESS[tui_progress.c<br/>Progress Bars]
-    end
-
-    subgraph "src/utils"
-        COLORS[colors.c<br/>Color Definitions]
-        LOGGING[logging.c<br/>Logging System]
-        MEMORY[memory.c<br/>Secret Zeroing]
-    end
-
-    ARGS --> CONFIG
-    ARGS --> ERROR
-    TUIDEF --> COLORS
-    TUIAPP --> TUIDEF
-    TUIAPP --> TUIMENU
-    TUIMENU --> TUIDEF
-    TUIDEF --> OUTPUT
-    CONFIG --> LOGGING
-    INPUT --> MEMORY
-```
-
-### Module Responsibilities
-
-| Module | Purpose | Key Functions |
-|--------|---------|---------------|
-| **cli** | Command-line argument parsing and help generation | `parse_args()`, `print_help()` |
-| **core** | Core application logic and configuration | `load_config()`, `handle_error()` |
-| **io** | Input/output operations with formatting | `read_input()`, `write_output()` |
-| **tui** | Terminal UI components and rendering | `init_tui()`, `show_progress()` |
-| **utils** | Cross-cutting utilities and helpers | `app_secret_zero()`, `app_log_*()` |
-
-## Build System
-
-### Zig Build Pipeline
+The interactive ncurses interface is a separate layer that only compiles when you pass `-Denable-tui=true`. The default build is a plain libc CLI with no curses dependency.
 
 ```mermaid
 graph TD
-    subgraph "Build Inputs"
-        BUILDZIG[build.zig<br/>Build Script]
-        BUILDZON[build.zig.zon<br/>Dependencies]
-        CSRC[C Source Files<br/>src/**/*.c]
-        CHDR[C Headers<br/>src/**/*.h]
-    end
-
-    subgraph "Zig Build Process"
-        PARSE[Parse build.zig]
-        DEPS[Fetch Dependencies<br/>aro, etc.]
-        COMPILE[Compile C23 Code<br/>via Zig CC]
-        LINK[Link Binary<br/>+ Platform Libs]
-        TEST[Run C23 CLI Tests<br/>test/cli_contract_runner.c]
-        TERMTEST[Run Terminal Scenarios<br/>test/terminal_vt_*.c]
-    end
-
-    subgraph "Build Outputs"
-        BIN[zig-out/bin/myapp<br/>Executable]
-        TESTOUT[Test Results]
-        CACHE[zig-cache/<br/>Build Cache]
-    end
-
-    BUILDZIG --> PARSE
-    BUILDZON --> DEPS
-    CSRC --> COMPILE
-    CHDR --> COMPILE
-    PARSE --> COMPILE
-    DEPS --> COMPILE
-    COMPILE --> LINK
-    LINK --> BIN
-    PARSE --> TEST
-    LINK --> TERMTEST
-    TEST --> TESTOUT
-    TERMTEST --> TESTOUT
-    COMPILE --> CACHE
+    USER[argv + stdin] --> MAIN[main.c]
+    MAIN --> CLI["cli/ - parse args, dispatch"]
+    CLI --> CMD["cli/commands_*.c - handlers"]
+    CMD --> CORE["core/ - config, errors"]
+    CMD --> IO["io/ - text + JSON output"]
+    CMD -. "menu, doctor --deep" .-> TUI["tui/ - ncurses, opt-in"]
+    CORE --> UTILS["utils/ - logging, colors, memory"]
+    IO --> TERM[stdout / stderr]
+    TUI --> CURSES[ncurses / pdcurses]
 ```
 
-### Build Commands
+## Module map
 
-```bash
-# Development build
-zig build
+Each directory under `src/` owns one concern. The functions below are representative entry points, not the full surface; read the matching header for the rest.
 
-# Run fast C23 CLI contract tests
-zig build test
+| Module | Files | Responsibility | Representative functions |
+| --- | --- | --- | --- |
+| `cli` | `args.c`, `help.c`, `commands.c`, `commands_*.c`, `opencli_contract.c` | Parse argv, apply global flags, find and dispatch commands, render help, expose the OpenCLI contract | `app_args_handle_immediate_exit()`, `app_commands()`, `app_command_find()`, `app_print_concise_help()` |
+| `core` | `config.c`, `config_json.c`, `error.c`, `types.h` | Layered configuration, the flag table, and typed errors | `app_config_create()`, `app_config_load_env()`, `app_config_get_flag()`, `app_strerror()` |
+| `io` | `input.c`, `output.c` | Read stdin/files; write human text and versioned JSON | `app_read_input_from_stdin()`, `app_output()`, `app_json_write_string()` |
+| `tui` | `tui.c`, `tui_menu.c`, `tui_menu_model.c`, `tui_progress.c`, `tui_app.c` | ncurses lifecycle, modal menus, progress bars, and the demo showcase (compiled only with `-Denable-tui=true`) | `tui_init()`, `tui_cleanup()`, `tui_show_menu()`, `tui_progress_create()` |
+| `utils` | `colors.c`, `logging.c`, `memory.c` | Cross-cutting helpers: color setup, leveled logging, secret zeroing | `app_log_init()`, `app_secret_zero()` |
 
-# Run end-to-end terminal scenario tests
-zig build terminal-test
+The command table is the seam to extend. `commands.c` registers the built-in commands,
+and each lives in its own file (`commands_basic.c` for `hello`/`echo`, plus
+`commands_info.c`, `commands_doctor.c`, `commands_menu.c`, `commands_opencli.c`). See
+[examples/adding-a-command.md](../examples/adding-a-command.md).
 
-# Run PTY-backed TUI scenarios
-zig build -Denable-tui=true terminal-test
+## Request lifecycle
 
-# Release build
-zig build -Doptimize=ReleaseSafe
+1. `main()` initializes logging and creates an `app_config_t`.
+2. The CLI layer reads argv. Immediate-exit options (`--help`, `--version`) are handled
+   first by `app_args_handle_immediate_exit()`. Global flags (`--debug`, `--quiet`,
+   `--verbose`, `--json`, `--plain`, `--no-color`, `--config`) update the config; the
+   remaining tokens become the command name and its arguments.
+3. Configuration is resolved by precedence: **CLI args > environment > config file > defaults**.
+4. `app_command_find()` looks up the command. Its handler runs and writes output through `app_output()` / the `app_json_*` helpers.
+5. On failure a handler returns an `app_error` value (see `core/error.c`). `app_strerror()` describes it, and the numeric code becomes the exit status. The public codes are listed in `opencli.json`.
+6. Commands that need the terminal UI (`menu`, and `doctor --deep`) call `tui_init()` and always pair it with `tui_cleanup()`, including on interrupt.
 
-# Install to prefix
-zig build install --prefix ~/.local
+The stable shape of this surface (commands, flags, exit codes, JSON envelopes) is documented in [CONTRACTS.md](CONTRACTS.md).
 
-# Check without building
-zig build check
-```
+## Build system
 
-## Data Flow
+`build.zig` compiles the C sources with Zig's bundled Clang. The base binary is the
+file list in the `base_sources` array; the `tui_sources` are appended only when
+`-Denable-tui=true`, which also defines `ENABLE_TUI=1` and links `ncursesw` (or
+`pdcurses` on Windows). A separate `tui-menu-lib` step builds the reusable menu
+primitive as a static library with installed headers.
 
-### Command Processing Flow
+For the build options, steps, and how to add a source file, see the [Zig Primer](ZIG_PRIMER.md).
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Main
-    participant CLI
-    participant Core
-    participant TUI
-    participant IO
+## Platform differences
 
-    User->>Main: ./myapp command args
-    Main->>CLI: parse_args(argc, argv)
-    CLI->>Core: validate_command()
+| Concern | Linux / macOS | Windows |
+| --- | --- | --- |
+| Terminal UI | ncurses (`ncursesw`) | pdcurses |
+| Secret memory | `app_secret_zero()` helper (not wired by default) | `app_secret_zero()` helper (not wired by default) |
+| Config path | `~/.config/myapp/config.json` | `%USERPROFILE%\AppData\Local\myapp\config.json` |
+| Binary name | `myapp` | `myapp.exe` |
 
-    alt Valid Command
-        Core->>TUI: init_tui()
-        TUI->>IO: setup_terminal()
-        Core->>Core: execute_command()
-        Core->>TUI: update_display()
-        TUI->>IO: render_output()
-        IO->>User: Display Result
-    else Invalid Command
-        Core->>CLI: get_help_text()
-        CLI->>IO: print_error()
-        IO->>User: Show Error + Help
-    end
+Cross-compilation is a `-Dtarget=` flag away because Zig ships every target's headers and libc; no second toolchain to install.
 
-    Main->>TUI: cleanup_tui()
-    Main->>User: Exit(status)
-```
+## Security model
 
-## Platform Abstraction
+The template's defenses are the ones actually wired into the code and CI, not compiler hardening flags. Those are left for you to opt into.
 
-### Cross-Platform Strategy
+- **Secret-zeroing helper.** `src/utils/memory.h` exports `app_secret_zero()` for
+  clearing sensitive buffers. The template ships it as a primitive but no production
+  path calls it yet; invoke it where your code holds secrets. Memory locking
+  (`mlock` / `VirtualLock`) is not wired in either.
+- **Compiler warnings.** C sources compile with `-Wall -Wextra -std=c23`. `-Doptimize=` selects the optimization level; no Zig runtime is linked into the C-only binary.
+- **Static analysis in CI.** GitHub Actions runs `clang-tidy` and `cppcheck` over the C sources on every change.
+- **Supply chain in CI.** Gitleaks secret scanning, an OpenSSF Scorecard run, SBOM generation, and pinned action versions.
 
-```mermaid
-graph TD
-    subgraph "Application Code"
-        APP[Platform-Agnostic Code]
-    end
+Compiler-level hardening (`-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, PIE/RELRO) is **not** enabled by default. If your threat model needs it, add the flags to `base_flags` in `build.zig`.
 
-    subgraph "Abstraction Layer"
-        ABS[Platform Abstractions<br/>#ifdef guards]
-    end
+## Where to add code
 
-    subgraph "Linux/macOS"
-        UNIX[POSIX APIs]
-        NC[ncurses]
-        MLOCK[mlock()]
-    end
-
-    subgraph "Windows"
-        WIN[Win32 APIs]
-        PDC[pdcurses]
-        VLOCK[VirtualLock()]
-    end
-
-    APP --> ABS
-    ABS -->|__linux__ or __APPLE__| UNIX
-    ABS -->|_WIN32| WIN
-    UNIX --> NC
-    WIN --> PDC
-    UNIX --> MLOCK
-    WIN --> VLOCK
-```
-
-### Platform-Specific Features
-
-| Feature | Linux/macOS | Windows |
-|---------|-------------|---------|
-| **Terminal UI** | ncurses | pdcurses |
-| **Secure Memory** | mlock/munlock | VirtualLock/VirtualUnlock |
-| **Config Path** | ~/.config/myapp/ | %APPDATA%\myapp\ |
-| **Path Separator** | / | \ |
-| **Binary Extension** | (none) | .exe |
-
-## Security Architecture
-
-### Security Layers
-
-```mermaid
-graph TB
-    subgraph "Input Validation"
-        ARGVAL[Argument Validation]
-        INPUTSAN[Input Sanitization]
-        BUFCHECK[Buffer Overflow Protection]
-    end
-
-    subgraph "Memory Security"
-        SECMEM[Secret Buffer Hygiene]
-        ZEROMEM[Explicit Zeroing<br/>app_secret_zero()]
-        CANARY[Stack Canaries<br/>-fstack-protector]
-    end
-
-    subgraph "Build Security"
-        RELRO[RELRO<br/>Read-Only Relocations]
-        NX[NX/DEP<br/>No-Execute]
-        PIE[PIE/ASLR<br/>Position Independent]
-    end
-
-    ARGVAL --> SECMEM
-    INPUTSAN --> SECMEM
-    BUFCHECK --> ZEROMEM
-    SECMEM --> RELRO
-    ZEROMEM --> NX
-    CANARY --> PIE
-```
-
-### Security Features
-
-1. **Input Validation**
-   - All command-line arguments are validated
-   - Buffer sizes are checked before operations
-   - String operations use safe variants
-
-2. **Memory Protection**
-   - Sensitive data locked in memory (where supported)
-   - Memory zeroed before deallocation
-   - Stack protection enabled by default
-
-3. **Build Hardening**
-   - Position-independent executables (PIE)
-   - Stack canaries enabled
-   - Fortify source macros used
-
-## Development Workflow
-
-### Typical Development Cycle
-
-```mermaid
-graph LR
-    subgraph "Development"
-        EDIT[Edit Code]
-        BUILD[zig build]
-        TEST[zig build test]
-        TERMTEST[zig build terminal-test]
-        RUN[./zig-out/bin/myapp]
-    end
-
-    subgraph "Quality Checks"
-        FORMAT[clang-format]
-        LINT[clang-tidy]
-        MARKDOWN[markdownlint]
-    end
-
-    subgraph "CI/CD"
-        PUSH[git push]
-        CI[GitHub Actions]
-        RELEASE[Release Build]
-    end
-
-    EDIT --> BUILD
-    BUILD --> TEST
-    TEST --> TERMTEST
-    TERMTEST --> RUN
-    RUN --> EDIT
-
-    EDIT --> FORMAT
-    FORMAT --> LINT
-    LINT --> MARKDOWN
-    MARKDOWN --> PUSH
-
-    PUSH --> CI
-    CI --> RELEASE
-```
-
-## Next Steps
-
-- See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed build instructions
-- See [TESTING.md](TESTING.md) for CLI and PTY-backed TUI scenario tests
-- Check [examples/](../examples/) for usage examples
-- Review [build.zig](../build.zig) for build configuration details
+| You want to… | Start here |
+| --- | --- |
+| Add a command | [examples/adding-a-command.md](../examples/adding-a-command.md), then register it in `src/cli/commands.c` |
+| Add a config flag | `src/core/config.c` (the flag table) and `src/core/config_json.c` |
+| Add a new exit code | `src/core/error.c`, then regenerate `opencli.json` (see [CONTRACTS.md](CONTRACTS.md)) |
+| Build a TUI screen | [examples/custom-tui.md](../examples/custom-tui.md) and `src/tui/` |
+| Add a source file to the build | the `base_sources` array in `build.zig` (see [ZIG_PRIMER.md](ZIG_PRIMER.md)) |
+| Test any of the above | [TESTING.md](TESTING.md) |

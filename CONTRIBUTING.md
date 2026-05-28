@@ -1,317 +1,174 @@
-# Contributing to CLI Application Starter
+# Contributing
 
-Thank you for your interest in contributing to this project! This document provides guidelines and instructions for contributing.
+Thanks for contributing. This page covers how to report an issue, set up locally, and send a PR that passes CI.
 
-## Code of Conduct
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-By participating in this project, you agree to be respectful and constructive in all interactions.
-
-## How to Contribute
-
-### Reporting Issues
-
-Before creating an issue, please:
-
-- Check existing issues to avoid duplicates
-- Use the issue templates when available
-- Include as much relevant information as possible
-
-When reporting bugs, include:
-
-- Your operating system and version
-- Zig version (run `zig version`)
-- Steps to reproduce the issue
-- Expected vs actual behavior
-- Any error messages or logs
-
-### Suggesting Features
-
-Feature requests are welcome! Please:
-
-- Check if the feature has already been requested
-- Explain the use case and why it would be valuable
-- Consider if it aligns with the project's goals
-
-### Pull Requests
-
-1. **Fork the repository** and create your branch from `main`
-2. **Follow the coding style** used throughout the project
-3. **Write tests** for new functionality
-4. **Update documentation** as needed
-5. **Ensure all tests pass** by running `zig build test`
-6. **Format your code** with `clang-format`
-7. **Write clear commit messages** following conventional commits
-
-#### Commit Message Format
-
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types:
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Test additions or modifications
-- `chore`: Maintenance tasks
-- `perf`: Performance improvements
-
-Examples:
-
-```
-feat(cli): add new command for file processing
-fix(config): handle missing config file gracefully
-docs(readme): update installation instructions
-```
-
-### Development Setup
-
-1. **Install Zig 0.16.0** (current stable release):
-
-   ```bash
-   # Using zvm (recommended)
-   zvm install 0.16.0
-   zvm use 0.16.0
-
-   # Or download directly
-   # Visit https://ziglang.org/download/
-   ```
-
-2. **Clone your fork**:
-
-   ```bash
-   git clone https://github.com/yourusername/yourproject.git
-   cd yourproject
-   ```
-
-3. **Install platform dependencies**:
-
-   ```bash
-   # macOS
-   brew install ncurses
-
-   # Ubuntu/Debian
-   sudo apt-get install libncurses-dev clang-format clang-tidy
-
-   # Fedora/RHEL
-   sudo dnf install ncurses-devel clang-tools-extra
-
-   # Windows (using vcpkg)
-   git clone https://github.com/Microsoft/vcpkg.git
-   cd vcpkg && bootstrap-vcpkg.bat
-   vcpkg install pdcurses:x64-windows
-   ```
-
-4. **Run local quality checks** (recommended):
-
-   ```bash
-   zig build fmt-check
-   zig build check
-   git diff --check
-   find src test \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
-
-   # Optional documentation lint, available in the Nix dev shell
-   markdownlint "**/*.md" --ignore ".template/**" --ignore ".github/**" --ignore "zig-pkg/**"
-   ```
-
-5. **Alternative: Use the Nix dev shell**:
-
-   ```bash
-   nix develop
-   ```
-
-   The flake provides Zig, C tooling, and markdown lint tooling.
-
-6. **Alternative: Use Devcontainer** (recommended for consistency):
-
-   This project includes a devcontainer configuration for VS Code that provides a consistent development environment.
-   - Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code
-   - Open the project in VS Code
-   - When prompted, choose "Reopen in Container"
-   - The container will automatically install all dependencies
-
-### Understanding the Build System
-
-This project uses Zig as its build system. If you're new to Zig, see our [Zig Primer for C Developers](docs/ZIG_PRIMER.md).
-
-#### Quick Build Commands
+## Quick start
 
 ```bash
-# Build the project (debug mode)
-zig build
+# Fork, clone, branch
+git clone https://github.com/<your-user>/c23-cli-template
+cd c23-cli-template
+git checkout -b your-change
 
-# Build with optimizations
-zig build -Doptimize=ReleaseSafe
+# Build and test
+zig build check                                # fmt-check + tests (the CI gate)
+zig build -Denable-tui=true terminal-test      # if you touched the TUI
 
-# Run the application
-zig build run -- --help
-
-# Run tests
-zig build test
-
-# Check code without building
-zig build check
-
-# Cross-compile for Windows (from Linux/macOS)
-zig build -Dtarget=x86_64-windows
-
-# Install to a custom prefix
-zig build install --prefix ~/.local
+# Format, commit, push
+zig build fmt
+git commit -m "feat(scope): one-line summary"
+git push origin your-change
 ```
 
-#### Build Options
+Open a PR against `main`. CI runs `zig build check` on Linux, macOS, and Windows, plus `clang-tidy` and `cppcheck`.
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-Doptimize=` | Build mode: `Debug`, `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | `Debug` |
-| `-Dtarget=` | Target triple (e.g., `x86_64-windows`, `aarch64-linux`) | Native |
-| `-Denable-tui=` | Enable TUI support | `false` |
-| `--prefix` | Installation directory | `zig-out` |
+## Reporting issues
 
-#### Adding New Source Files
+Before opening one, search [existing issues](https://github.com/sammyjoyce/c23-cli-template/issues). Use the templates when they apply, and include:
 
-1. Add your C file to the appropriate directory under `src/`
-2. Update `build.zig` to include the new file:
+- your operating system and version,
+- `zig version`,
+- the steps to reproduce,
+- the expected versus actual behavior, and
+- any error output or logs.
 
-   ```zig
-   exe.addCSourceFiles(.{
-       .files = &.{
-           // existing files...
-           "src/your_module/new_file.c",
-       },
-       .flags = &.{ "-std=c23", "-Wall", "-Wextra" },
-   });
-   ```
+## Suggesting features
 
-3. If adding a new module, update the architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Open an issue describing the use case and how it fits the template's scope. Keep an eye on [docs/CONTRACTS.md](docs/CONTRACTS.md); the supported seams document what's intentionally in or out.
 
-#### Build Troubleshooting
+## Setting up
 
-**Common Issues:**
+### Install Zig
 
-- **"Unable to find ncurses"**: Install the development package for your OS (see step 3 above)
-- **"C header not found"**: Check that all include paths are added in `build.zig`
-- **Cache issues**: Run `rm -rf zig-cache zig-out` and rebuild
-- **Windows DLL issues**: Ensure vcpkg bin directory is in PATH
-
-For more details, see the [Architecture Overview](docs/ARCHITECTURE.md).
-
-### Testing
-
-#### Running Tests
+Use [zvm](https://github.com/tristanisham/zvm) to install the pinned 0.16.0:
 
 ```bash
-# Run fast C23 CLI contract tests
-zig build test
-
-# Run end-to-end CLI terminal scenarios
-zig build terminal-test
-
-# Run terminal scenarios against a TUI-enabled build
-zig build -Denable-tui=true terminal-test
-
-# Run tests with different optimization levels
-zig build test -Doptimize=Debug
-zig build test -Doptimize=ReleaseSafe
-zig build test -Doptimize=ReleaseFast
+zvm install 0.16.0 && zvm use 0.16.0
 ```
 
-#### Writing Tests
+### Platform dependencies
 
-- Put fast build-integrated smoke and CLI contract coverage in `test/cli_contract_runner.c`
-- Put PTY-backed TUI and end-to-end terminal behavior in `test/terminal_vt_scenarios.c`
-- Prefer JSON-field assertions for automation-facing output
-- Ensure all existing tests pass
-- Test on multiple platforms if possible
-- Test error conditions and edge cases
+Only needed for `-Denable-tui=true` builds. (The default build links only libc.)
 
-See [docs/TESTING.md](docs/TESTING.md) for the terminal harness and key notation.
+| Platform | Install |
+| --- | --- |
+| macOS | `brew install ncurses` |
+| Ubuntu / Debian | `sudo apt-get install libncurses-dev clang-format clang-tidy` |
+| Fedora / RHEL | `sudo dnf install ncurses-devel clang-tools-extra` |
+| Windows | `vcpkg install pdcurses:x64-windows` |
 
-### Documentation
+### Alternative: Nix or devcontainer
 
-- Update README.md for user-facing changes
-- Add inline comments for complex logic
-- Keep examples up to date
+```bash
+nix develop                # Zig, C toolchain, libghostty-vt, markdownlint
+```
 
-## Coding Standards
+The repository also ships a devcontainer (open in VS Code, choose **Reopen in Container**) with the same dependencies pre-installed.
 
-### C Code Style
+## Build and test
 
-- Use 2 spaces for indentation
-- Opening braces on same line for functions
-- Use descriptive variable names
-- Add comments for complex logic
-- Keep functions focused and small
-- Follow the .clang-format configuration
+For every `-D` option and step (and why Zig is the build system), see [docs/ZIG_PRIMER.md](docs/ZIG_PRIMER.md). The day-to-day commands:
 
-Example:
+```bash
+zig build                                # debug build
+zig build -Doptimize=ReleaseSafe         # optimized
+zig build run -- hello Alice             # build + run with arguments
+zig build test                           # unit tests + CLI contract tests
+zig build terminal-test                  # the above + PTY/TUI scenarios when available
+zig build check                          # fmt-check + tests (the CI gate)
+zig build fmt                            # apply formatting
+zig build clean                          # remove zig-out + .zig-cache
+```
+
+Cross-compile with `-Dtarget=x86_64-windows` (or similar). The test layers and how to add to each are in [docs/TESTING.md](docs/TESTING.md).
+
+### Adding a source file
+
+Append the path to `base_sources` in `build.zig` (TUI-only files belong in `tui_sources`). The walkthrough is in [docs/ZIG_PRIMER.md#adding-a-c-file](docs/ZIG_PRIMER.md#adding-a-c-file).
+
+### Adding a command, or a TUI screen
+
+[examples/adding-a-command.md](examples/adding-a-command.md) is the full five-step flow (handler, command table, `opencli.json`, contract test, build). For interactive UIs, [examples/custom-tui.md](examples/custom-tui.md).
+
+## Pull requests
+
+1. Branch from `main`.
+2. Run `zig build check`.
+3. Use [Conventional Commits](https://www.conventionalcommits.org/); a pre-commit hook validates the format:
+
+   ```
+   <type>(<scope>): <subject>
+   ```
+
+   Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `style`.
+
+   ```
+   feat(cli): add greet command
+   fix(config): handle a missing config file gracefully
+   docs(testing): document the unit-test step
+   ```
+
+4. Keep PRs focused. Update documentation when behavior changes (commands, flags, exit codes, the OpenCLI contract).
+
+Local pre-commit hooks (install with `pre-commit install`) run clang-format, markdownlint, and the conventional-commit validator. CI runs `zig build check` on three platforms plus `clang-tidy` and `cppcheck`.
+
+## Coding standards
+
+For C and C++, `.clang-format` is the source of truth — clang-format applies it
+through the pre-commit hook and the CI **Lint and Format** job. For `build.zig`
+and any Zig sources, `zig build fmt` runs the Zig formatter.
+
+Conventions in this codebase:
+
+- Public APIs use the `app_` / `tui_` prefixes (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+- Functions return `app_error` for typed failures; check return values and free on every path.
+- Buffers that held sensitive data go through `app_secret_zero()` before being freed.
+- Early-return on errors; keep the happy path flat.
 
 ```c
-app_error process_input(const char* input, size_t len) {
-  // Validate input parameters
+app_error process_input(const char *input, size_t len) {
   if (!input || len == 0) {
     return APP_ERROR_INVALID_ARG;
   }
 
-  // Process the input
-  app_buffer_t buffer = {0};
-  app_error err = process_data(input, len, &buffer);
-
-  if (err != APP_SUCCESS) {
-    free(buffer.data);
-    return err;
+  char *scratch = malloc(len);
+  if (!scratch) {
+    return APP_ERROR_MEMORY;
   }
 
-  // Clean up
-  free(buffer.data);
-  return APP_SUCCESS;
+  app_error err = APP_SUCCESS;
+  // ... work ...
+
+  app_secret_zero(scratch, len);
+  free(scratch);
+  return err;
 }
 ```
 
-### Error Handling
+## Where things live
 
-- Always check return values
-- Provide meaningful error messages
-- Clean up resources on error paths
-- Use early returns for error conditions
-
-### Memory Management
-
-- Free all allocated memory
-- Use `app_secret_zero()` before freeing buffers that held sensitive data
-- Check for allocation failures
-- Avoid memory leaks in error paths
-
-## Project Structure
-
-```
-cli-starter/
-├── src/              # Core implementation
-│   ├── main.c       # Entry point
-│   ├── core/        # Core functionality
-│   ├── cli/         # CLI interface
-│   ├── io/          # Input/Output
-│   └── utils/       # Utilities
-├── test/            # Test suite
-├── build.zig        # Build configuration
-└── build.zig.zon    # Build dependencies
+```text
+.
+├── src/
+│   ├── main.c
+│   ├── cli/        command parsing, help, command table
+│   ├── core/       configuration, typed errors
+│   ├── io/         text and JSON output
+│   ├── tui/        ncurses windows, menus, progress (opt-in)
+│   └── utils/      logging, colors, secret zeroing
+├── test/           unit tests + CLI contract + PTY/TUI scenarios
+├── build.zig
+├── opencli.json    the CLI contract
+└── docs/
 ```
 
-## Getting Help
+## Getting help
 
-- Check the [documentation](README.md)
-- Look through existing issues
-- Ask questions in issues with the "question" label
+- [docs/](docs/): architecture, contracts, testing, Zig primer
+- [Existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
 
 ## License
 
-By contributing to this project, you agree that your contributions will be licensed under the MIT License.
+By contributing you agree your contributions are licensed under the MIT License.

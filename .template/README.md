@@ -1,71 +1,50 @@
 # Template Files
 
-This directory contains the template variable replacement system used when creating new projects from this template repository.
+This directory holds the variable-replacement system that turns the template into a fresh project. It is removed from generated repositories during cleanup.
 
 ## Contents
 
-- `template-vars.json` - Centralized configuration for all template variables
-- `replacer.sh` - Core replacement engine for automatic variable replacement and transformations
-- `setup.sh` - Interactive or non-interactive setup and cleanup script
-- `TEMPLATE_README.md` - The generated-project README installed during setup
-- `TEMPLATE_USAGE.md` - Comprehensive guide for using this template
-- `TEMPLATE_SUPPORT.md` - Support information for template issues
-- `README.md` - This documentation file
+| File | Purpose |
+| --- | --- |
+| `template-vars.json` | Source of truth for every template variable, its placeholders, and validation |
+| `replacer.sh` | Replacement engine: detects values, applies case transforms, swaps placeholders |
+| `setup.sh` | Interactive or non-interactive setup that runs the replacer and optional cleanup |
+| `TEMPLATE_README.md` | The README installed into the generated project |
+| `TEMPLATE_USAGE.md` | The full "using this template" guide |
+| `TEMPLATE_SUPPORT.md` | Support notes for template (not generated-project) issues |
+| `README.md` | This file |
 
-## Features
+## How replacement works
 
-### Smart Variable Detection
+- **Value detection.** Each variable reads explicit environment values first, then falls back to its configured sources (git metadata, repository name, current year), then to a default.
+- **Case transforms.** `replacer.sh` derives the forms it needs: `snake_case`, `kebab_case`, `pascal_case`, `lower_case`, and `upper_case`.
+- **Validation.** Each variable carries a regex so a bad value fails fast.
+- **Safety.** `--dry-run` previews every change, and excluded paths (`.git`, `.template`, `zig-out`, `.zig-cache`, vendored code) are never touched.
 
-- Reads explicit environment values first
-- Falls back to local Git metadata, repository names, and defaults
-- Falls back to sensible defaults when detection fails
-- Supports multiple data sources per variable
+## For new projects
 
-### Case Transformations
+When you create a project from this template:
 
-- `snake_case`: my_project_name
-- `kebab-case`: my-project-name
-- `PascalCase`: MyProjectName
-- `camelCase`: myProjectName
+1. Run the **Template Cleanup** workflow from the Actions tab, or run setup locally.
+2. Setup installs `TEMPLATE_README.md` as the project README.
+3. Setup runs `replacer.sh` to substitute every variable.
+4. Template-only files are removed when cleanup is requested.
 
-### Validation & Safety
-
-- Regex-based validation ensures correct formatting
-- Dry run mode to preview changes
-- Excludes sensitive directories (.git, node_modules, etc.)
-
-### Flexible Usage
-
-- **Automatic**: Uses detected values
-- **Interactive**: Prompts for each value
-- **Dry Run**: Preview changes without making them
-
-## For New Projects
-
-When you create a new project from this template:
-
-1. Run the `Template Cleanup` workflow from the Actions tab, or run setup locally.
-2. Setup installs the generated-project README.
-3. Setup executes `replacer.sh` to replace all variables.
-4. Template-specific files are removed when cleanup is requested.
-
-If automatic cleanup fails:
+If automatic cleanup did not run:
 
 ```bash
-# Run interactively
+# Interactive
 ./.template/setup.sh
 
-# Or run without prompts and remove template-only files
+# Non-interactive, and remove template-only files
 ./.template/setup.sh --non-interactive --cleanup
 ```
 
-Setup requires `jq`, `sd`, and `zig`. Interactive setup also requires `gum`.
+Setup needs `jq`, `sd`, and `zig`. Interactive setup also needs `gum`.
 
-## For Template Maintainers
+## For template maintainers
 
-### Adding New Variables
-
-Edit `template-vars.json`:
+Add or change variables in `template-vars.json`. Each entry uses this shape:
 
 ```json
 {
@@ -73,7 +52,7 @@ Edit `template-vars.json`:
     "NEW_VAR": {
       "placeholders": ["OLD_TEXT"],
       "description": "What this variable represents",
-      "source": "repository_name",
+      "sources": ["repository_name"],
       "transform": "kebab_case",
       "validation": "^[a-z][a-z0-9-]*$"
     }
@@ -81,21 +60,22 @@ Edit `template-vars.json`:
 }
 ```
 
-### Testing Changes
+`sources` is an ordered list; the first one that resolves wins. Available sources:
+
+| Source | Resolves to |
+| --- | --- |
+| `repository_name` | The repository name (from Git or GitHub) |
+| `repository_description` | The repository description |
+| `repository_owner` | The GitHub owner or organization |
+| `git_user_name` | `git config user.name` |
+| `git_user_email` | `git config user.email` |
+| `current_year` | The current calendar year |
+| `license` | The detected license, where supported |
+
+Preview changes before committing them:
 
 ```bash
-# Test in dry run mode
-./.template/replacer.sh --dry-run
+./.template/replacer.sh --dry-run -v
 ```
 
-### Variable Sources
-
-- `repository_name`: From Git or GitHub
-- `repository_owner`: GitHub username/organization
-- `git_user_name`: From git config
-- `git_user_email`: From git config
-- `current_year`: Current year
-- `license`: Detected from LICENSE where supported
-- `static`: Fixed value in config
-
-This directory keeps template infrastructure separate from project files, making it easy to maintain and update the template without affecting the actual project structure.
+Prefer specific placeholders such as `myapp` or `https://github.com/yourusername/yourproject` over short common words, so replacement never touches unrelated text.

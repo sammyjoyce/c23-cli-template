@@ -1,254 +1,181 @@
 # Zig Primer for C Developers
 
-This guide helps C developers understand how Zig is used as the build system for this C23 project.
+You do not need to know Zig to work on this project. Zig is only the build system: it
+replaces Make or CMake, and it bundles the C compiler. This guide covers the handful of
+commands and the `build.zig` structure you will actually touch.
 
-## Table of Contents
-
-- [Why Zig for a C Project?](#why-zig-for-a-c-project)
-- [Zig as a C Compiler](#zig-as-a-c-compiler)
-- [Understanding build.zig](#understanding-buildzig)
-- [Understanding build.zig.zon](#understanding-buildzigzon)
-- [Common Build Tasks](#common-build-tasks)
-- [Zig vs Make/CMake](#zig-vs-makecmake)
+- [Why Zig here?](#why-zig-here)
+- [The commands you actually need](#the-commands-you-actually-need)
+- [How this build.zig is organized](#how-this-buildzig-is-organized)
+- [Build options](#build-options)
+- [Build steps](#build-steps)
+- [Adding a C file](#adding-a-c-file)
+- [Cross-compiling](#cross-compiling)
+- [Zig vs Make and CMake](#zig-vs-make-and-cmake)
 - [Troubleshooting](#troubleshooting)
+- [Resources](#resources)
 
-## Why Zig for a C Project?
+## Why Zig here?
 
-Zig provides several advantages as a build system for C projects:
+- **One toolchain, every target.** `zig cc` bundles Clang/LLVM plus the headers and libc for every platform, so cross-compilation is a flag, not a second toolchain.
+- **The build script is just code.** `build.zig` is Zig, not a bespoke macro language, so logic like "only compile the TUI when a flag is set" is an ordinary `if`.
+- **Caching and parallelism are automatic.** Incremental rebuilds and parallel compilation come for free.
+- **It is still your C.** The sources are C23. Zig compiles and links them; it does not change how you write them.
 
-1. **Cross-compilation out of the box** - No need for separate toolchains
-2. **Built-in C compiler** - Zig bundles Clang/LLVM
-3. **Dependency management** - Via build.zig.zon
-4. **Caching** - Intelligent incremental builds
-5. **No separate build language** - Build scripts are written in Zig
-
-## Zig as a C Compiler
-
-Zig can compile C code directly:
+## The commands you actually need
 
 ```bash
-# Compile a C file
-zig cc hello.c -o hello
-
-# With C23 standard
-zig cc -std=c23 hello.c -o hello
-
-# Cross-compile for Windows from Linux
-zig cc -target x86_64-windows hello.c -o hello.exe
+zig build                         # build + install the binary to zig-out/bin/
+zig build run -- hello Alice      # build, then run with arguments after --
+zig build test                    # CLI contract tests + in-process unit tests
+zig build -Doptimize=ReleaseSafe  # optimized build
+zig build -Denable-tui=true run -- menu   # build with the TUI and open the demo menu
 ```
 
-### Zig CC vs GCC/Clang
+A `justfile` wraps the common ones if you prefer: `just build`, `just check`, `just test-fast`, `just clean`. Run `just help` to list them.
 
-| Feature | Zig CC | GCC/Clang |
-|---------|--------|-----------|
-| Cross-compilation | Built-in | Requires separate toolchains |
-| C23 Support | Yes (via LLVM) | Yes |
-| Optimization | -O0 to -O3 | -O0 to -O3 |
-| Debug Info | -g | -g |
-| Static Analysis | Basic | Extensive |
+## How this build.zig is organized
 
-## Understanding build.zig
-
-The `build.zig` file is like a `Makefile` or `CMakeLists.txt`, but written in Zig:
+The script builds **one executable from a list of C files.** There is no Zig source in
+the binary. This excerpt is simplified from the real `build.zig`; open that file for
+the full source list and flag handling.
 
 ```zig
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    // Target and optimization options
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Create executable from C sources
+    const app_name = b.option([]const u8, "app-name", "Application and binary name") orelse "myapp";
+    const enable_tui = b.option(bool, "enable-tui", "Enable the ncurses/PDCurses TUI") orelse false;
+
     const exe = b.addExecutable(.{
-        .name = "myapp",
+        .name = app_name,
         .root_module = b.createModule(.{
-            .root_source_file = null,
+            .root_source_file = null, // a C program: no Zig root file
             .target = target,
             .optimize = optimize,
             .link_libc = true,
         }),
     });
+    exe.root_module.addIncludePath(b.path("src"));
 
-    // Add C source files
-    exe.root_module.addCSourceFiles(.{
-        .files = &.{
-            "src/main.c",
-            "src/cli/args.c",
-            "src/cli/help.c",
-            // ... more files
-        },
-        .flags = &.{
-            "-std=c23",
-            "-Wall",
-            "-Wextra",
-            "-pedantic",
-        },
-    });
+    const base_sources = [_][]const u8{
+        "src/main.c",
+        "src/core/config.c",
+        // ... full list lives in build.zig
+    };
+    // The real script also appends -DAPP_VERSION, -DAPP_NAME, -DAPP_GIT_COMMIT,
+    // and -DENABLE_TUI=1 (when enabled) to these flags.
+    const base_flags = [_][]const u8{ "-Wall", "-Wextra", "-std=c23", "-D_GNU_SOURCE" };
+    exe.root_module.addCSourceFiles(.{ .files = &base_sources, .flags = &base_flags });
 
-    // Link libraries
-    if (target.result.os.tag == .windows) {
-        exe.root_module.linkSystemLibrary("pdcurses", .{});
-    } else {
-        exe.root_module.linkSystemLibrary("ncursesw", .{});
+    if (enable_tui) {
+        exe.root_module.addCSourceFiles(.{
+            .files = &.{
+                "src/tui/tui.c",
+                "src/tui/tui_app.c",
+                "src/tui/tui_menu.c",
+                "src/tui/tui_menu_model.c",
+                "src/tui/tui_progress.c",
+            },
+            .flags = &base_flags,
+        });
+        if (target.result.os.tag == .windows) {
+            exe.root_module.linkSystemLibrary("pdcurses", .{});
+        } else {
+            exe.root_module.linkSystemLibrary("ncursesw", .{});
+        }
     }
 
-    // Install the executable
     b.installArtifact(exe);
 }
 ```
 
-### Key Concepts
+The pieces to recognize:
 
-1. **Build Function**: The `pub fn build()` is the entry point
-2. **Build Object**: `b` provides all build functionality
-3. **Artifacts**: Executables, libraries, etc.
-4. **Steps**: Build tasks that can depend on each other
+- **`b`** is the build graph. You add artifacts (executables, libraries) and steps to it.
+- **`b.createModule`** with `root_source_file = null` and `link_libc = true` is how a C program is declared in modern Zig. Source files attach to `exe.root_module`, not to `exe` directly.
+- **`base_sources` / `base_flags`** are plain arrays. Adding a file means editing an array (see [Adding a C file](#adding-a-c-file)).
+- **`b.option(...)`** declares the `-D...` flags listed below.
 
-### Common Patterns
+## Build options
 
-```zig
-// Adding include directories
-exe.root_module.addIncludePath(b.path("src"));
-exe.root_module.addIncludePath(b.path("vendor/include"));
+Pass these as `-D<name>=<value>` on any `zig build` command.
 
-// Platform-specific code
-if (target.result.os.tag == .windows) {
-    c_flags.append(b.allocator, "-DPLATFORM_WINDOWS=1") catch @panic("OOM");
-} else if (target.result.os.tag == .linux) {
-    c_flags.append(b.allocator, "-DPLATFORM_LINUX=1") catch @panic("OOM");
-}
+| Option | Values (default) | Effect |
+| --- | --- | --- |
+| `-Doptimize=` | `Debug` (default), `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | C optimization level (no Zig runtime is linked into this C-only binary) |
+| `-Dtarget=` | e.g. `x86_64-windows`, `aarch64-macos` | Cross-compile target |
+| `-Denable-tui=` | `true` / `false` (default `false`) | Compile the ncurses TUI and link curses |
+| `-Dapp-name=` | string (default `myapp`) | Application and binary name |
+| `-Dversion=` | string (default `0.1.0`) | Version baked into the binary |
+| `-Dcurses-prefix=` | path | Override the ncurses/PDCurses install prefix |
+| `-Dterminal-backend=` | `auto` (default) / `ghostty` | Terminal-test backend; see [TESTING.md](TESTING.md) |
+| `-Dghostty-vt-prefix=` | path | Override the libghostty-vt install prefix |
 
-// Creating a test step
-const test_step = b.step("test", "Run tests");
-test_step.dependOn(&exe.step);
+## Build steps
 
-// Custom build options
-const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses (default: false)") orelse false;
-if (enable_tui) {
-    c_flags.append(b.allocator, "-DENABLE_TUI=1") catch @panic("OOM");
-}
-```
+| Command | What it does |
+| --- | --- |
+| `zig build` | Build and install the binary (the default step) |
+| `zig build run -- ARGS` | Build, then run with `ARGS` |
+| `zig build test` | CLI contract tests plus in-process unit tests |
+| `zig build unit-test` | Only the in-process unit tests |
+| `zig build terminal-test` | CLI contracts plus PTY/TUI scenarios when a backend is available |
+| `zig build tui-menu-lib` | Build the reusable TUI menu static library and install its headers |
+| `zig build fmt` / `fmt-check` | Format, or check formatting of, `build.zig`, `src`, and `test` |
+| `zig build check` | Baseline gate: `fmt-check` + tests (what CI runs) |
+| `zig build clean` | Remove `zig-out` and `.zig-cache` |
 
-## Understanding build.zig.zon
+## Adding a C file
 
-The `build.zig.zon` file manages dependencies and project metadata:
-
-```zig
-.{
-    .name = .myapp,
-    .version = "0.1.0",
-    .fingerprint = 0x8798022a387365d7,
-
-    // Dependencies
-    .dependencies = .{
-        .some_lib = .{
-            .url = "https://github.com/user/lib/archive/abc123.tar.gz",
-            .hash = "1220abc...",
-        },
-    },
-
-    // Paths to include in package
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "src",
-        "LICENSE",
-        "README.md",
-    },
-}
-```
-
-## Common Build Tasks
-
-### Basic Commands
-
-```bash
-# Build the project
-zig build
-
-# Build and run
-zig build run
-
-# Run tests
-zig build test
-
-# Build with optimizations
-zig build -Doptimize=ReleaseSafe
-
-# Cross-compile
-zig build -Dtarget=x86_64-windows
-
-# Install to custom prefix
-zig build install --prefix ~/.local
-
-# Clean build
-rm -rf zig-cache zig-out
-```
-
-### Build Modes
-
-| Mode | Flag | Description |
-|------|------|-------------|
-| Debug | (default) | No optimizations, debug info |
-| ReleaseSafe | `-Doptimize=ReleaseSafe` | Optimized, safety checks |
-| ReleaseFast | `-Doptimize=ReleaseFast` | Optimized, no safety |
-| ReleaseSmall | `-Doptimize=ReleaseSmall` | Size-optimized |
-
-### Adding New C Files
-
-1. Add the file to `exe.addCSourceFiles()` in `build.zig`:
+1. Drop the file under `src/`.
+2. Add its path to the `base_sources` array in `build.zig` (or `tui_sources` if it is TUI-only):
 
    ```zig
-   exe.addCSourceFiles(.{
-       .files = &.{
-           // existing files...
-           "src/new_module.c",
-       },
-       .flags = &.{ "-std=c23", "-Wall" },
-   });
+   const base_sources = [_][]const u8{
+       // ... existing files ...
+       "src/features/deploy.c",
+   };
    ```
 
-2. Rebuild:
+3. Rebuild with `zig build`. Headers are found automatically because `src/` is on the include path.
 
-   ```bash
-   zig build
-   ```
+## Cross-compiling
 
-## Zig vs Make/CMake
+```bash
+# Windows binary from any host
+zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSafe
 
-### Comparison Table
-
-| Feature | Zig | Make | CMake |
-|---------|-----|------|-------|
-| Language | Zig | Make syntax | CMake script |
-| Cross-compilation | Built-in | Manual setup | Toolchain files |
-| Dependency management | build.zig.zon | None | FetchContent/ExternalProject |
-| IDE support | Growing | Excellent | Excellent |
-| Learning curve | Moderate | Low | High |
-| Platform detection | Automatic | Manual | Automatic |
-| Parallel builds | Automatic | make -j | Automatic |
-| Cache management | Automatic | Manual | Automatic |
-
-### Migration Examples
-
-#### Makefile To build.zig
-
-```makefile
-# Makefile
-CC = gcc
-CFLAGS = -std=c23 -Wall -O2
-LDFLAGS = -lncurses
-
-myapp: main.o args.o
-    $(CC) $(LDFLAGS) -o $@ $^
-
-%.o: %.c
-    $(CC) $(CFLAGS) -c -o $@ $<
+# Apple Silicon macOS binary
+zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ```
 
+The default CLI cross-compiles with no extra setup. A cross **TUI** build (`-Denable-tui=true`) also needs the curses library for the target; point at it with `-Dcurses-prefix=`.
+
+## Zig vs Make and CMake
+
+| Concern | Zig | Make | CMake |
+| --- | --- | --- | --- |
+| Build language | Zig | Make syntax | CMake script |
+| Cross-compilation | Built in | Manual toolchains | Toolchain files |
+| Dependencies | `build.zig.zon` | None | FetchContent / ExternalProject |
+| Platform detection | Automatic | Manual | Automatic |
+| Caching and parallelism | Automatic | `make -j`, manual cache | Automatic |
+| Learning curve | Moderate | Low | High |
+
+A Makefile rule like this:
+
+```makefile
+myapp: main.c args.c
+	gcc -std=c23 -Wall -O2 -o $@ $^ -lncursesw
+```
+
+becomes, in `build.zig`:
+
 ```zig
-// build.zig equivalent
 const exe = b.addExecutable(.{
     .name = "myapp",
     .root_module = b.createModule(.{
@@ -268,126 +195,40 @@ b.installArtifact(exe);
 
 ## Troubleshooting
 
-### Common Issues
+**`zig: command not found`**. Install Zig 0.16.0. The simplest route is [zvm](https://github.com/tristanisham/zvm): `zvm install 0.16.0 && zvm use 0.16.0`.
 
-1. **"Unable to find zig"**
+**ncurses/PDCurses headers or library not found.** Only happens with
+`-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew
+install ncurses`, `dnf install ncurses-devel`), or point at a custom install with
+`-Dcurses-prefix=/path`.
 
-   ```bash
-   # Install Zig from https://ziglang.org/download/
-   # Or use the setup script:
-   curl -sSf https://ziglang.org/download/index.json | jq -r '.["0.16.0"]."x86_64-linux".tarball'
-   ```
+**libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See
+[TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, `zig build
+test` and the CLI portion of `terminal-test` still run.
 
-2. **"C header not found"**
+**Stale build.** `zig build clean` removes `zig-out` and `.zig-cache`. (Equivalent: `rm -rf zig-out .zig-cache`.)
 
-   ```zig
-   // Add include paths in build.zig
-   exe.addIncludePath(b.path("include"));
-   exe.addSystemIncludePath("/usr/local/include");
-   ```
+**Need to see what the compiler is doing.** `zig build --verbose` shows commands; `zig build --verbose-cc` shows the C compiler invocations.
 
-3. **"Undefined symbol"**
+## A real custom build step
 
-   ```zig
-   // Ensure libraries are linked
-   exe.linkSystemLibrary("m");  // math library
-   exe.linkSystemLibrary("pthread");  // threading
-   ```
-
-4. **Cache issues**
-
-   ```bash
-   # Clear cache
-   rm -rf zig-cache zig-out
-   # Rebuild
-   zig build
-   ```
-
-### Debug Build Issues
-
-```bash
-# Verbose build output
-zig build --verbose
-
-# Show compile commands
-zig build --verbose-cc
-
-# Keep temporary files
-zig build --verbose-link
-```
-
-### Platform-Specific Issues
-
-#### Windows
-
-- Ensure Visual Studio Build Tools or MinGW is installed
-- Use `zig cc` instead of `gcc` for better compatibility
-
-#### macOS
-
-- May need to install Xcode Command Line Tools
-- Use `exe.linkFramework("CoreFoundation")` for system frameworks
-
-#### Linux
-
-- Install development packages for TUI builds: `apt install libncurses-dev`
-- Check pkg-config: `pkg-config --libs ncurses`
-- Use `zig build -Denable-tui=true` when you want to compile the optional TUI.
-
-## Advanced Topics
-
-### Custom Build Steps
+Build logic is ordinary Zig, so `build.zig` can compute inputs. This project injects the current git hash as a `#define`, falling back to `"unknown"` outside a checkout:
 
 ```zig
-// Generate version header
-const version_step = b.addSystemCommand(&.{
-    "git", "describe", "--tags", "--always",
-});
-const version_header = version_step.captureStdOut();
-exe.addCSourceFiles(.{
-    .files = &.{"src/version.c"},
-    .flags = &.{"-DVERSION=\"" ++ version_header ++ "\""},
-});
+const git_commit = blk: {
+    const res = std.process.run(b.allocator, b.graph.io, .{
+        .argv = &.{ "git", "rev-parse", "--short", "HEAD" },
+    }) catch break :blk "unknown";
+    // ... verify exit status ...
+    break :blk b.dupe(std.mem.trim(u8, res.stdout, "\r\n"));
+};
+// added to the compile flags as: -DAPP_GIT_COMMIT="<hash>"
 ```
 
-### Conditional Compilation
-
-```zig
-// Feature flags
-const enable_feature = b.option(bool, "feature", "Enable feature") orelse false;
-if (enable_feature) {
-    exe.defineCMacro("ENABLE_FEATURE", null);
-    exe.addCSourceFile(.{
-        .file = b.path("src/feature.c"),
-        .flags = &.{"-std=c23"},
-    });
-}
-```
-
-### Testing C Code with Zig
-
-```zig
-// Create test executable
-const test_exe = b.addExecutable(.{
-    .name = "test_runner",
-    .target = target,
-});
-test_exe.addCSourceFiles(.{
-    .files = &.{
-        "test/test_main.c",
-        "test/test_utils.c",
-    },
-    .flags = &.{"-std=c23"},
-});
-
-const test_cmd = b.addRunArtifact(test_exe);
-const test_step = b.step("test", "Run tests");
-test_step.dependOn(&test_cmd.step);
-```
+`myapp info` then reports that hash. Use the same pattern for any value you want baked into the binary at build time.
 
 ## Resources
 
-- [Zig Language Reference](https://ziglang.org/documentation/0.16.0/)
+- [Zig 0.16.0 Language Reference](https://ziglang.org/documentation/0.16.0/)
 - [Zig Build System Guide](https://ziglang.org/learn/build-system/)
-- [Zig Discord](https://discord.gg/zig) - Active community for questions
-- [This Project's build.zig](../build.zig) - Real example to study
+- [This project's build.zig](../build.zig) - the real script, the best reference

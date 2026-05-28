@@ -1,36 +1,37 @@
 # Example: Adding a New Command
 
-This example shows how to add a new `greet` command that greets multiple people.
+This example adds a `greet` command that greets one or more people. The same five steps work for any command, because dispatch, help, and the OpenCLI contract are all driven by one command table.
 
-## 1. Add the Command Handler
+## 1. Add the command handler
 
-Create a small command translation unit, for example
-`src/cli/commands_greet.c`:
+Create a command translation unit, for example `src/cli/commands_greet.c`. Every handler has the same signature: it takes the resolved config and the command's arguments, and returns an `app_error`.
 
 ```c
 app_error app_cmd_greet(const app_config_t *config, int argc, char **argv) {
-    (void)config;
-
     if (argc == 0) {
         fprintf(stderr, "Error: greet command requires at least one name\n");
         return APP_ERROR_MISSING_ARG;
     }
 
-    printf("Greetings to:\n");
+    app_output("Greetings to:", config, false);
     for (int i = 0; i < argc; i++) {
-        printf("  👋 %s\n", argv[i]);
+        app_output_format(config, false, "  - %s", argv[i]);
     }
-
-    printf("\nHave a great day!\n");
+    app_output("", config, false);
+    app_output("Have a great day!", config, false);
     return APP_SUCCESS;
 }
 ```
 
-## 2. Register Command Metadata
+Use `app_output` for plain strings and `app_output_format` for printf-style output (see
+`src/cli/commands_basic.c` for the real `hello` and `echo` handlers). Both honour
+`--json`, `--quiet`, and color flags; `fprintf(stderr, …)` is fine for the error path.
 
-Add the handler forward declaration, arguments, examples, and command row in
-`src/cli/commands.c`. The command table feeds dispatch, help, and the OpenCLI
-contract:
+Add the new file to the `base_sources` array in `build.zig` so it is compiled (see [ZIG_PRIMER.md](../docs/ZIG_PRIMER.md#adding-a-c-file)).
+
+## 2. Register command metadata
+
+Add the forward declaration, argument table, examples, and a command row to `g_app_commands` in `src/cli/commands.c`. This one table feeds dispatch, help text, and `myapp opencli`.
 
 ```c
 app_error app_cmd_greet(const app_config_t *config, int argc, char **argv);
@@ -64,10 +65,13 @@ static const app_command_t g_app_commands[] = {
 
 ## 3. Update opencli.json
 
-Run the live contract command and update `opencli.json` with the new command.
-`zig build test` fails if the checked-in spec drifts from the binary output.
+The contract is checked in, and `zig build test` fails if it drifts from the binary. Regenerate it from the live command:
 
-Your command should appear in the `commands` array like this:
+```bash
+zig build run -- opencli > opencli.json
+```
+
+Your command should now appear in the `commands` array:
 
 ```json
 {
@@ -93,9 +97,11 @@ Your command should appear in the `commands` array like this:
 }
 ```
 
-## 4. Add Tests
+(`APP_ARG_ARITY_UNBOUNDED` serializes as JSON `null`.)
 
-In `test/cli_contract_cases.c`, add a test for your command:
+## 4. Add tests
+
+Add a case to `test/cli_contract_cases.c` that covers the happy path and the error path:
 
 ```c
 static bool test_greet_command(test_context_t *ctx) {
@@ -130,36 +136,29 @@ static bool test_greet_command(test_context_t *ctx) {
 }
 ```
 
-Then register it in the `tests` array:
+Register it in the `tests` array:
 
 ```c
 {"greet command handles names", test_greet_command},
 ```
 
-## 5. Build and Test
+See [TESTING.md](../docs/TESTING.md) for the difference between contract tests and unit tests.
+
+## 5. Build and test
 
 ```bash
-# Build
-zig build
-
-# Run tests
-zig build test
-
-# Confirm the live OpenCLI contract matches opencli.json
-./zig-out/bin/myapp opencli
-
-# Try your new command
+zig build                                  # build
+zig build test                             # run the suite (fails if opencli.json drifted)
 ./zig-out/bin/myapp greet Alice Bob Charlie
 ```
 
-## Result
+## What you get
 
-You've successfully added a new command that:
+The command now:
 
-- ✅ Accepts multiple arguments
-- ✅ Validates input
-- ✅ Has help documentation
-- ✅ Is tested
-- ✅ Follows the project structure
+- accepts multiple arguments and validates that at least one is present
+- appears in `--help` and in `myapp opencli`
+- returns a meaningful exit code on error (`APP_ERROR_MISSING_ARG`)
+- is covered by a contract test
 
-This pattern can be used to add any command to your CLI application!
+Repeat the same pattern for any command. Commands that open the TUI set `.requires_terminal = true`. See [custom-tui.md](custom-tui.md).

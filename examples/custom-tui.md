@@ -1,61 +1,57 @@
 # Example: Creating a Custom TUI Screen
 
-This example shows how to create a custom TUI screen using the ncurses wrapper.
+The terminal UI is opt-in: it only compiles with `-Denable-tui=true` (which defines
+`ENABLE_TUI`). `tui.h` gives you a window wrapper, dialogs, a progress bar, and one
+modal menu primitive, so command code never calls ncurses directly. Every screen
+follows the same rule: call `tui_init()` first, and `tui_cleanup()` before you return,
+on every path.
 
-## 1. Create Your TUI Function
+## 1. A complete screen
 
-Add a new function in `src/tui` and expose it through `tui.h` so command code
-does not call ncurses directly:
+This handler opens a bordered window, draws a live value with a bar, and loops on
+keypresses. It drops to raw ncurses (`mvwprintw`, `waddch`) for the drawing, which is
+fine; the wrapper manages lifecycle and layout, not every cell.
 
 ```c
 #ifdef ENABLE_TUI
 static app_error show_data_viewer(void) {
-    // Initialize TUI if not already done
     app_error err = tui_init();
     if (err != APP_SUCCESS) {
         return err;
     }
 
-    // Get terminal dimensions
     int max_y = tui_get_max_y();
     int max_x = tui_get_max_x();
 
-    // Create main window (leave space for borders)
     tui_window_t *main_win = tui_create_window(max_y - 2, max_x - 2, 1, 1);
     if (!main_win) {
         tui_cleanup();
         return APP_ERROR_MEMORY;
     }
-
     tui_draw_border(main_win);
     tui_set_window_title(main_win, "Data Viewer");
 
-    // Create a data display area
     tui_window_t *data_win = tui_create_window(max_y - 10, max_x - 10, 5, 5);
     if (!data_win) {
         tui_destroy_window(main_win);
         tui_cleanup();
         return APP_ERROR_MEMORY;
     }
-
     tui_draw_border(data_win);
     tui_set_window_title(data_win, "Live Data");
 
-    // Main loop
     bool running = true;
     int data_value = 0;
 
     while (running) {
-        // Clear data window content
         tui_clear_window(data_win);
 
-        // Display some data
         tui_set_color(data_win->win, TUI_COLOR_INFO);
         mvwprintw(data_win->win, 2, 2, "Current Value: %d", data_value);
         tui_unset_color(data_win->win, TUI_COLOR_INFO);
 
-        // Draw a simple bar graph
-        int bar_width = (data_win->width - 4) * data_value / 100;
+        int inner = data_win->width > 4 ? data_win->width - 4 : 0;
+        int bar_width = inner * data_value / 100;
         mvwprintw(data_win->win, 4, 2, "[");
         tui_set_color(data_win->win, TUI_COLOR_SUCCESS);
         for (int i = 0; i < bar_width; i++) {
@@ -64,52 +60,31 @@ static app_error show_data_viewer(void) {
         tui_unset_color(data_win->win, TUI_COLOR_SUCCESS);
         mvwprintw(data_win->win, 4, 3 + bar_width, "]");
 
-        // Instructions
-        tui_set_color(main_win->win, TUI_COLOR_INFO);
         mvwprintw(main_win->win, max_y - 4, 2,
                   "Press: [+] Increase  [-] Decrease  [r] Reset  [q] Quit");
-        tui_unset_color(main_win->win, TUI_COLOR_INFO);
 
-        // Refresh windows
         tui_refresh_window(data_win);
         tui_refresh_window(main_win);
 
-        // Handle input
-        int ch = tui_get_char();
-        switch (ch) {
-            case '+':
-            case '=':
-                if (data_value < 100) data_value += 5;
-                break;
-            case '-':
-            case '_':
-                if (data_value > 0) data_value -= 5;
-                break;
-            case 'r':
-            case 'R':
-                data_value = 0;
-                break;
-            case 'q':
-            case 'Q':
-            case 27:  // ESC
-                running = false;
-                break;
+        switch (tui_get_char()) {
+            case '+': case '=': if (data_value < 100) data_value += 5; break;
+            case '-': case '_': if (data_value > 0)   data_value -= 5; break;
+            case 'r': case 'R': data_value = 0; break;
+            case 'q': case 'Q': case 27 /* ESC */: running = false; break;
         }
     }
 
-    // Cleanup
     tui_destroy_window(data_win);
     tui_destroy_window(main_win);
     tui_cleanup();
-
     return APP_SUCCESS;
 }
 #endif
 ```
 
-## 2. Add Command Handler
+## 2. Wire it to a command
 
-Create a command handler and register it in `src/cli/commands.c`:
+Register a handler in `src/cli/commands.c` with `.requires_terminal = true`, and guard the TUI call so a non-TUI build still gives a clean message instead of failing to link:
 
 ```c
 app_error app_cmd_viewer(const app_config_t *config, int argc, char **argv) {
@@ -119,89 +94,64 @@ app_error app_cmd_viewer(const app_config_t *config, int argc, char **argv) {
 #ifdef ENABLE_TUI
     return show_data_viewer();
 #else
-    fprintf(stderr, "Error: TUI support not compiled in\n");
+    fprintf(stderr, "Error: TUI support not compiled in.\n");
     fprintf(stderr, "Rebuild with: zig build -Denable-tui=true\n");
     return APP_ERROR_CONFIG;
 #endif
 }
 ```
 
-Set `.requires_terminal = true` in the command table so help and
-`myapp opencli` expose the command as interactive policy.
+`.requires_terminal = true` makes help and `myapp opencli` mark the command as interactive. See [adding-a-command.md](adding-a-command.md) for the full registration steps.
 
-## 3. Using TUI Components
+## 3. Building blocks
 
-### Message Boxes
-
-```c
-tui_show_message("Success", "Operation completed successfully!");
-```
-
-### Confirmation Dialogs
+### Dialogs
 
 ```c
-if (tui_confirm("Delete File", "Are you sure you want to delete this file?")) {
-    // Perform deletion
+tui_show_message("Success", "Operation completed.");
+
+if (tui_confirm("Delete File", "Are you sure?")) {
+    // tui_confirm returns bool
 }
-```
 
-### Input Dialogs
-
-```c
 char username[256] = {0};
 if (tui_input_dialog("Login", "Enter username:", username, sizeof(username)) == APP_SUCCESS) {
-    printf("Welcome, %s!\n", username);
+    // username is filled in
 }
 ```
 
-### Progress Bars
+### Progress bar
 
 ```c
-tui_progress_t *progress = tui_progress_create("Processing Files", 100);
+tui_progress_t *progress = tui_progress_create("Processing", 100);
 for (int i = 0; i <= 100; i++) {
     char status[64];
-    snprintf(status, sizeof(status), "Processing file %d of 100", i);
+    snprintf(status, sizeof(status), "Item %d of 100", i);
     tui_progress_update(progress, i, status);
-    napms(50);  // Simulate work inside curses
+    napms(50);  // stand-in for real work
 }
 tui_progress_destroy(progress);
 ```
 
-### Menus
+### Menu
+
+The menu is the one reusable primitive that is also shipped as a library
+(`tui-menu-lib`) and covered by the
+[TUI menu contract](../docs/CONTRACTS.md#tui-menu-contract). All pointers in the config
+must outlive the call; the menu copies nothing.
 
 ```c
-enum {
-    MENU_OPTION_ONE = 1,
-    MENU_OPTION_TWO,
-    MENU_EXIT,
-};
+enum { MENU_OPTION_ONE = 1, MENU_OPTION_TWO, MENU_EXIT };
 
 const tui_menu_item_t options[] = {
-    {
-        .label = "Option &1",
-        .description = "First option description",
-        .id = MENU_OPTION_ONE,
-    },
-    {
-        .label = "Option &2",
-        .description = "Second option description",
-        .id = MENU_OPTION_TWO,
-    },
-    {
-        .label = "&Disabled",
-        .description = "This option is disabled",
-        .id = 3,
-        .disabled = true,
-    },
-    {
-        .label = "E&xit",
-        .description = "Return to main menu",
-        .id = MENU_EXIT,
-    },
+    {.label = "Option &1", .description = "First option",  .id = MENU_OPTION_ONE},
+    {.label = "Option &2", .description = "Second option", .id = MENU_OPTION_TWO},
+    {.label = "&Disabled", .description = "Unavailable",   .id = 3, .disabled = true},
+    {.label = "E&xit",     .description = "Leave the menu", .id = MENU_EXIT},
 };
 
 tui_menu_result_t result = tui_show_menu(
-    window,
+    NULL,  // NULL => the menu owns its frame and handles resize
     &(tui_menu_config_t){
         .title = "Select Option",
         .items = options,
@@ -211,60 +161,45 @@ tui_menu_result_t result = tui_show_menu(
         .show_detail_pane = true,
     });
 
-if (result.status != TUI_MENU_OK) {
-    return;
-}
-
-switch (result.selected_id) {
-    case MENU_OPTION_ONE: /* Handle option 1 */ break;
-    case MENU_OPTION_TWO: /* Handle option 2 */ break;
-    case MENU_EXIT: /* Exit */ break;
+if (result.status == TUI_MENU_OK) {
+    switch (result.selected_id) {
+        case MENU_OPTION_ONE: /* ... */ break;
+        case MENU_OPTION_TWO: /* ... */ break;
+        case MENU_EXIT:       /* ... */ break;
+    }
 }
 ```
 
-## 4. Color Usage
+`&` in a label marks the mnemonic key (`&&` is a literal `&`). `result.status` is one of `TUI_MENU_OK`, `TUI_MENU_CANCELLED`, `TUI_MENU_INTERRUPTED`, `TUI_MENU_TOO_SMALL`, `TUI_MENU_INVALID_ARG`, or `TUI_MENU_NO_MEMORY`.
 
-The TUI wrapper provides predefined color pairs:
+## 4. Colors
 
-- `TUI_COLOR_DEFAULT` - Default terminal colors
-- `TUI_COLOR_HIGHLIGHT` - Highlighted text
-- `TUI_COLOR_ERROR` - Error messages (red)
-- `TUI_COLOR_SUCCESS` - Success messages (green)
-- `TUI_COLOR_WARNING` - Warnings (yellow)
-- `TUI_COLOR_INFO` - Information (cyan)
-- `TUI_COLOR_MENU_SELECTED` - Selected menu items
-- `TUI_COLOR_MENU_NORMAL` - Normal menu items
-- `TUI_COLOR_BORDER` - Window borders (blue)
-- `TUI_COLOR_TITLE` - Window titles (magenta)
-
-Use them like:
+Set a color pair before drawing and unset it after. The pairs are roles, not fixed colors. The theme is defined in `src/utils/colors.c`:
 
 ```c
 tui_set_color(window->win, TUI_COLOR_ERROR);
-mvwprintw(window->win, y, x, "Error: %s", error_message);
+mvwprintw(window->win, y, x, "Error: %s", message);
 tui_unset_color(window->win, TUI_COLOR_ERROR);
 ```
 
-## 5. Best Practices
+Available pairs: `TUI_COLOR_DEFAULT`, `HIGHLIGHT`, `ERROR`, `SUCCESS`, `WARNING`, `INFO`, `MENU_SELECTED`, `MENU_NORMAL`, `BORDER`, `TITLE`, `ACCENT`, `DIM`.
 
-1. **Always check initialization**: TUI functions will fail if not initialized
-2. **Clean up properly**: Always call `tui_cleanup()` before exiting
-3. **Handle terminal resize**: Consider refreshing on `KEY_RESIZE`
-4. **Provide keyboard shortcuts**: Make UI keyboard-friendly
-5. **Show help**: Display available keys/commands
-6. **Test both builds**: Ensure `zig build` and `zig build -Denable-tui=true` work
+## 5. Practices
 
-## 6. Error Handling
+- **Pair every `tui_init()` with `tui_cleanup()`**, including on every error path, or the terminal is left in raw mode.
+- **Handle a failed init.** `tui_init()` returns an `app_error`; fall back to non-interactive output rather than aborting:
 
-Always handle TUI errors gracefully:
+  ```c
+  if (tui_init() != APP_SUCCESS) {
+      fprintf(stderr, "Terminal does not support the TUI; using plain output.\n");
+      return run_plain_version();
+  }
+  ```
 
-```c
-app_error err = tui_init();
-if (err != APP_SUCCESS) {
-    // Fall back to non-TUI interface
-    fprintf(stderr, "Failed to initialize TUI, falling back to CLI\n");
-    return handle_cli_version();
-}
-```
+- **Respect interrupts.** Check `tui_interrupted()` in long loops and exit cleanly.
+- **Test both builds.** Confirm `zig build` (no TUI) and `zig build -Denable-tui=true` both compile and behave. Drive TUI screens with the scenario harness in [TESTING.md](../docs/TESTING.md).
 
-This ensures your application remains functional even if the terminal doesn't support ncurses.
+## See also
+
+- [Public Contracts](../docs/CONTRACTS.md#tui-menu-contract) - the stable menu surface
+- [Architecture Overview](../docs/ARCHITECTURE.md) - where `tui/` sits in the codebase

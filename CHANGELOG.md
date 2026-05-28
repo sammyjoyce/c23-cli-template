@@ -1,58 +1,22 @@
 # Changelog
 
-All notable changes to this template will be documented in this file.
+All notable changes to this template are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-
-- Initial template structure with C/Zig build system
-- GitHub Actions CI workflow for automated testing
-- Comprehensive documentation (README, CONTRIBUTING, etc.)
-- Issue and PR templates for better collaboration
-- Code formatting configuration (.clang-format)
-- Example code structure with modular organization
-- Test framework setup
-- Template cleanup script for easy customization
-- Security policy and reporting guidelines
-- Automated dependency management with Dependabot
-- Development container configuration
-- VS Code workspace settings
-
-### Changed
-
-- Nothing yet
-
-### Deprecated
-
-- Nothing yet
-
-### Removed
-
-- Nothing yet
-
-### Fixed
-
-- Nothing yet
-
-### Security
-
-- Nothing yet
-
-## [1.0.0] - 2025-01-27
+## [0.1.0]
 
 ### Added
 
-- Initial release of the C/Zig project template
-- Basic project structure with src/, test/, docs/ directories
-- Build configuration using Zig build system
-- GitHub Actions CI/CD pipeline
-- Community health files (README, LICENSE, CONTRIBUTING)
-- Code formatting and linting setup
-- Example implementations and tests
+- Initial template: C23 sources under `src/`, Zig 0.16 build system, opt-in ncurses/PDCurses TUI behind `-Denable-tui=true`.
+- Live OpenCLI contract. `myapp opencli` prints the spec, and `zig build test` fails if it drifts from `opencli.json`.
+- Reusable `tui-menu-lib` static library target with installed headers.
+- Three test layers: in-process unit tests (`zig build unit-test`), CLI contract tests, and Ghostty-VT-backed PTY/TUI scenarios.
+- GitHub Actions CI on Linux, macOS, and Windows, plus `clang-tidy`, `cppcheck`, Gitleaks, OpenSSF Scorecard, SBOM generation, and pinned action versions.
+- Template cleanup workflow plus `.template/setup.sh` and `replacer.sh` for customizing a generated project.
+- Nix dev shell, devcontainer, pre-commit configuration (clang-format, markdownlint, conventional-commit), and Dependabot.
 
-[Unreleased]: https://github.com/yourusername/yourrepo/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/yourrepo/releases/tag/v1.0.0
+[Unreleased]: https://github.com/yourusername/yourproject/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/yourusername/yourproject/releases/tag/v0.1.0

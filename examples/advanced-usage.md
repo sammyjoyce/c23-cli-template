@@ -1,398 +1,201 @@
-# Advanced Usage Examples
+# Advanced Usage
 
-This guide demonstrates advanced usage patterns for the CLI application, including piping, scripting, and integration with other tools.
+How to script and integrate the CLI. Every example here runs against the template's
+real commands (`hello`, `echo`, `info`, `doctor`, and `opencli`) plus the global flags.
+As you add your own commands ([adding a command](adding-a-command.md)), the same
+patterns apply.
 
-## Table of Contents
+- [Output formats and streams](#output-formats-and-streams)
+- [Parsing output with jq](#parsing-output-with-jq)
+- [Exit codes in scripts](#exit-codes-in-scripts)
+- [Diagnostics](#diagnostics)
+- [Pipelines](#pipelines)
+- [Configuration and environment](#configuration-and-environment)
+- [Integration patterns](#integration-patterns)
 
-- [Input/Output Redirection](#inputoutput-redirection)
-- [Piping and Chaining](#piping-and-chaining)
-- [Scripting Examples](#scripting-examples)
-- [Integration Patterns](#integration-patterns)
-- [Performance Tips](#performance-tips)
-- [Error Handling](#error-handling)
+## Output formats and streams
 
-## Input/Output Redirection
-
-### Reading from Files
+The CLI keeps a stable I/O contract: results go to **stdout**, errors and diagnostics
+go to **stderr**, and `--json` produces machine-readable output (always including a
+`format_version`) where a command supports it.
 
 ```bash
-# Process input from a file
-myapp process < input.txt
+myapp info                       # human-readable
+myapp --json info                # machine-readable
+myapp --plain info               # no colors, good for logs
+NO_COLOR=1 myapp hello Alice     # same, via environment
 
-# Process multiple files
-cat file1.txt file2.txt | myapp process
-
-# Process with specific encoding
-iconv -f ISO-8859-1 -t UTF-8 input.txt | myapp process
+myapp info > info.txt            # capture stdout
+myapp doctor 2> diagnostics.log  # capture stderr only
+myapp info > out.txt 2>&1        # capture both
 ```
 
-### Writing to Files
+Use `--quiet`, `--verbose`, or `--debug` to dial verbosity up or down.
+
+## Parsing output with jq
+
+`myapp opencli` prints the whole CLI as JSON with a stable schema, which makes it ideal for discovery and for asserting behavior in scripts.
 
 ```bash
-# Save output to a file
-myapp generate --format json > output.json
+# Every command name
+myapp opencli | jq -r '.commands[].name'
 
-# Append to existing file
-myapp status >> log.txt
+# Public exit codes as a table
+myapp opencli | jq -r '.exitCodes[] | "\(.code)\t\(.description)"'
 
-# Split output streams
-myapp analyze 2>errors.log 1>results.txt
+# All global options
+myapp opencli | jq -r '.options[].name'
+
+# Version straight from the binary
+myapp opencli | jq -r '.info.version'
 ```
 
-### Silent Operation
+Command output works the same way:
 
 ```bash
-# Suppress all output
-myapp batch-process > /dev/null 2>&1
-
-# Show only errors
-myapp validate 1>/dev/null
-
-# Show only progress (if using stderr for progress)
-myapp convert large-file.dat 2>&1 1>/dev/null | grep -E "^\[.*%\]"
+myapp --json info | jq .                  # pretty-print
+myapp --json info | jq -r '.format_version'
 ```
 
-## Piping and Chaining
+## Exit codes in scripts
 
-### Basic Pipes
+Commands return specific exit codes: `0` for success, non-zero for a categorized failure (for example `2` unknown command, `6` missing argument, `7` unknown option). The full list is in the contract:
 
 ```bash
-# Filter and process
-grep "ERROR" log.txt | myapp analyze --type error
-
-# Chain multiple operations
-myapp list --format json | jq '.items[]' | myapp process --batch
-
-# Count results
-myapp search "pattern" | wc -l
+myapp opencli | jq -r '.exitCodes[] | "\(.code) \(.description)"'
 ```
 
-### Advanced Piping
+Branch on them like any Unix tool:
 
 ```bash
-# Parallel processing with xargs
-find . -name "*.dat" | xargs -P 4 -I {} myapp process {}
-
-# Process in batches
-ls *.csv | xargs -n 10 myapp import --batch
-
-# Stream processing
-tail -f app.log | myapp monitor --real-time
-```
-
-### Complex Pipelines
-
-```bash
-# Multi-stage processing pipeline
-cat raw-data.txt \
-  | myapp parse --format csv \
-  | awk '{print $2,$4}' \
-  | myapp analyze --columns 2 \
-  | tee results.txt \
-  | myapp visualize --output graph.png
-
-# Conditional processing
-myapp check --quiet && myapp process || echo "Check failed"
-
-# Loop with pipe
-for file in *.log; do
-  echo "Processing $file"
-  cat "$file" | myapp parse | myapp summarize >> summary.txt
-done
-```
-
-## Scripting Examples
-
-### Bash Integration
-
-```bash
-#!/bin/bash
-# process-daily.sh - Daily processing script
-
+# Fail fast in a pipeline
 set -euo pipefail
+myapp --json info > build-info.json
 
-# Configuration
-MYAPP_BIN="myapp"
-DATA_DIR="/var/data"
-OUTPUT_DIR="/var/output"
-LOG_FILE="/var/log/myapp-daily.log"
-
-# Function to process a single file
-process_file() {
-  local input_file="$1"
-  local output_file="$2"
-
-  echo "[$(date)] Processing $input_file" >> "$LOG_FILE"
-
-  if $MYAPP_BIN validate "$input_file"; then
-    $MYAPP_BIN process "$input_file" \
-      --output "$output_file" \
-      --format json \
-      2>> "$LOG_FILE"
-  else
-    echo "[$(date)] Validation failed for $input_file" >> "$LOG_FILE"
-    return 1
-  fi
-}
-
-# Main processing loop
-find "$DATA_DIR" -name "*.dat" -mtime -1 | while read -r file; do
-  basename=$(basename "$file" .dat)
-  output_file="$OUTPUT_DIR/${basename}_processed.json"
-
-  process_file "$file" "$output_file" || continue
-done
-
-# Generate summary
-$MYAPP_BIN summarize "$OUTPUT_DIR"/*.json > "$OUTPUT_DIR/daily-summary.txt"
+# Inspect a specific failure
+myapp frobnicate || echo "exit code: $?"   # unknown command -> 2
+myapp --unknown-option || echo "exit code: $?"   # unknown option -> 7
 ```
 
-### Makefile Integration
+## Diagnostics
 
-```makefile
-# Makefile - Build automation with myapp
+`doctor` reports environment status to stdout, or as a JSON document with
+`--json`. `--deep` also exercises the TUI runtime when a terminal is available
+and the TUI build is in use.
 
-MYAPP := myapp
-DATA_DIR := data
-OUTPUT_DIR := output
-SOURCES := $(wildcard $(DATA_DIR)/*.txt)
-OUTPUTS := $(patsubst $(DATA_DIR)/%.txt,$(OUTPUT_DIR)/%.json,$(SOURCES))
-
-.PHONY: all clean validate process
-
-all: process
-
-# Create output directory
-$(OUTPUT_DIR):
-	mkdir -p $@
-
-# Validate all input files
-validate: $(SOURCES)
-	@echo "Validating input files..."
-	@for file in $^; do \
-		$(MYAPP) validate "$$file" || exit 1; \
-	done
-	@echo "All files valid."
-
-# Process files
-$(OUTPUT_DIR)/%.json: $(DATA_DIR)/%.txt | $(OUTPUT_DIR)
-	$(MYAPP) process $< --output $@ --format json
-
-process: validate $(OUTPUTS)
-	@echo "Processing complete. Generating summary..."
-	@$(MYAPP) summarize $(OUTPUT_DIR)/*.json > $(OUTPUT_DIR)/summary.txt
-
-clean:
-	rm -rf $(OUTPUT_DIR)
-
-# Watch for changes and reprocess
-watch:
-	while true; do \
-		make process; \
-		inotifywait -e modify $(DATA_DIR)/*.txt; \
-	done
+```bash
+myapp doctor            # human-readable
+myapp --json doctor     # machine-readable
+myapp doctor --deep     # also smoke-test the TUI
 ```
 
-## Integration Patterns
+The current implementation is **informational only** — it always exits `0`,
+even when checks report problems. To use it as a hard gate (CI smoke test,
+container health check, monitoring alert), parse the `--json` output and
+inspect the per-check statuses rather than relying on the exit code.
 
-### Docker Integration
+## Pipelines
+
+Real commands compose with standard tools.
+
+```bash
+# Greet a list of names, one invocation each
+printf 'Alice\nBob\nCharlie\n' | xargs -n1 myapp hello
+
+# Same, in parallel
+printf 'Alice\nBob\nCharlie\n' | parallel myapp hello
+
+# Feed command output into another stage
+myapp echo "build complete" | tr '[:lower:]' '[:upper:]'
+
+# Count the commands the binary exposes
+myapp opencli | jq '.commands | length'
+```
+
+## Configuration and environment
+
+Configuration resolves by precedence: **CLI args > environment > config file > defaults**.
+
+- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans (see [config.json](config.json)).
+- **Environment:** `APP_LOG_LEVEL` (`ERROR`, `WARNING`, `INFO`, `DEBUG`) and `NO_COLOR`.
+
+```bash
+myapp --config ./myapp.json info   # explicit config file
+APP_LOG_LEVEL=DEBUG myapp doctor   # raise log verbosity for one run
+myapp --quiet info                 # a CLI flag overrides file and environment
+```
+
+## Integration patterns
+
+### Docker
+
+The default build links only libc (no ncurses), so the image stays small. Add ncurses only if you ship the TUI build (`-Denable-tui=true`).
 
 ```dockerfile
-# Dockerfile
-FROM alpine:latest
-
-RUN apk add --no-cache ncurses
-
-COPY myapp /usr/local/bin/
-COPY process.sh /usr/local/bin/
-
+FROM debian:stable-slim
+COPY zig-out/bin/myapp /usr/local/bin/myapp
 ENTRYPOINT ["myapp"]
 CMD ["--help"]
 ```
 
+A `HEALTHCHECK` is intentionally omitted: the bundled `doctor` is
+informational (always exits 0), so it cannot act as a Docker health gate as
+written. Add your own check that parses `myapp --json doctor` once you have a
+field worth gating on.
+
 ```bash
-# Build and run in Docker
 docker build -t myapp .
-
-# Process files in container
-docker run -v $(pwd)/data:/data myapp process /data/input.txt
-
-# Interactive mode
-docker run -it myapp interactive
+docker run --rm myapp --json info
 ```
 
-### Systemd Service
+### systemd timer
+
+The template has no long-running daemon, so schedule periodic runs with a oneshot service plus a timer.
 
 ```ini
-# /etc/systemd/system/myapp-monitor.service
+# /etc/systemd/system/myapp-health.service
 [Unit]
-Description=MyApp Monitoring Service
-After=network.target
+Description=myapp health check
 
 [Service]
-Type=simple
-User=myapp
-ExecStart=/usr/local/bin/myapp monitor --daemon
-Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+Type=oneshot
+ExecStart=/usr/local/bin/myapp doctor
+```
+
+```ini
+# /etc/systemd/system/myapp-health.timer
+[Unit]
+Description=Run the myapp health check hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=timers.target
 ```
 
-### Cron Job
+### cron
 
 ```bash
-# Process files every hour
-0 * * * * /usr/local/bin/myapp process /var/data/*.new --output /var/processed/
-
-# Daily summary at 2 AM
-0 2 * * * /usr/local/bin/myapp summarize --yesterday | mail -s "Daily Summary" admin@example.com
-
-# Cleanup old files weekly
-0 3 * * 0 find /var/processed -mtime +30 -name "*.json" | xargs /usr/local/bin/myapp archive
+# Log machine-readable info hourly
+0 * * * * /usr/local/bin/myapp --json info >> /var/log/myapp-info.log
 ```
 
-## Performance Tips
+(`doctor` cannot drive a "mail on failure" cron line as written — it always
+exits 0. Parse `myapp --json doctor` with `jq -e` for a real gate.)
 
-### Parallel Processing
+### CI contract check
+
+Assert the binary's contract still matches the checked-in spec, the same invariant `zig build test` enforces:
 
 ```bash
-# GNU Parallel for maximum throughput
-find . -name "*.dat" | parallel -j 8 myapp process {} --output {.}.json
-
-# Process with progress bar
-find . -name "*.dat" | parallel --bar myapp process {} :::: -
-
-# Limit memory usage
-find . -name "*.dat" | parallel --memfree 1G myapp process {}
+diff <(myapp opencli) opencli.json
 ```
 
-### Batch Operations
+## See also
 
-```bash
-# Process in chunks to reduce overhead
-find . -name "*.dat" -print0 | xargs -0 -n 100 myapp process --batch
-
-# Use named pipes for streaming
-mkfifo /tmp/myapp-pipe
-myapp monitor --output /tmp/myapp-pipe &
-cat /tmp/myapp-pipe | myapp analyze --stream
-```
-
-### Resource Management
-
-```bash
-# Limit CPU usage
-nice -n 10 myapp process large-dataset.dat
-
-# Limit memory
-ulimit -v 1048576 && myapp process --low-memory
-
-# Monitor resource usage
-/usr/bin/time -v myapp process large-file.dat
-```
-
-## Error Handling
-
-### Robust Scripts
-
-```bash
-#!/bin/bash
-# robust-processor.sh - Error-handling example
-
-set -euo pipefail
-trap 'echo "Error on line $LINENO"' ERR
-
-# Function with error handling
-safe_process() {
-  local file="$1"
-  local max_retries=3
-  local retry_count=0
-
-  while [ $retry_count -lt $max_retries ]; do
-    if myapp process "$file" 2>/tmp/myapp-error.log; then
-      return 0
-    else
-      retry_count=$((retry_count + 1))
-      echo "Attempt $retry_count failed for $file"
-      sleep $((retry_count * 2))
-    fi
-  done
-
-  echo "Failed to process $file after $max_retries attempts"
-  cat /tmp/myapp-error.log
-  return 1
-}
-
-# Process with error recovery
-for file in *.dat; do
-  if ! safe_process "$file"; then
-    echo "$file" >> failed-files.txt
-  fi
-done
-
-# Report results
-if [ -f failed-files.txt ]; then
-  echo "Failed files:"
-  cat failed-files.txt
-  exit 1
-fi
-```
-
-### Validation Pipeline
-
-```bash
-# Multi-stage validation
-validate_and_process() {
-  local input="$1"
-
-  # Stage 1: Format validation
-  if ! myapp validate --format "$input"; then
-    echo "Format validation failed" >&2
-    return 1
-  fi
-
-  # Stage 2: Content validation
-  if ! myapp validate --content "$input"; then
-    echo "Content validation failed" >&2
-    return 2
-  fi
-
-  # Stage 3: Process with verification
-  local output=$(mktemp)
-  if myapp process "$input" --output "$output"; then
-    if myapp verify "$output"; then
-      mv "$output" "${input%.dat}.json"
-      return 0
-    else
-      echo "Output verification failed" >&2
-      rm -f "$output"
-      return 3
-    fi
-  else
-    echo "Processing failed" >&2
-    rm -f "$output"
-    return 4
-  fi
-}
-```
-
-## Best Practices
-
-1. **Always check exit codes** when scripting
-2. **Use proper quoting** for filenames with spaces
-3. **Handle signals gracefully** in long-running operations
-4. **Log operations** for debugging and auditing
-5. **Validate input** before processing
-6. **Use atomic operations** for file updates
-7. **Implement retry logic** for transient failures
-8. **Monitor resource usage** for large datasets
-
-## See Also
-
-- [Basic Usage](adding-a-command.md)
-- [Configuration Guide](config.json)
-- [API Documentation](../docs/README.md)
+- [Adding a Command](adding-a-command.md)
+- [Configuration example](config.json)
+- [Public Contracts](../docs/CONTRACTS.md)
+- [Documentation index](../docs/README.md)
