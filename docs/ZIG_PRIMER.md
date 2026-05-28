@@ -28,7 +28,7 @@ commands and the `build.zig` structure you will actually touch.
 zig build                         # build + install the binary to zig-out/bin/
 zig build run -- hello Alice      # build, then run with arguments after --
 zig build test                    # CLI contract tests + in-process unit tests
-zig build -Doptimize=ReleaseSafe  # optimized build with safety checks
+zig build -Doptimize=ReleaseSafe  # optimized build
 zig build -Denable-tui=true run -- menu   # build with the TUI and open the demo menu
 ```
 
@@ -106,7 +106,7 @@ Pass these as `-D<name>=<value>` on any `zig build` command.
 
 | Option | Values (default) | Effect |
 | --- | --- | --- |
-| `-Doptimize=` | `Debug` (default), `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | Optimization and runtime-safety level |
+| `-Doptimize=` | `Debug` (default), `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | C optimization level (no Zig runtime is linked into this C-only binary) |
 | `-Dtarget=` | e.g. `x86_64-windows`, `aarch64-macos` | Cross-compile target |
 | `-Denable-tui=` | `true` / `false` (default `false`) | Compile the ncurses TUI and link curses |
 | `-Dapp-name=` | string (default `myapp`) | Application and binary name |

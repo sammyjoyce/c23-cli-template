@@ -33,7 +33,7 @@ The repository ships these baseline defenses; review them and tighten if your th
   (`mlock` / `VirtualLock`) is not wired in either.
 - **Static analysis in CI**. `clang-tidy` and `cppcheck` run on every change.
 - **Supply chain in CI**. Gitleaks secret scanning, OpenSSF Scorecard, SBOM generation, and pinned GitHub Actions versions.
-- **Runtime safety**. `Debug` and `ReleaseSafe` builds keep Zig's runtime safety checks; C sources compile with `-Wall -Wextra -std=c23`.
+- **Compiler warnings.** C sources compile with `-Wall -Wextra -std=c23`. `-Doptimize=` selects the optimization level; no Zig runtime is linked into the C-only binary.
 
 Compiler hardening (`-fstack-protector-strong`, `_FORTIFY_SOURCE=2`, PIE/RELRO) is
 **not** enabled by default. Add the flags to `base_flags` in `build.zig` if you need

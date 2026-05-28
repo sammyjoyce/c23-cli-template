@@ -92,7 +92,7 @@ The template's defenses are the ones actually wired into the code and CI, not co
   clearing sensitive buffers. The template ships it as a primitive but no production
   path calls it yet; invoke it where your code holds secrets. Memory locking
   (`mlock` / `VirtualLock`) is not wired in either.
-- **Runtime safety.** The default and `ReleaseSafe` builds keep Zig's runtime safety checks. C sources compile with `-Wall -Wextra -std=c23`.
+- **Compiler warnings.** C sources compile with `-Wall -Wextra -std=c23`. `-Doptimize=` selects the optimization level; no Zig runtime is linked into the C-only binary.
 - **Static analysis in CI.** GitHub Actions runs `clang-tidy` and `cppcheck` over the C sources on every change.
 - **Supply chain in CI.** Gitleaks secret scanning, an OpenSSF Scorecard run, SBOM generation, and pinned action versions.
 
