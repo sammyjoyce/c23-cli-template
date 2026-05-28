@@ -82,22 +82,23 @@ fn ghosttyLibraryExistsUnderPrefix(b: *std.Build, prefix: []const u8) bool {
         ghosttyLibraryExists(b, b.fmt("{s}/lib64", .{prefix}));
 }
 
-fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
-    if (prefix) |pref| {
-        return pathExists(b, b.fmt("{s}/include/ghostty/vt.h", .{pref})) and
-            pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{pref})) and
-            pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{pref})) and
-            ghosttyLibraryExistsUnderPrefix(b, pref);
-    }
+fn hasGhosttyPrefixTerminalApi(b: *std.Build, prefix: []const u8) bool {
+    return pathExists(b, b.fmt("{s}/include/ghostty/vt.h", .{prefix})) and
+        pathExists(b, b.fmt("{s}/include/ghostty/vt/terminal.h", .{prefix})) and
+        pathExists(b, b.fmt("{s}/include/ghostty/vt/formatter.h", .{prefix})) and
+        ghosttyLibraryExistsUnderPrefix(b, prefix);
+}
 
-    if (!commandSucceeds(b, &.{ "pkg-config", "--exists", "libghostty-vt" })) return false;
-    const include_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=includedir", "libghostty-vt" }) orelse return false;
-    const lib_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" }) orelse return false;
+fn ghosttyPkgConfigLibDir(b: *std.Build) ?[]const u8 {
+    if (!commandSucceeds(b, &.{ "pkg-config", "--exists", "libghostty-vt" })) return null;
+    const include_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=includedir", "libghostty-vt" }) orelse return null;
+    const lib_dir = commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" }) orelse return null;
 
-    return pathExists(b, b.fmt("{s}/ghostty/vt.h", .{include_dir})) and
+    const found = pathExists(b, b.fmt("{s}/ghostty/vt.h", .{include_dir})) and
         pathExists(b, b.fmt("{s}/ghostty/vt/terminal.h", .{include_dir})) and
         pathExists(b, b.fmt("{s}/ghostty/vt/formatter.h", .{include_dir})) and
         ghosttyLibraryExists(b, lib_dir);
+    return if (found) lib_dir else null;
 }
 
 fn addMessageCommand(b: *std.Build, message: []const u8) *std.Build.Step.Run {
@@ -381,16 +382,19 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&unit_cmd.step);
 
     const should_probe_ghostty = enable_tui and target.result.os.tag != .windows and terminal_backend != .none;
-    const have_ghostty_vt = should_probe_ghostty and hasGhosttyTerminalApi(b, ghostty_vt_prefix);
+    const ghostty_pkg_lib_dir = if (should_probe_ghostty and ghostty_vt_prefix == null)
+        ghosttyPkgConfigLibDir(b)
+    else
+        null;
+    const have_ghostty_vt = should_probe_ghostty and if (ghostty_vt_prefix) |pref|
+        hasGhosttyPrefixTerminalApi(b, pref)
+    else
+        ghostty_pkg_lib_dir != null;
     const terminal_test_plan = resolveTerminalTestPlan(enable_tui, terminal_backend, target, have_ghostty_vt);
     if (terminal_test_plan == .fail) {
         std.log.err("{s}", .{terminal_test_plan.fail});
         std.process.exit(1);
     }
-    const ghostty_pkg_lib_dir = if (have_ghostty_vt and ghostty_vt_prefix == null)
-        commandOutputTrimmed(b, &.{ "pkg-config", "--variable=libdir", "libghostty-vt" })
-    else
-        null;
     const ghostty_prefix_lib_dir = if (ghostty_vt_prefix) |pref|
         if (ghosttyLibraryExists(b, b.fmt("{s}/lib", .{pref})))
             b.fmt("{s}/lib", .{pref})

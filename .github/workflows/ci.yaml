@@ -184,6 +184,9 @@ jobs:
             zig-out/bin/${{ steps.extract_binary_name.outputs.binary_name }}.exe
           retention-days: 7
 
+  # Optional required-PTY gate for maintainers. This runs through flake.lock via
+  # `nix develop`; if you make it branch-protected, update the flake pin
+  # intentionally so Ghostty VT API drift is reviewed.
   ghostty-vt-nix:
     name: PTY/TUI terminal tests with Nix
     if: ${{ vars.CI_ENABLE_NIX_GHOSTTY == 'true' }}
