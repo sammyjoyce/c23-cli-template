@@ -13,13 +13,15 @@ Three test layers cover unit logic, CLI contracts, and interactive terminal flow
 ```bash
 zig build unit-test       # just the in-process unit tests
 zig build test            # unit tests + CLI contract tests
-zig build terminal-test   # the above + PTY/TUI scenarios when available
+zig build terminal-test   # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
 ```
 
-`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the
-Ghostty VT backend when libghostty-vt is available through `pkg-config` on POSIX hosts.
-The Nix dev shell wires this up automatically. Without libghostty-vt the CLI portion
-still runs; pass `-Dterminal-backend=ghostty` to require the PTY backend, or
-`-Dghostty-vt-prefix=/path` to override the install prefix.
+`zig build terminal-test` defaults to `-Dterminal-backend=auto`. It always runs the unit
+and CLI contract suites, then runs PTY/TUI scenarios only when `-Denable-tui=true` is set
+and libghostty-vt is available through `pkg-config` on POSIX hosts. Without libghostty-vt
+auto mode prints a skip reason; pass `-Dterminal-backend=ghostty` to require the PTY
+backend, `-Dterminal-backend=none` to disable it explicitly, or `-Dghostty-vt-prefix=/path`
+to override the install prefix. The Nix dev shell is an optional convenience path for
+Ghostty VT coverage.
 
 See [docs/TESTING.md](../docs/TESTING.md) for the full guide, including how to write each layer.

@@ -140,21 +140,27 @@ For TUI screens, see [examples/custom-tui.md](examples/custom-tui.md).
 
 ### Prerequisites
 
-- **Zig 0.16.0** (current stable release) - Install via [zvm](https://github.com/tristanisham/zvm)
-- **C compiler** - For system libraries
-- **NCurses** - Optional; required only for `-Denable-tui=true`
-  - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
-  - macOS: `brew install ncurses`
-  - Fedora: `sudo dnf install ncurses-devel`
-- **[libghostty-vt](https://libghostty.tip.ghostty.org/index.html) tip/development API** - Optional outside Nix; enables the C Ghostty VT backend for PTY-backed terminal tests
+Default CLI builds need only:
+
+- **Zig 0.16.0** - the version pinned by this template; install via [zvm](https://github.com/tristanisham/zvm) or your package manager
+- **A system C toolchain** - for libc and platform libraries
+
+Optional TUI builds (`-Denable-tui=true`) also need curses development files:
+
+- Ubuntu/Debian: `sudo apt-get install pkg-config libncurses-dev`
+- macOS: `brew install pkg-config ncurses`
+- Fedora: `sudo dnf install pkg-config ncurses-devel`
+- Windows: `vcpkg install pdcurses:x64-windows`
+
+Optional PTY-backed TUI scenarios need [libghostty-vt](https://libghostty.tip.ghostty.org/index.html) development files discoverable through `pkg-config`, or the Nix dev shell.
 
 ### Development environment
 
 This template provides several tools to enhance your development experience:
 
-- **Devcontainer Support** - Pre-configured development environment with all dependencies
-- **Nix Dev Shell** - Includes Zig, C tooling, nixpkgs `libghostty-vt` for terminal tests, and markdown lint tooling
-- **CI Quality Checks** - Automated build, test, lint, security, and release checks
+- **Devcontainer Support** - Pre-configured non-Nix development environment with Zig and platform packages
+- **Optional Nix Dev Shell** - Convenience shell with Zig, C tooling, curses, Ghostty VT, and markdown lint tooling
+- **CI Quality Checks** - Automated build, test, lint, security, and release checks without requiring Nix by default
 
 ### Commands
 
@@ -163,13 +169,16 @@ This template provides several tools to enhance your development experience:
 zig build                                  # Debug build
 zig build -Doptimize=ReleaseSafe           # Release build
 zig build -Denable-tui=true                # Build with the ncurses/PDCurses TUI
+zig build -Denable-tui=true -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
 zig build tui-menu-lib                     # Build the reusable TUI menu static library
 
 # Test
 zig build unit-test                        # In-process unit tests
 zig build test                             # Unit tests + CLI contract tests
-zig build terminal-test                    # The above + PTY/TUI scenarios when available
-zig build -Denable-tui=true terminal-test  # Run PTY/TUI scenarios against the TUI build
+zig build terminal-test                    # Unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
+zig build -Denable-tui=true terminal-test  # TUI build; PTY scenarios run if libghostty-vt is found
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # Require Ghostty VT
+zig build -Dterminal-backend=none terminal-test  # Never run PTY/TUI scenarios
 zig build check                            # fmt-check + tests (the CI gate)
 
 # Format

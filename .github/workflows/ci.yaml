@@ -56,10 +56,6 @@ jobs:
         with:
           version: ${{ env.ZIG_VERSION }}
 
-      - name: Install Nix (Linux)
-        if: runner.os == 'Linux'
-        uses: cachix/install-nix-action@v31
-
       - name: Get Zig version
         id: zig-version
         run: |
@@ -90,21 +86,10 @@ jobs:
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             sudo apt-get update
-            sudo apt-get install -y libncurses-dev
+            sudo apt-get install -y pkg-config libncurses-dev
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            brew install ncurses
+            brew install pkg-config ncurses
           fi
-        shell: bash
-
-      - name: Build libghostty-vt (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          ghostty_ref="github:ghostty-org/ghostty/2e5ad917eb4e325a3dbb161c3f41208a8cd35e44"
-          nix build --accept-flake-config --no-link "$ghostty_ref#libghostty-vt.out"
-          ghostty_vt_dev="$(nix build --accept-flake-config --no-link --print-out-paths "$ghostty_ref#libghostty-vt.dev")"
-          echo "GHOSTTY_VT_DEV=$ghostty_vt_dev" >> "$GITHUB_ENV"
-          echo "PKG_CONFIG_PATH=$ghostty_vt_dev/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
-        timeout-minutes: 15
         shell: bash
 
       - name: Install pdcurses (Windows)
@@ -182,12 +167,6 @@ jobs:
           fi
 
           "./zig-out/bin/$BINARY_NAME$BINARY_EXT" --json info | grep '"tui":true'
-
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            # PTY/TUI coverage is Linux-only in CI for now; macOS and Windows
-            # still build the TUI binary and run the JSON smoke check above.
-            zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
-          fi
         timeout-minutes: 15
         shell: bash
 
@@ -204,6 +183,31 @@ jobs:
             zig-out/bin/${{ steps.extract_binary_name.outputs.binary_name }}
             zig-out/bin/${{ steps.extract_binary_name.outputs.binary_name }}.exe
           retention-days: 7
+
+  # Optional required-PTY gate for maintainers. This uses pkgs.libghostty-vt
+  # from the repository flake, not the old direct Ghostty flake build. If you
+  # make it branch-protected, update flake.lock intentionally so nixpkgs package
+  # lineage and Ghostty VT API drift are reviewed.
+  ghostty-vt-nix:
+    name: PTY/TUI terminal tests with Nix
+    if: ${{ vars.CI_ENABLE_NIX_GHOSTTY == 'true' }}
+    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Run required Ghostty VT terminal tests
+        run: |
+          nix --accept-flake-config develop --command \
+            zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
+        timeout-minutes: 20
+        shell: bash
 
   lint:
     name: Lint and Format

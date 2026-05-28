@@ -16,17 +16,27 @@ A ready-to-use C23 TUI + CLI starter.
 
 ## Requirements
 
-- Zig 0.16.0.
-- A system C toolchain for libc and optional platform libraries.
-- ncurses development headers (Linux/macOS) or PDCurses (Windows) when building with `-Denable-tui=true`.
-- Optional `libghostty-vt` development files for PTY-backed TUI scenario tests.
+Default CLI builds need only:
+
+- Zig 0.16.0 (the version pinned by this template).
+- A system C toolchain for libc.
+
+Optional TUI builds (`-Denable-tui=true`) also need curses development files:
+
+- Ubuntu/Debian: `sudo apt-get install pkg-config libncurses-dev`
+- macOS: `brew install pkg-config ncurses`
+- Fedora: `sudo dnf install pkg-config ncurses-devel`
+- Windows: `vcpkg install pdcurses:x64-windows`
+
+Optional PTY-backed TUI scenarios need `libghostty-vt` development files discoverable through `pkg-config`, or the Nix dev shell.
 
 ## Build
 
 ```bash
 zig build                          # debug
 zig build -Doptimize=ReleaseSafe   # optimized
-zig build -Denable-tui=true        # with the ncurses TUI
+zig build -Denable-tui=true        # with the ncurses/PDCurses TUI
+zig build -Denable-tui=true -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
 zig build tui-menu-lib             # the reusable TUI menu static library
 ```
 
@@ -55,11 +65,15 @@ zig build -Denable-tui=true run -- menu
 
 ```bash
 zig build test            # unit tests + CLI contract tests
-zig build terminal-test   # the above, plus PTY/TUI scenarios when available
+zig build terminal-test   # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
+zig build -Denable-tui=true terminal-test  # TUI build; PTY scenarios run if libghostty-vt is found
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require Ghostty VT
+zig build -Dterminal-backend=none terminal-test  # never run PTY/TUI scenarios
 zig build check           # fmt-check + tests (the CI gate)
 ```
 
-`zig build test` verifies that `myapp opencli` still matches `opencli.json`. PTY-backed TUI tests need `libghostty-vt`; they skip cleanly when it is absent, or pass `-Dterminal-backend=ghostty` to require them.
+`zig build test` verifies that `myapp opencli` still matches `opencli.json`. PTY-backed TUI tests need `libghostty-vt`.
+Auto mode skips them cleanly when it is absent, `-Dterminal-backend=ghostty` requires them, and `-Dterminal-backend=none` disables them explicitly.
 
 ## Project layout
 
@@ -97,7 +111,9 @@ Then update `src/cli/commands.c` (metadata and dispatch), regenerate `opencli.js
 
 ## Customize the TUI
 
-The TUI helpers live under `src/tui/`: `tui.c` owns the ncurses lifecycle, windows, and dialogs; `tui_menu.c` / `tui_menu_model.c` own the reusable modal menu; `tui_progress.c` owns progress rendering; `tui_app.c` wires the `menu` command's showcase. Keep raw curses calls inside this layer so command handlers stay testable without a terminal. See `examples/custom-tui.md`.
+The TUI helpers live under `src/tui/`: `tui.c` owns the ncurses lifecycle, windows, and dialogs; `tui_menu.c` / `tui_menu_model.c` own the reusable modal menu.
+`tui_progress.c` owns progress rendering; `tui_app.c` wires the `menu` command's showcase.
+Keep raw curses calls inside this layer so command handlers stay testable without a terminal. See `examples/custom-tui.md`.
 
 ## Configuration
 

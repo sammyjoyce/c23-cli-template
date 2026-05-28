@@ -115,11 +115,14 @@ zig build
 zig build test
 zig build terminal-test
 zig build -Denable-tui=true terminal-test
+zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require Ghostty VT when available
+zig build -Dterminal-backend=none terminal-test                       # force non-PTY mode
 zig build check
 ```
 
-For the TUI, `zig build -Denable-tui=true terminal-test` drives the menu through a pseudo-terminal when `libghostty-vt` is available.
+For the TUI, `zig build -Denable-tui=true terminal-test` builds the TUI and drives the menu through a pseudo-terminal only when `libghostty-vt` is available.
 Use `-Dterminal-backend=ghostty` to require that backend instead of skipping PTY-backed TUI coverage on machines without Ghostty VT.
+Use `nix develop` as a convenience path if you want the repository-provided Nix shell.
 
 Also run the menu command in a real terminal before shipping major UI changes:
 
