@@ -15,7 +15,7 @@ The first two run everywhere with no extra dependencies. The third needs libghos
 ```bash
 zig build unit-test       # just the in-process unit tests
 zig build test            # unit tests + CLI contract tests
-zig build terminal-test   # the above, plus PTY/TUI scenarios when available
+zig build terminal-test   # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
 zig build check           # fmt-check + tests (the gate CI runs)
 ```
 
