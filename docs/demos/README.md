@@ -1,153 +1,93 @@
 # Demo Gallery
 
-This directory contains animated demonstrations of the CLI application's features.
+Animated demonstrations of the CLI. The `.gif` files are not checked in — build the project and run `./scripts/create-demo.sh` to produce them locally, then uncomment the image lines below.
 
-> **Note**: To generate the actual demo GIFs, run `./scripts/create-demo.sh` after building the project.
+## Demos
 
-## Available Demos
+### Basic usage
 
-### Basic Usage
-<!-- ![Basic Usage Demo](basic-usage.gif) -->
-*Demo showing basic command-line usage including help, version, and simple commands.*
+<!-- ![Basic usage](basic-usage.gif) -->
+
+Help, version, and the `hello` / `echo` commands.
 
 ```bash
-# Show help
 myapp --help
-
-# Show version
 myapp --version
-
-# Run commands
 myapp hello
 myapp hello "Demo User"
-myapp echo "Test message"
+myapp echo "This is a test message"
 ```
 
-### Progress Bar
-<!-- ![Progress Bar Demo](progress-bar.gif) -->
-*Demo showing the TUI progress bar during long-running operations.*
+### Human and JSON output
+
+<!-- ![Output formats](json-output.gif) -->
+
+The same command in human-readable and `--json` form.
 
 ```bash
-# Show progress for a 10-step operation
-myapp progress --steps 10 --delay 500
+myapp info
+myapp --json info
 ```
 
-### Interactive Mode
-<!-- ![Interactive Mode Demo](interactive.gif) -->
-*Demo showing the interactive TUI mode for menu-driven operations.*
+### Diagnostics
 
-```
-┌─────────────────────────────────────┐
-│        MyApp Interactive Mode       │
-├─────────────────────────────────────┤
-│                                     │
-│  1. Process File                    │
-│  2. View Status                     │
-│  3. Configure Settings              │
-│  4. Exit                            │
-│                                     │
-│  Select option: _                   │
-│                                     │
-└─────────────────────────────────────┘
-```
+<!-- ![Diagnostics](doctor.gif) -->
 
-### Configuration Management
-<!-- ![Configuration Demo](configuration.gif) -->
-*Demo showing configuration management through the CLI.*
+`doctor` reports environment status and exits non-zero on failure.
 
 ```bash
-# Show configuration
-myapp config show
-
-# Set values
-myapp config set output.format json
-
-# Get specific values
-myapp config get output.format
-
-# Reset to defaults
-myapp config reset
+myapp doctor
+myapp --json doctor
 ```
 
-### Error Handling
-<!-- ![Error Handling Demo](error-handling.gif) -->
-*Demo showing graceful error handling and helpful error messages.*
+### OpenCLI contract
+
+<!-- ![Contract](contract.gif) -->
+
+The machine-readable CLI contract the binary prints on demand.
 
 ```bash
-# Non-existent file
-myapp process /tmp/nonexistent.txt
-
-# Invalid data
-myapp validate invalid-data.txt
-
-# Invalid options
-myapp --invalid-option
+myapp opencli
 ```
 
-## Creating Demo GIFs
+### Error handling
 
-To generate the actual animated GIFs:
+<!-- ![Error handling](error-handling.gif) -->
 
-1. **Install dependencies**:
-
-   ```bash
-   # Install asciinema with your OS package manager
-
-   # Install agg (asciinema gif generator)
-   cargo install --git https://github.com/asciinema/agg
-   ```
-
-2. **Build the project**:
-
-   ```bash
-   zig build
-   ```
-
-3. **Run the demo script**:
-
-   ```bash
-   ./scripts/create-demo.sh
-   ```
-
-This will create all the demo GIFs in this directory.
-
-## Manual Demo Recording
-
-To record a custom demo:
+A missing command, an unknown command (exit 2), and an unknown option (exit 7).
 
 ```bash
-# Start recording
-asciinema rec docs/demos/custom-demo.cast
-
-# Perform your demo actions
-myapp [commands...]
-
-# Stop recording (Ctrl+D)
-
-# Convert to GIF
-agg docs/demos/custom-demo.cast docs/demos/custom-demo.gif
+myapp
+myapp frobnicate
+myapp --unknown-option
 ```
 
-## Embedding Demos
+## Recording the interactive menu
 
-To embed these demos in documentation:
+The TUI menu needs a real terminal and live input, so record it by hand rather than through the script:
+
+```bash
+zig build -Denable-tui=true run -- menu           # try it first
+asciinema rec docs/demos/recordings/menu.cast     # then record a session
+# drive the menu, press q to quit, then Ctrl-D to stop recording
+agg docs/demos/recordings/menu.cast docs/demos/menu.gif
+```
+
+## Generating the GIFs
+
+```bash
+# Dependencies:
+#   asciinema  - install with your OS package manager
+#   agg        - cargo install --git https://github.com/asciinema/agg
+
+zig build
+./scripts/create-demo.sh
+```
+
+The script records each non-interactive demo above and writes the GIFs into this directory.
+
+## Embedding
 
 ```markdown
-![Demo Name](docs/demos/demo-name.gif)
+![Demo name](docs/demos/demo-name.gif)
 ```
-
-Or with HTML for more control:
-
-```html
-<p align="center">
-  <img src="docs/demos/demo-name.gif" alt="Demo Name" width="600">
-</p>
-```
-
-## Demo Best Practices
-
-1. **Keep demos short** - Under 30 seconds
-2. **Use clear titles** - Explain what's being demonstrated
-3. **Show realistic usage** - Use practical examples
-4. **Include errors** - Show how the app handles mistakes
-5. **Use consistent styling** - Same terminal theme and size

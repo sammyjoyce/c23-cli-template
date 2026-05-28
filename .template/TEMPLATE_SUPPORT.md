@@ -1,23 +1,28 @@
 # Template Support
 
-For issues with the template itself (not your generated project):
+This page is for problems with the **template itself**, not with a project you generated from it.
 
-- **Check existing issues**: [c23-cli-template/issues](https://github.com/sammyjoyce/c23-cli-template/issues)
-- **Create new issue**: Use the issue templates provided
-- **Your project issues**: Use your own repository's issue tracker
+- **Search existing issues:** [c23-cli-template/issues](https://github.com/sammyjoyce/c23-cli-template/issues)
+- **Open a new issue:** use the provided issue templates.
+- **Problems in your generated project:** use that repository's own issue tracker.
 
-## Quick Fixes
+## Quick fixes
 
-**Template cleanup didn't run?**
+**Cleanup did not run.** Check the **Template Cleanup** run in the Actions tab, then run it locally:
 
-- Check Actions tab for the workflow status
-- Run manually: `.template/setup.sh`
-- Run without prompts: `.template/setup.sh --non-interactive --cleanup`
+```bash
+./.template/setup.sh                              # interactive
+./.template/setup.sh --non-interactive --cleanup  # no prompts
+```
 
-**Placeholders still visible?**
+**Placeholders are still visible.** Setup installs a fresh project README and runs `replacer.sh`, which swaps the template placeholders for your values:
 
-The cleanup script replaces:
+| Placeholder | Becomes |
+| --- | --- |
+| `myapp` (and `yourproject`) | your project's kebab-case name |
+| `https://github.com/yourusername/yourproject` | your GitHub owner and repository |
+| `Your Name` | the configured author name |
+| `you@example.com` | the configured author email |
+| `~/.config/myapp` | `~/.config/<your_project_snake>` |
 
-- `myapp` to your repository name
-- `yourusername` to your GitHub username
-- `sammyjoyce` to your GitHub username
+If some are still present, re-run setup, or preview what would change with `./.template/replacer.sh --dry-run -v`.

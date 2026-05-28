@@ -1,67 +1,44 @@
 # Security Policy
 
-## Supported Versions
+## Reporting a vulnerability
 
-Use this section to tell people about which versions of your project are currently being supported with security updates.
+Please do not report security vulnerabilities through public GitHub issues.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+Use **GitHub Private Vulnerability Reporting** instead:
 
-## Reporting a Vulnerability
+1. Open the **Security** tab of the repository.
+2. Click **Report a vulnerability**.
+3. Include:
+   - what the issue is (memory safety, command injection, supply chain, denial of service, …);
+   - the affected file paths and the tag, branch, or commit;
+   - reproduction steps and any required configuration;
+   - a proof-of-concept if you have one;
+   - the impact you see.
 
-We take the security of our software seriously. If you believe you have found a security vulnerability in this template or any project generated from it, please report it to us as described below.
+You will get an acknowledgement within 48 hours and an initial assessment within 7 days. We will keep you updated, work with you on disclosure timing, and credit you in the advisory unless you prefer to remain anonymous.
 
-### How to Report a Security Vulnerability
+## Supported versions
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+This template is pre-1.0; security fixes land on `main` and ship in the next tagged release. The latest release is the supported one.
 
-Instead, please report them via one of the following methods:
+## What the template does already
 
-1. **Email**: Send an email to <security@yourorganization.com> with:
-   - Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
-   - Full paths of source file(s) related to the manifestation of the issue
-   - The location of the affected source code (tag/branch/commit or direct URL)
-   - Any special configuration required to reproduce the issue
-   - Step-by-step instructions to reproduce the issue
-   - Proof-of-concept or exploit code (if possible)
-   - Impact of the issue, including how an attacker might exploit the issue
+The repository ships these baseline defenses; review them and tighten if your threat model warrants:
 
-2. **GitHub Security Advisories**: You can report a vulnerability privately through GitHub's Security Advisories feature:
-   - Navigate to the Security tab of this repository
-   - Click on "Report a vulnerability"
-   - Fill out the form with details about the vulnerability
+- **Memory hygiene** — `app_secret_zero()` overwrites sensitive buffers before they are freed, and the input path locks them out of swap where the platform supports it.
+- **Static analysis in CI** — `clang-tidy` and `cppcheck` run on every change.
+- **Supply chain in CI** — Gitleaks secret scanning, OpenSSF Scorecard, SBOM generation, and pinned GitHub Actions versions.
+- **Runtime safety** — `Debug` and `ReleaseSafe` builds keep Zig's runtime safety checks; C sources compile with `-Wall -Wextra -std=c23`.
 
-### What to Expect
+Compiler hardening (`-fstack-protector-strong`, `_FORTIFY_SOURCE=2`, PIE/RELRO) is **not** enabled by default. Add the flags to `base_flags` in `build.zig` if you need them. See [docs/ARCHITECTURE.md#security-model](docs/ARCHITECTURE.md#security-model) for the full security model.
 
-- **Acknowledgment**: We will acknowledge receipt of your vulnerability report within 48 hours
-- **Initial Assessment**: Within 7 days, we will provide an initial assessment of the vulnerability
-- **Updates**: We will keep you informed about our progress towards a fix and full announcement
-- **Credit**: We will credit you for the discovery when we announce the vulnerability (unless you prefer to remain anonymous)
+## Practices when adopting the template
 
-### Disclosure Policy
-
-- We ask that you give us reasonable time to address the issue before making any public disclosure
-- We will work with you to understand and resolve the issue quickly
-- Once the issue is resolved, we will publish a security advisory detailing the vulnerability and crediting the discoverer
-
-## Security Best Practices
-
-When using this template, please ensure you:
-
-1. Keep all dependencies up to date
-2. Review and understand all security configurations
-3. Never commit sensitive information (API keys, passwords, etc.)
-4. Use environment variables for configuration
-5. Enable GitHub's security features (Dependabot, code scanning, etc.)
-6. Regularly review security advisories for your dependencies
+- Keep dependencies current — Dependabot is preconfigured.
+- Never commit secrets — Gitleaks runs in CI; the pre-commit configuration also catches large files and broken YAML.
+- Treat the config file (`~/.config/<name>/config.json`) as user-private; prefer environment variables for runtime secrets.
+- Enable GitHub's code scanning and Dependabot alerts on your generated repository.
 
 ## Contact
 
-For any security-related questions or concerns, please contact:
-
-- Security Team: <security@yourorganization.com>
-- Project Maintainers: See CODEOWNERS file
-
-Thank you for helping keep this project and its users safe!
+GitHub Private Vulnerability Reporting (above) is the primary channel. For non-security maintainer contact, see [CODEOWNERS](.github/CODEOWNERS).

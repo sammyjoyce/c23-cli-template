@@ -2,21 +2,21 @@
 
 ## Maintainers
 
-- Sam Joyce (@sammyjoyce) - Creator and maintainer
+- Sam Joyce ([@sammyjoyce](https://github.com/sammyjoyce)) - creator and maintainer
 
 ## Contributors
 
-<!-- Add contributors here -->
+<!-- Add yourself here when you contribute. -->
 
 ## Acknowledgements
 
-This project was made possible by the open source community and the following projects:
+This template builds on the work of:
 
-- [Zig](https://ziglang.org/) - The Zig programming language
-- [ncurses](https://invisible-island.net/ncurses/) - Terminal UI library
-- [PDCurses](https://pdcurses.org/) - Curses implementation for Windows
-- [GitHub Actions](https://github.com/features/actions) - CI/CD platform
-- [markdownlint](https://github.com/DavidAnson/markdownlint) - Markdown linting
-- [Devcontainers](https://containers.dev/) - Development containers
+- [Zig](https://ziglang.org/) - build system and bundled C compiler
+- [ncurses](https://invisible-island.net/ncurses/) and [PDCurses](https://pdcurses.org/) - terminal UI primitives
+- [libghostty-vt](https://libghostty.tip.ghostty.org/index.html) - terminal emulation for the PTY/TUI tests
+- [GitHub Actions](https://github.com/features/actions) - CI/CD
+- [markdownlint](https://github.com/DavidAnson/markdownlint) - documentation linting
+- [Dev Containers](https://containers.dev/) - reproducible development environments
 
-For information on how to contribute, see [CONTRIBUTING.md](../CONTRIBUTING.md).
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for how to get involved.

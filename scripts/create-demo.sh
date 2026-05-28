@@ -1,6 +1,10 @@
 #!/bin/bash
-# create-demo.sh - Create animated demos of the TUI
+# create-demo.sh - Record animated demos of the CLI
 # Requires: asciinema, agg (asciinema gif generator)
+#
+# This records the non-interactive demos shown in docs/demos/README.md.
+# The gallery README is maintained by hand, not regenerated here. The TUI
+# `menu` is interactive, so record it manually (see docs/demos/README.md).
 
 set -euo pipefail
 
@@ -104,228 +108,79 @@ EOF
     echo -e "${GREEN}Created $DEMO_DIR/$name.gif${NC}"
 }
 
-# Demo 1: Basic Usage
+# Demo 1: Basic usage
 demo_basic_usage() {
     record_demo "basic-usage" "Basic Command Usage" '
-# Show help
 '$BINARY' --help
 sleep 3
-
-# Show version
 '$BINARY' --version
 sleep 2
-
-# Run hello command
 '$BINARY' hello
 sleep 2
-
-# Run hello with name
 '$BINARY' hello "Demo User"
 sleep 2
-
-# Run echo command
 '$BINARY' echo "This is a test message"
 sleep 2
 '
 }
 
-# Demo 2: TUI Progress Bar
-demo_progress_bar() {
-    record_demo "progress-bar" "TUI Progress Bar Demo" '
-# Create a test script that shows progress
-cat > /tmp/progress-demo.sh << '\''SCRIPT'\''
-#!/bin/bash
-echo "Starting long operation..."
-'$BINARY' progress --steps 10 --delay 500
-echo "Operation complete!"
-SCRIPT
-
-chmod +x /tmp/progress-demo.sh
-/tmp/progress-demo.sh
-rm -f /tmp/progress-demo.sh
-'
-}
-
-# Demo 3: Interactive Mode
-demo_interactive() {
-    record_demo "interactive" "Interactive TUI Mode" '
-# Note: This is a simulated demo since we cannot automate interactive input
-echo "Starting interactive mode..."
-echo "(Simulated demo - actual interactive mode requires user input)"
-sleep 1
-
-# Show what the interactive mode would look like
-cat << '\''DEMO'\''
-┌─────────────────────────────────────┐
-│        MyApp Interactive Mode       │
-├─────────────────────────────────────┤
-│                                     │
-│  1. Process File                    │
-│  2. View Status                     │
-│  3. Configure Settings              │
-│  4. Exit                            │
-│                                     │
-│  Select option: _                   │
-│                                     │
-└─────────────────────────────────────┘
-DEMO
+# Demo 2: Human and JSON output
+demo_json_output() {
+    record_demo "json-output" "Human and JSON Output" '
+'$BINARY' info
 sleep 3
-
-echo ""
-echo "User selects option 1..."
-sleep 2
-
-cat << '\''DEMO'\''
-┌─────────────────────────────────────┐
-│          Process File               │
-├─────────────────────────────────────┤
-│                                     │
-│  Enter filename: data.txt           │
-│                                     │
-│  [████████████████████░░░░] 75%     │
-│                                     │
-│  Processing... Please wait          │
-│                                     │
-└─────────────────────────────────────┘
-DEMO
+'$BINARY' --json info
 sleep 3
 '
 }
 
-# Demo 4: Configuration
-demo_config() {
-    record_demo "configuration" "Configuration Management" '
-# Show current configuration
-'$BINARY' config show
+# Demo 3: Diagnostics
+demo_doctor() {
+    record_demo "doctor" "Diagnostics" '
+'$BINARY' doctor
 sleep 3
-
-# Set a configuration value
-'$BINARY' config set output.format json
-sleep 2
-
-# Get a specific configuration value
-'$BINARY' config get output.format
-sleep 2
-
-# Reset configuration
-'$BINARY' config reset
-sleep 2
+'$BINARY' --json doctor
+sleep 3
 '
 }
 
-# Demo 5: Error Handling
+# Demo 4: OpenCLI contract
+demo_contract() {
+    record_demo "contract" "OpenCLI Contract" '
+'$BINARY' opencli | head -n 24
+sleep 4
+'
+}
+
+# Demo 5: Error handling
 demo_error_handling() {
-    record_demo "error-handling" "Error Handling Demo" '
-# Try to process a non-existent file
-'$BINARY' process /tmp/nonexistent.txt || true
+    record_demo "error-handling" "Error Handling" '
+'$BINARY' || true
+sleep 2
+'$BINARY' frobnicate || true
 sleep 3
-
-# Show validation error
-echo "Invalid data" > /tmp/invalid.txt
-'$BINARY' validate /tmp/invalid.txt || true
-rm -f /tmp/invalid.txt
-sleep 3
-
-# Show helpful error recovery
-'$BINARY' --invalid-option || true
+'$BINARY' --unknown-option || true
 sleep 2
 '
-}
-
-# Create README for demos
-create_demo_readme() {
-    cat > "$DEMO_DIR/README.md" << 'EOF'
-# Demo Gallery
-
-This directory contains animated demonstrations of the CLI application's features.
-
-## Available Demos
-
-### Basic Usage
-![Basic Usage Demo](basic-usage.gif)
-
-Demonstrates basic command-line usage including help, version, and simple commands.
-
-### Progress Bar
-![Progress Bar Demo](progress-bar.gif)
-
-Shows the TUI progress bar in action during long-running operations.
-
-### Interactive Mode
-![Interactive Mode Demo](interactive.gif)
-
-Demonstrates the interactive TUI mode for menu-driven operations.
-
-### Configuration
-![Configuration Demo](configuration.gif)
-
-Shows how to manage application configuration through the CLI.
-
-### Error Handling
-![Error Handling Demo](error-handling.gif)
-
-Demonstrates graceful error handling and helpful error messages.
-
-## Creating New Demos
-
-To create new demos, use the `scripts/create-demo.sh` script:
-
-```bash
-./scripts/create-demo.sh
-```
-
-### Requirements
-
-- asciinema: install with your OS package manager
-- agg: `cargo install --git https://github.com/asciinema/agg`
-
-### Adding a New Demo
-
-1. Add a new demo function in `create-demo.sh`
-2. Call `record_demo` with appropriate parameters
-3. Add the demo to the main execution flow
-4. Update this README with the new demo
-
-## Embedding Demos
-
-To embed these demos in documentation:
-
-```markdown
-![Demo Name](docs/demos/demo-name.gif)
-```
-
-Or with HTML for more control:
-
-```html
-<p align="center">
-  <img src="docs/demos/demo-name.gif" alt="Demo Name" width="600">
-</p>
-```
-EOF
-
-    echo -e "${GREEN}Created $DEMO_DIR/README.md${NC}"
 }
 
 # Main execution
 main() {
-    echo -e "${GREEN}Creating TUI demos...${NC}"
+    echo -e "${GREEN}Creating CLI demos...${NC}"
 
     check_dependencies
     build_project
     setup_demo_dir
 
-    # Create all demos
     demo_basic_usage
-    demo_progress_bar
-    demo_interactive
-    demo_config
+    demo_json_output
+    demo_doctor
+    demo_contract
     demo_error_handling
 
-    # Create README
-    create_demo_readme
-
-    echo -e "${GREEN}All demos created successfully!${NC}"
-    echo -e "View demos in: ${BLUE}$DEMO_DIR/${NC}"
+    echo -e "${GREEN}All demos created.${NC}"
+    echo -e "View them in: ${BLUE}$DEMO_DIR/${NC}"
+    echo -e "The gallery is documented by hand in ${BLUE}$DEMO_DIR/README.md${NC}."
 }
 
 # Run main function

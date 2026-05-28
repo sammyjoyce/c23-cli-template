@@ -1,70 +1,44 @@
-# Testing CLI And TUI Behavior
+# Testing CLI and TUI Behavior
 
-This template includes two test layers so projects can test both ordinary CLI commands and interactive terminal UI flows.
+The template ships three test layers so a generated project can cover ordinary command behavior and interactive terminal UI flows from day one.
 
-## Tooling Direction
-
-The terminal-testing landscape has a few useful families:
-
-| Tool family | Examples | Strengths | Tradeoffs |
+| Layer | How it runs | What it asserts | Lives in |
 | --- | --- | --- | --- |
-| Recording/rendering | `evp`, VHS | Great for docs, demos, and visual regression artifacts | Optimized for recordings, not assertions as the primary workflow |
-| Headless terminal daemons/CLIs | `headless-terminal`, Phantom, Termscope | Real PTY plus parsed terminal screen, good waits, screenshots, sometimes cell/style data | Newer tools, often not packaged everywhere, may add daemon/build complexity |
-| Library-first test drivers | Bombadil terminal experiments, Termless, `tui-driver`, `ptytest` | Nice assertion APIs inside host-language tests | Often tied to a specific host-language ecosystem |
-| Classic command tests | Cram, Bats, Expect | Mature and easy to run in CI | Raw output matching can miss alternate-screen/cursor details |
+| Unit tests | In-process, linked against the real sources | Logic inside `config`, `error`, `tui_menu_model`, and other modules | `test/unit_*.c` |
+| CLI contract tests | The built binary as a subprocess | Exit codes, JSON fields, durable output, `myapp opencli` matching `opencli.json` | `test/cli_contract_*.c` |
+| PTY/TUI scenarios | The binary in a real PTY via libghostty-vt | Rendered screen snapshots, input and resize handling | `test/terminal_vt_*.c` |
 
-The template now has one optional PTY terminal backend:
+The first two run everywhere with no extra dependencies. The third needs libghostty-vt and is optional.
 
-- The **Ghostty VT backend** is a C runner split across `test/terminal_vt_*.c`.
-  It owns PTY/TUI scenario coverage when libghostty-vt is available. It runs the
-  app in a real PTY, feeds output through
-  [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the
-  virtual terminal with Ghostty's formatter API, and drives deterministic input
-  plus resize sequences. This follows the same shape as the Bombadil terminal
-  experiment, but keeps the implementation in C and uses Ghostty's C API rather
-  than Rust wrappers.
-
-`zig build terminal-test` uses `-Dterminal-backend=auto` by default: auto selects
-Ghostty VT when `pkg-config` can find libghostty-vt and its headers expose the
-Terminal and Formatter APIs. Use `-Dterminal-backend=ghostty` to require Ghostty
-VT on POSIX hosts. CLI contracts run through a C23 test executable on every
-host, so machines without libghostty-vt still exercise non-interactive behavior
-without a fallback scripting runtime.
-
-## Commands
-
-Fast C23 CLI contract tests:
+## Running the tests
 
 ```bash
-zig build test
+zig build unit-test       # just the in-process unit tests
+zig build test            # unit tests + CLI contract tests
+zig build terminal-test   # the above, plus PTY/TUI scenarios when available
+zig build check           # fmt-check + tests (the gate CI runs)
 ```
 
-End-to-end terminal scenario tests:
-
-```bash
-zig build terminal-test
-```
-
-TUI-enabled terminal scenarios:
+PTY/TUI scenarios only run when the TUI is built and a terminal backend is present:
 
 ```bash
 zig build -Denable-tui=true terminal-test
 ```
 
-If you use the Nix dev shell, the required Zig and C tooling plus nixpkgs
-`libghostty-vt` are already wired into `PATH` and `pkg-config`:
+## The Ghostty VT backend
+
+`zig build terminal-test` defaults to `-Dterminal-backend=auto`, which selects the Ghostty VT backend when `pkg-config` finds libghostty-vt and its headers expose the Terminal and Formatter APIs. The backend is a C runner (`test/terminal_vt_*.c`) that runs the app in a real PTY, feeds output through [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the virtual terminal with Ghostty's formatter API, and drives deterministic input and resize sequences.
+
+Use `-Dterminal-backend=ghostty` to *require* it on POSIX hosts (the build fails if libghostty-vt is missing). Without the backend, `zig build terminal-test` still runs the unit and CLI contract suites and skips PTY/TUI coverage.
+
+The Nix dev shell wires Zig, the C toolchain, and nixpkgs `libghostty-vt` into `PATH` and `pkg-config`:
 
 ```bash
 nix develop
 zig build -Denable-tui=true terminal-test
 ```
 
-Outside Nix, install a libghostty-vt build with the development
-[Terminal](https://libghostty.tip.ghostty.org/group__terminal.html) and
-[Formatter](https://libghostty.tip.ghostty.org/group__formatter.html) APIs so
-`pkg-config` can find `libghostty-vt.pc`.
-
-If libghostty-vt is installed outside a standard linker path, pass its prefix:
+Outside Nix, install a libghostty-vt build that exposes the development [Terminal](https://libghostty.tip.ghostty.org/group__terminal.html) and [Formatter](https://libghostty.tip.ghostty.org/group__formatter.html) APIs so `pkg-config` can find `libghostty-vt.pc`. If it lives outside a standard path, pass its prefix:
 
 ```bash
 zig build -Denable-tui=true terminal-test \
@@ -72,59 +46,46 @@ zig build -Denable-tui=true terminal-test \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```
 
-CLI scenarios run through `test/cli_contract_runner.c` on every backend. With
-Ghostty VT selected, the C backend adds PTY/TUI coverage using libghostty-vt.
-Without Ghostty VT, `zig build terminal-test` still runs the C23 CLI contract
-suite and skips PTY/TUI coverage unless `-Dterminal-backend=ghostty` was
-requested.
+## Writing unit tests
 
-CI runs non-interactive terminal scenarios on Linux, macOS, and Windows through
-`zig build check`; these CLI contracts live in `test/cli_contract_runner.c` and run
-regardless of whether Ghostty is installed. Linux CI builds libghostty-vt from
-the Ghostty flake, then runs
-`zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test` after the
-TUI build so PTY-backed TUI coverage is required there. macOS and Windows still
-build the TUI binary and run the `--json info` smoke check, but they do not run
-PTY-backed scenarios by default.
+Unit tests link a subset of the production sources directly, so they exercise modules like `core/config.c`, `core/error.c`, and `tui/tui_menu_model.c` without spawning a process. Add cases to `test/unit_config_tests.c` or `test/unit_tui_menu_tests.c` (or a new file registered in the `unit-test` sources in `build.zig`), then run `zig build unit-test`.
 
-## Writing CLI Scenario Tests
+Reach for a unit test when you can call a function and check its result directly. Reach for a CLI contract test when the behavior is only observable from the outside (exit code, stdout, JSON).
 
-Add durable CLI contract checks to `test/cli_contract_runner.c`. The Ghostty C
-runner is intentionally scoped to PTY/TUI behavior so CLI contracts have one
-source of truth.
+## Writing CLI scenario tests
+
+Add cases to `test/cli_contract_cases.c`; the runner in `test/cli_contract_runner.c` executes them against the built binary. Keep the CLI suite the single source of truth for non-interactive behavior — the Ghostty runner is scoped to PTY/TUI only.
 
 Prefer stable contracts over incidental prose:
 
 - Assert exit status.
 - Assert JSON fields for automation-facing commands.
 - Keep `myapp opencli` byte-for-byte aligned with `opencli.json`.
-- Keep human-output assertions focused on durable words, not full paragraphs.
-- Use `NO_COLOR=1` or `--plain` when colors are not under test.
+- Match durable words, not whole paragraphs.
+- Use `NO_COLOR=1` or `--plain` when color is not under test.
 
-## Writing TUI Scenario Tests
+## Writing TUI scenario tests
 
-The Ghostty VT backend currently has fixed C scenarios for the template's demo
-menu, including a deterministic input/resize smoke test. Add project-specific
-Ghostty scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate
-screen snapshots or resize coverage.
+The Ghostty VT backend has fixed C scenarios for the demo menu, including a deterministic input/resize smoke test. Add project-specific scenarios in `test/terminal_vt_scenarios.c` when you need cell-accurate screen snapshots or resize coverage.
 
-Keep PTY-backed TUI scenarios in `test/terminal_vt_scenarios.c`. Prefer small
-step tables (`expect`, `send`, `resize`, `wait`) over long branch ladders so new
-screens do not require a second harness.
+Prefer small step tables (`expect`, `send`, `resize`, `wait`) over long branch ladders, so a new screen does not require a second harness.
 
-## When To Reach For A Richer Tool
+## What CI runs
 
-Keep the built-in Ghostty VT runner for most project tests. It already gives you
-a real PTY, modern VT parsing, formatter-backed snapshots, scrollback support,
-and terminal resize coverage without adding a daemon or Rust wrapper.
+CI runs `zig build check` on Linux, macOS, and Windows, so the unit and CLI contract suites are enforced on every platform. Linux additionally builds libghostty-vt from the Ghostty flake and runs `zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test`, making PTY-backed TUI coverage a required gate there. macOS and Windows build the TUI binary and run the `--json info` smoke check, but do not run PTY scenarios by default.
 
-Consider an adapter around `headless-terminal`, Phantom, Termscope, Termless, or
-an external fuzzer when you need one of these:
+## Choosing a richer tool
 
-- PNG/SVG screenshots as review artifacts.
-- Cell-level color/style assertions beyond plain text snapshots.
-- Cross-emulator compatibility checks.
-- Detached sessions that a human or agent can watch live.
-- Long-running property-based exploration with many randomized action sequences.
+The built-in Ghostty VT runner covers most project needs: a real PTY, modern VT parsing, formatter-backed snapshots, scrollback, and resize coverage, with no daemon or Rust wrapper. Keep it as the default.
 
-Those are valuable capabilities, but they are heavier than most template users need on day one.
+Consider an adapter around an external tool when you need something it does not provide:
+
+| You need… | Look at |
+| --- | --- |
+| PNG/SVG screenshots as review artifacts | recording tools like `evp`, VHS |
+| Cell-level color/style assertions | `headless-terminal`, Phantom, Termscope |
+| Cross-emulator compatibility checks | the same headless terminal CLIs |
+| Detached sessions a human or agent can watch live | Phantom, Termscope |
+| Property-based exploration of many input sequences | an external fuzzer over the PTY |
+
+These are heavier than most template users need on day one, which is why they are not wired in by default.
