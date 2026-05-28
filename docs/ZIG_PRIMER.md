@@ -82,10 +82,11 @@ pub fn build(b: *std.Build) void {
             },
             .flags = &base_flags,
         });
-        if (target.result.os.tag == .windows)
-            exe.root_module.linkSystemLibrary("pdcurses", .{})
-        else
+        if (target.result.os.tag == .windows) {
+            exe.root_module.linkSystemLibrary("pdcurses", .{});
+        } else {
             exe.root_module.linkSystemLibrary("ncursesw", .{});
+        }
     }
 
     b.installArtifact(exe);

@@ -116,7 +116,9 @@ Local pre-commit hooks (install with `pre-commit install`) run clang-format, mar
 
 ## Coding standards
 
-`.clang-format` is the source of truth; `zig build fmt` applies it.
+For C and C++, `.clang-format` is the source of truth — clang-format applies it
+through the pre-commit hook and the CI **Lint and Format** job. For `build.zig`
+and any Zig sources, `zig build fmt` runs the Zig formatter.
 
 Conventions in this codebase:
 
