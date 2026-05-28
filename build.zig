@@ -66,8 +66,8 @@ fn hasGhosttyTerminalApi(b: *std.Build, prefix: ?[]const u8) bool {
         ghosttyLibraryExists(b, lib_dir);
 }
 
-fn addMessageCommand(b: *std.Build, target: std.Build.ResolvedTarget, message: []const u8) *std.Build.Step.Run {
-    if (target.result.os.tag == .windows) {
+fn addMessageCommand(b: *std.Build, message: []const u8) *std.Build.Step.Run {
+    if (b.graph.host.result.os.tag == .windows) {
         return b.addSystemCommand(&.{ "cmd", "/C", "echo", message });
     }
 
@@ -451,7 +451,7 @@ pub fn build(b: *std.Build) void {
             "Skipping PTY/TUI terminal scenarios: Ghostty VT backend is POSIX-only."
         else
             "Skipping PTY/TUI terminal scenarios: libghostty-vt was not found; use -Dterminal-backend=ghostty to require it.";
-        const skip_cmd = addMessageCommand(b, target, skip_reason);
+        const skip_cmd = addMessageCommand(b, skip_reason);
         terminal_test_step.dependOn(&skip_cmd.step);
     }
 
