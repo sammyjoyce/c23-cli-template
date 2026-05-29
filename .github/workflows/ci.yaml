@@ -118,6 +118,9 @@ jobs:
             # vcpkg prefix so PDCurses is found (there is no system PDCurses).
             echo "CURSES_ARGS=-Dcurses-prefix=$(pwd)/installed/x64-windows"
           } >> "$GITHUB_ENV"
+          # The default TUI binary links pdcurses.dll, so any step that runs the
+          # built binary (tests, opencli validation) needs it on PATH job-wide.
+          echo "$(pwd)/installed/x64-windows/bin" >> "$GITHUB_PATH"
           cd ..
         shell: bash
 
