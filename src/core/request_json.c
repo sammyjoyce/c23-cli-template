@@ -4,45 +4,14 @@
 
 #include "request_json.h"
 
-#include <ctype.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../utils/logging.h"
+#include "json_scan.h"
 
 #define APP_REQUEST_JSON_MAX_DEPTH 32
-
-static const char *app_request_skip_json_ws(const char *cursor) {
-  while (cursor && *cursor != '\0' && isspace((unsigned char)*cursor) != 0) {
-    cursor++;
-  }
-  return cursor;
-}
-
-static bool app_request_json_value_boundary(char ch) {
-  return ch == '\0' || ch == ',' || ch == '}' || ch == ']' ||
-         isspace((unsigned char)ch) != 0;
-}
-
-static bool app_request_match_json_literal(const char *cursor,
-                                           const char *literal,
-                                           const char **end) {
-  size_t i = 0;
-  while (literal[i] != '\0') {
-    if (cursor[i] == '\0' || cursor[i] != literal[i]) {
-      return false;
-    }
-    i++;
-  }
-  if (!app_request_json_value_boundary(cursor[i])) {
-    return false;
-  }
-  if (end) {
-    *end = cursor + i;
-  }
-  return true;
-}
 
 static app_error app_request_grow_string(char **buffer, size_t *capacity) {
   if (!buffer || !*buffer || !capacity || *capacity == 0) {
@@ -70,7 +39,7 @@ static app_error app_request_parse_json_string_alloc(const char **cursor,
   }
   *out = NULL;
 
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '"') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -144,53 +113,6 @@ static app_error app_request_parse_json_string_alloc(const char **cursor,
   return APP_ERROR_CONFIG_PARSE;
 }
 
-static app_error app_request_skip_json_number(const char **cursor) {
-  const char *p = app_request_skip_json_ws(*cursor);
-  if (!p) {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  if (*p == '-') {
-    p++;
-  }
-  if (!isdigit((unsigned char)*p)) {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  if (*p == '0') {
-    p++;
-  } else {
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-  if (*p == '.') {
-    p++;
-    if (!isdigit((unsigned char)*p)) {
-      return APP_ERROR_CONFIG_PARSE;
-    }
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-  if (*p == 'e' || *p == 'E') {
-    p++;
-    if (*p == '+' || *p == '-') {
-      p++;
-    }
-    if (!isdigit((unsigned char)*p)) {
-      return APP_ERROR_CONFIG_PARSE;
-    }
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-
-  if (!app_request_json_value_boundary(*p)) {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  *cursor = p;
-  return APP_SUCCESS;
-}
-
 static app_error app_request_skip_json_value(const char **cursor, int depth);
 
 static app_error app_request_skip_json_array(const char **cursor, int depth) {
@@ -198,12 +120,12 @@ static app_error app_request_skip_json_array(const char **cursor, int depth) {
     return APP_ERROR_OUT_OF_RANGE;
   }
 
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '[') {
     return APP_ERROR_CONFIG_PARSE;
   }
   p++;
-  p = app_request_skip_json_ws(p);
+  p = app_json_skip_ws(p);
   if (*p == ']') {
     *cursor = p + 1;
     return APP_SUCCESS;
@@ -215,7 +137,7 @@ static app_error app_request_skip_json_array(const char **cursor, int depth) {
     if (err != APP_SUCCESS) {
       return err;
     }
-    p = app_request_skip_json_ws(value_cursor);
+    p = app_json_skip_ws(value_cursor);
     if (*p == ',') {
       p++;
       continue;
@@ -235,12 +157,12 @@ static app_error app_request_skip_json_object(const char **cursor, int depth) {
     return APP_ERROR_OUT_OF_RANGE;
   }
 
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '{') {
     return APP_ERROR_CONFIG_PARSE;
   }
   p++;
-  p = app_request_skip_json_ws(p);
+  p = app_json_skip_ws(p);
   if (*p == '}') {
     *cursor = p + 1;
     return APP_SUCCESS;
@@ -254,7 +176,7 @@ static app_error app_request_skip_json_object(const char **cursor, int depth) {
     }
     free(key);
 
-    p = app_request_skip_json_ws(p);
+    p = app_json_skip_ws(p);
     if (*p != ':') {
       return APP_ERROR_CONFIG_PARSE;
     }
@@ -264,7 +186,7 @@ static app_error app_request_skip_json_object(const char **cursor, int depth) {
     if (err != APP_SUCCESS) {
       return err;
     }
-    p = app_request_skip_json_ws(p);
+    p = app_json_skip_ws(p);
     if (*p == ',') {
       p++;
       continue;
@@ -280,7 +202,7 @@ static app_error app_request_skip_json_object(const char **cursor, int depth) {
 }
 
 static app_error app_request_skip_json_value(const char **cursor, int depth) {
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p) {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -302,34 +224,13 @@ static app_error app_request_skip_json_value(const char **cursor, int depth) {
   }
 
   const char *end = NULL;
-  if (app_request_match_json_literal(p, "true", &end) ||
-      app_request_match_json_literal(p, "false", &end) ||
-      app_request_match_json_literal(p, "null", &end)) {
+  if (app_json_match_literal(p, "true", &end) ||
+      app_json_match_literal(p, "false", &end) ||
+      app_json_match_literal(p, "null", &end)) {
     *cursor = end;
     return APP_SUCCESS;
   }
-  return app_request_skip_json_number(cursor);
-}
-
-static app_error app_request_read_json_bool_value(const char **cursor,
-                                                  bool *value) {
-  if (!cursor || !*cursor || !value) {
-    return APP_ERROR_INVALID_ARG;
-  }
-
-  const char *p = app_request_skip_json_ws(*cursor);
-  const char *end = NULL;
-  if (app_request_match_json_literal(p, "true", &end)) {
-    *value = true;
-    *cursor = end;
-    return APP_SUCCESS;
-  }
-  if (app_request_match_json_literal(p, "false", &end)) {
-    *value = false;
-    *cursor = end;
-    return APP_SUCCESS;
-  }
-  return APP_ERROR_CONFIG_PARSE;
+  return app_json_skip_number(cursor);
 }
 
 static void app_request_record_flag(app_request_t *request, app_flag_id id,
@@ -358,12 +259,12 @@ static void app_request_record_flag(app_request_t *request, app_flag_id id,
 
 static app_error app_request_parse_args_array(app_request_t *request,
                                               const char **cursor) {
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '[') {
     return APP_ERROR_CONFIG_PARSE;
   }
   p++;
-  p = app_request_skip_json_ws(p);
+  p = app_json_skip_ws(p);
   if (*p == ']') {
     *cursor = p + 1;
     return APP_SUCCESS;
@@ -381,7 +282,7 @@ static app_error app_request_parse_args_array(app_request_t *request,
     }
     request->args[request->arg_count++] = arg;
 
-    p = app_request_skip_json_ws(p);
+    p = app_json_skip_ws(p);
     if (*p == ',') {
       p++;
       continue;
@@ -398,12 +299,12 @@ static app_error app_request_parse_args_array(app_request_t *request,
 
 static app_error app_request_parse_flags_object(app_request_t *request,
                                                 const char **cursor) {
-  const char *p = app_request_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '{') {
     return APP_ERROR_CONFIG_PARSE;
   }
   p++;
-  p = app_request_skip_json_ws(p);
+  p = app_json_skip_ws(p);
   if (*p == '}') {
     *cursor = p + 1;
     return APP_SUCCESS;
@@ -416,7 +317,7 @@ static app_error app_request_parse_flags_object(app_request_t *request,
       return err;
     }
 
-    p = app_request_skip_json_ws(p);
+    p = app_json_skip_ws(p);
     if (*p != ':') {
       free(key);
       return APP_ERROR_CONFIG_PARSE;
@@ -424,7 +325,7 @@ static app_error app_request_parse_flags_object(app_request_t *request,
     p++;
 
     bool value = false;
-    err = app_request_read_json_bool_value(&p, &value);
+    err = app_json_read_bool(&p, &value);
     if (err != APP_SUCCESS) {
       free(key);
       return err;
@@ -438,7 +339,7 @@ static app_error app_request_parse_flags_object(app_request_t *request,
     app_request_record_flag(request, spec->id, value);
     free(key);
 
-    p = app_request_skip_json_ws(p);
+    p = app_json_skip_ws(p);
     if (*p == ',') {
       p++;
       continue;
@@ -454,7 +355,7 @@ static app_error app_request_parse_flags_object(app_request_t *request,
 }
 
 static app_error app_request_finish_json_parse(const char *cursor) {
-  cursor = app_request_skip_json_ws(cursor);
+  cursor = app_json_skip_ws(cursor);
   if (!cursor || *cursor != '\0') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -485,7 +386,7 @@ app_error app_request_parse_json(app_request_t *request, const char *content) {
   CHECK_NULL(request, APP_ERROR_INVALID_ARG);
   CHECK_NULL(content, APP_ERROR_INVALID_ARG);
 
-  const char *cursor = app_request_skip_json_ws(content);
+  const char *cursor = app_json_skip_ws(content);
   if (!cursor || *cursor == '\0') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -494,7 +395,7 @@ app_error app_request_parse_json(app_request_t *request, const char *content) {
   }
 
   cursor++;
-  cursor = app_request_skip_json_ws(cursor);
+  cursor = app_json_skip_ws(cursor);
   if (*cursor == '}') {
     cursor++;
     const app_error err = app_request_finish_json_parse(cursor);
@@ -508,7 +409,7 @@ app_error app_request_parse_json(app_request_t *request, const char *content) {
       return err;
     }
 
-    cursor = app_request_skip_json_ws(cursor);
+    cursor = app_json_skip_ws(cursor);
     if (*cursor != ':') {
       free(key);
       return APP_ERROR_CONFIG_PARSE;
@@ -534,7 +435,7 @@ app_error app_request_parse_json(app_request_t *request, const char *content) {
       return err;
     }
 
-    cursor = app_request_skip_json_ws(cursor);
+    cursor = app_json_skip_ws(cursor);
     if (*cursor == ',') {
       cursor++;
       continue;

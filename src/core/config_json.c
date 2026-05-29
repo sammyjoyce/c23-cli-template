@@ -4,41 +4,10 @@
 
 #include "config_json.h"
 
-#include <ctype.h>
 #include <string.h>
 
 #include "../utils/logging.h"
-
-static const char *app_config_skip_json_ws(const char *cursor) {
-  while (cursor && *cursor != '\0' && isspace((unsigned char)*cursor) != 0) {
-    cursor++;
-  }
-  return cursor;
-}
-
-static bool app_config_json_value_boundary(char ch) {
-  return ch == '\0' || ch == ',' || ch == '}' || ch == ']' ||
-         isspace((unsigned char)ch) != 0;
-}
-
-static bool app_config_match_json_literal(const char *cursor,
-                                          const char *literal,
-                                          const char **end) {
-  size_t i = 0;
-  while (literal[i] != '\0') {
-    if (cursor[i] == '\0' || cursor[i] != literal[i]) {
-      return false;
-    }
-    i++;
-  }
-  if (!app_config_json_value_boundary(cursor[i])) {
-    return false;
-  }
-  if (end) {
-    *end = cursor + i;
-  }
-  return true;
-}
+#include "json_scan.h"
 
 static app_error app_config_parse_json_string(const char **cursor, char *out,
                                               size_t out_size) {
@@ -46,7 +15,7 @@ static app_error app_config_parse_json_string(const char **cursor, char *out,
     return APP_ERROR_INVALID_ARG;
   }
 
-  const char *p = app_config_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '"') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -109,7 +78,7 @@ static app_error app_config_skip_json_string(const char **cursor) {
     return APP_ERROR_INVALID_ARG;
   }
 
-  const char *p = app_config_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p || *p != '"') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -146,55 +115,11 @@ static app_error app_config_skip_json_string(const char **cursor) {
   return APP_ERROR_CONFIG_PARSE;
 }
 
-static app_error app_config_skip_json_number(const char **cursor) {
-  const char *p = app_config_skip_json_ws(*cursor);
-  if (*p == '-') {
-    p++;
-  }
-  if (!isdigit((unsigned char)*p)) {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  if (*p == '0') {
-    p++;
-  } else {
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-  if (*p == '.') {
-    p++;
-    if (!isdigit((unsigned char)*p)) {
-      return APP_ERROR_CONFIG_PARSE;
-    }
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-  if (*p == 'e' || *p == 'E') {
-    p++;
-    if (*p == '+' || *p == '-') {
-      p++;
-    }
-    if (!isdigit((unsigned char)*p)) {
-      return APP_ERROR_CONFIG_PARSE;
-    }
-    while (isdigit((unsigned char)*p)) {
-      p++;
-    }
-  }
-
-  if (!app_config_json_value_boundary(*p)) {
-    return APP_ERROR_CONFIG_PARSE;
-  }
-  *cursor = p;
-  return APP_SUCCESS;
-}
-
 static app_error app_config_skip_json_literal(const char **cursor,
                                               const char *literal) {
-  const char *p = app_config_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   const char *end = NULL;
-  if (!app_config_match_json_literal(p, literal, &end)) {
+  if (!app_json_match_literal(p, literal, &end)) {
     return APP_ERROR_CONFIG_PARSE;
   }
   *cursor = end;
@@ -202,7 +127,7 @@ static app_error app_config_skip_json_literal(const char **cursor,
 }
 
 static app_error app_config_skip_json_scalar(const char **cursor) {
-  const char *p = app_config_skip_json_ws(*cursor);
+  const char *p = app_json_skip_ws(*cursor);
   if (!p) {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -219,29 +144,7 @@ static app_error app_config_skip_json_scalar(const char **cursor) {
   if (*p == 'n') {
     return app_config_skip_json_literal(cursor, "null");
   }
-  return app_config_skip_json_number(cursor);
-}
-
-static app_error app_config_read_json_bool_value(const char **cursor,
-                                                 bool *value) {
-  if (!cursor || !*cursor || !value) {
-    return APP_ERROR_INVALID_ARG;
-  }
-
-  const char *p = app_config_skip_json_ws(*cursor);
-  const char *end = NULL;
-  if (app_config_match_json_literal(p, "true", &end)) {
-    *value = true;
-    *cursor = end;
-    return APP_SUCCESS;
-  }
-  if (app_config_match_json_literal(p, "false", &end)) {
-    *value = false;
-    *cursor = end;
-    return APP_SUCCESS;
-  }
-
-  return APP_ERROR_CONFIG_PARSE;
+  return app_json_skip_number(cursor);
 }
 
 static bool app_config_apply_json_bool_key(app_config_json_state_t *state,
@@ -261,7 +164,7 @@ static bool app_config_is_known_bool_key(const char *key) {
 }
 
 static app_error app_config_finish_json_parse(const char *cursor) {
-  cursor = app_config_skip_json_ws(cursor);
+  cursor = app_json_skip_ws(cursor);
   if (!cursor || *cursor != '\0') {
     return APP_ERROR_CONFIG_PARSE;
   }
@@ -274,7 +177,7 @@ app_error app_config_parse_json_state(app_config_json_state_t *staged,
   CHECK_NULL(staged, APP_ERROR_INVALID_ARG);
   CHECK_NULL(content, APP_ERROR_INVALID_ARG);
 
-  const char *cursor = app_config_skip_json_ws(content);
+  const char *cursor = app_json_skip_ws(content);
   if (!cursor || *cursor == '\0') {
     return APP_SUCCESS;
   }
@@ -283,7 +186,7 @@ app_error app_config_parse_json_state(app_config_json_state_t *staged,
   }
 
   cursor++;
-  cursor = app_config_skip_json_ws(cursor);
+  cursor = app_json_skip_ws(cursor);
   if (*cursor == '}') {
     return app_config_finish_json_parse(cursor + 1);
   }
@@ -295,7 +198,7 @@ app_error app_config_parse_json_state(app_config_json_state_t *staged,
       return err;
     }
 
-    cursor = app_config_skip_json_ws(cursor);
+    cursor = app_json_skip_ws(cursor);
     if (*cursor != ':') {
       return APP_ERROR_CONFIG_PARSE;
     }
@@ -303,7 +206,7 @@ app_error app_config_parse_json_state(app_config_json_state_t *staged,
 
     if (app_config_is_known_bool_key(key)) {
       bool value = false;
-      err = app_config_read_json_bool_value(&cursor, &value);
+      err = app_json_read_bool(&cursor, &value);
       if (err != APP_SUCCESS) {
         LOG_WARNING("Invalid boolean value for config key '%s'", key);
         return err;
@@ -316,7 +219,7 @@ app_error app_config_parse_json_state(app_config_json_state_t *staged,
       }
     }
 
-    cursor = app_config_skip_json_ws(cursor);
+    cursor = app_json_skip_ws(cursor);
     if (*cursor == ',') {
       cursor++;
       continue;
