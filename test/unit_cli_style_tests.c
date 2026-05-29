@@ -99,21 +99,26 @@ static bool test_text_width_utf8(void) {
 // The plain error fallback (non-TTY memory stream) title-cases the first word
 // and appends the usage hint.
 static bool test_error_plain_fallback(void) {
-  char *buf = NULL;
-  size_t len = 0;
-  FILE *stream = open_memstream(&buf, &len);
+  // Capture via tmpfile() rather than open_memstream(): the latter is POSIX
+  // only and absent on Windows. tmpfile() is C-standard and still a non-TTY,
+  // so the plain (escape-free) fallback path is exercised the same way.
+  FILE *stream = tmpfile();
   if (!stream) {
     return false;
   }
   app_cli_render_error(NULL, stream, "myapp", "invalid option '--x'",
                        APP_CLI_ERROR_KIND_USAGE);
+  fflush(stream);
+  rewind(stream);
+
+  char buf[1024];
+  const size_t n = fread(buf, 1, sizeof(buf) - 1, stream);
+  buf[n] = '\0';
   fclose(stream);
 
-  bool ok = buf != NULL && strstr(buf, "Error: Invalid option '--x'") != NULL &&
-            strstr(buf, "Try myapp --help for usage.") != NULL &&
-            strstr(buf, "\x1b") == NULL; /* no escapes on a non-TTY */
-  free(buf);
-  return ok;
+  return strstr(buf, "Error: Invalid option '--x'") != NULL &&
+         strstr(buf, "Try myapp --help for usage.") != NULL &&
+         strstr(buf, "\x1b") == NULL; /* no escapes on a non-TTY */
 }
 
 void run_cli_style_unit_tests(unit_stats_t *stats) {
