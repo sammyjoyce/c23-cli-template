@@ -209,9 +209,12 @@ static bool test_command_metadata_is_enforced(test_context_t *ctx) {
   {
     const char *args[] = {"doctor", "--not-real"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    // The message and its hint must arrive as one JSON envelope (exactly one
+    // "format_version") so stderr stays a single parseable document.
     ok = cc_expect_exit(&result, APP_ERROR_UNKNOWN_OPTION) &&
          cc_expect_stderr_contains(&result, "Unknown option '--not-real'") &&
-         ok;
+         cc_expect_stderr_contains(&result, "usage information") &&
+         cc_expect_stderr_occurs_once(&result, "\"format_version\"") && ok;
     cc_command_result_free(&result);
   }
 

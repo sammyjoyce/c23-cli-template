@@ -137,9 +137,14 @@ static app_error app_dispatch_configured_command(app_config_t *config,
       return APP_ERROR_INVALID_COMMAND;
     }
 #endif
-    app_output_format(config, true, "Unknown command: %s", command);
-    app_output_format(config, true, "Run '%s --help' for available commands",
-                      app_config_get_program_name(config));
+    // Single message so stderr stays one parseable JSON document in
+    // --json/headless mode. (With APP_ENABLE_CLI_STYLE the styled human path
+    // returned above; without it this also serves human output, where the
+    // combined line reads fine.)
+    app_output_format(config, true,
+                      "Unknown command: %s. Run '%s --help' for available "
+                      "commands",
+                      command, app_config_get_program_name(config));
     return APP_ERROR_INVALID_COMMAND;
   }
 

@@ -262,11 +262,26 @@ static int app_command_max_positionals(const app_command_t *command) {
 }
 
 static void app_command_report_validation_error(const app_config_t *config,
-                                                const char *message) {
+                                                const char *message,
+                                                const char *hint) {
+  const bool have_hint = hint && *hint;
   if (config && app_config_is_json_output(config)) {
-    app_output(message, config, true);
+    // Emit a single JSON object so stderr stays one parseable document, even
+    // when a message has an accompanying hint. Other error paths emit one
+    // object per error; folding the hint in keeps the headless/--json contract
+    // consistent for consumers that parse stderr as a single document.
+    if (have_hint) {
+      char combined[544];
+      snprintf(combined, sizeof(combined), "%s. %s", message, hint);
+      app_output(combined, config, true);
+    } else {
+      app_output(message, config, true);
+    }
   } else {
     fprintf(stderr, "%s\n", message);
+    if (have_hint) {
+      fprintf(stderr, "%s\n", hint);
+    }
   }
 }
 
@@ -303,8 +318,7 @@ app_error app_command_validate_invocation(const app_command_t *command,
                command->name);
       snprintf(hint, sizeof(hint), "Run '%s --help' for usage information",
                program_name ? program_name : APP_NAME);
-      app_command_report_validation_error(config, message);
-      app_command_report_validation_error(config, hint);
+      app_command_report_validation_error(config, message, hint);
       return APP_ERROR_UNKNOWN_OPTION;
     }
 
@@ -317,14 +331,14 @@ app_error app_command_validate_invocation(const app_command_t *command,
     snprintf(message, sizeof(message),
              "Error: Command '%s' expects at least %d argument%s",
              command->name, minimum, minimum == 1 ? "" : "s");
-    app_command_report_validation_error(config, message);
+    app_command_report_validation_error(config, message, NULL);
     return APP_ERROR_MISSING_ARG;
   }
   if (maximum != APP_ARG_ARITY_UNBOUNDED && positional_count > maximum) {
     snprintf(message, sizeof(message),
              "Error: Command '%s' expects at most %d argument%s", command->name,
              maximum, maximum == 1 ? "" : "s");
-    app_command_report_validation_error(config, message);
+    app_command_report_validation_error(config, message, NULL);
     return APP_ERROR_INVALID_ARG;
   }
 

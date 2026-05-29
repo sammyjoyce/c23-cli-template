@@ -47,6 +47,11 @@ bool cc_expect_stdout_contains(const command_result_t *result,
                                const char *needle);
 bool cc_expect_stderr_contains(const command_result_t *result,
                                const char *needle);
+// Assert needle appears exactly once in stderr. Used to verify a JSON error
+// path emits a single envelope (one "format_version") rather than several
+// concatenated objects that would break single-document parsers.
+bool cc_expect_stderr_occurs_once(const command_result_t *result,
+                                  const char *needle);
 bool cc_expect_stdout_empty(const command_result_t *result);
 bool cc_write_temp_config(const char *content, char **path_out);
 bool cc_file_exists(const char *path);

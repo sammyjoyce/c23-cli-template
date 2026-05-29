@@ -615,6 +615,27 @@ bool cc_expect_stderr_contains(const command_result_t *result,
   return expect_contains(result, "stderr", result->err, needle);
 }
 
+bool cc_expect_stderr_occurs_once(const command_result_t *result,
+                                  const char *needle) {
+  const char *haystack = result->err ? result->err : "";
+  const size_t needle_len = strlen(needle);
+  if (needle_len == 0) {
+    return true;
+  }
+  size_t count = 0;
+  for (const char *p = strstr(haystack, needle); p;
+       p = strstr(p + needle_len, needle)) {
+    count++;
+  }
+  if (count == 1) {
+    return true;
+  }
+  fprintf(stderr, "expected stderr to contain exactly one '%s', found %zu\n",
+          needle, count);
+  print_result_tail(result);
+  return false;
+}
+
 bool cc_expect_stdout_empty(const command_result_t *result) {
   if (result->out && result->out[0] == '\0') {
     return true;
