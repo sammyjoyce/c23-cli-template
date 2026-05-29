@@ -118,14 +118,19 @@ jobs:
             # vcpkg prefix so PDCurses is found (there is no system PDCurses).
             echo "CURSES_ARGS=-Dcurses-prefix=$(pwd)/installed/x64-windows"
           } >> "$GITHUB_ENV"
-          # The default TUI binary links pdcurses.dll, so any step that runs the
-          # built binary (tests, opencli validation) needs it on PATH job-wide.
-          echo "$(pwd)/installed/x64-windows/bin" >> "$GITHUB_PATH"
           cd ..
         shell: bash
 
       - name: Run `install` step
-        run: zig build install $CURSES_ARGS
+        run: |
+          zig build install $CURSES_ARGS
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            # The default TUI binary links pdcurses.dll. Place it next to the
+            # binary so the EXE's own directory (first in the Windows DLL search
+            # order) satisfies the dependency for every step that runs it,
+            # including binaries spawned by the contract test runner.
+            cp "$VCPKG_ROOT"/installed/x64-windows/bin/*.dll zig-out/bin/
+          fi
         timeout-minutes: 10
         shell: bash
 
