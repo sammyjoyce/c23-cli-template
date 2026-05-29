@@ -167,7 +167,7 @@ static app_error app_dispatch_configured_command(app_config_t *config,
     return APP_ERROR_IO;
   }
 
-  app_error err = app_command_validate_invocation_ex(
+  app_error err = app_command_validate_invocation(
       entry, cmd_argc, cmd_argv, config, app_config_get_program_name(config));
   if (err != APP_SUCCESS) {
     return err;

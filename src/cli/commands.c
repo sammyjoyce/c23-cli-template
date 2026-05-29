@@ -270,10 +270,10 @@ static void app_command_report_validation_error(const app_config_t *config,
   }
 }
 
-app_error app_command_validate_invocation_ex(const app_command_t *command,
-                                             int argc, char *const argv[],
-                                             const app_config_t *config,
-                                             const char *program_name) {
+app_error app_command_validate_invocation(const app_command_t *command,
+                                          int argc, char *const argv[],
+                                          const app_config_t *config,
+                                          const char *program_name) {
   if (!command || argc < 0 || (argc > 0 && !argv)) {
     return APP_ERROR_INVALID_ARG;
   }
@@ -329,11 +329,4 @@ app_error app_command_validate_invocation_ex(const app_command_t *command,
   }
 
   return APP_SUCCESS;
-}
-
-app_error app_command_validate_invocation(const app_command_t *command,
-                                          int argc, char *const argv[],
-                                          const char *program_name) {
-  return app_command_validate_invocation_ex(command, argc, argv, NULL,
-                                            program_name);
 }

@@ -105,10 +105,7 @@ const app_command_option_t *app_command_option_find(
 // Validate an invocation against command metadata before dispatch. Command
 // options are recognized as --name before a -- delimiter; remaining tokens are
 // positionals and must satisfy the declared arity.
-APP_NODISCARD app_error
-app_command_validate_invocation(const app_command_t *command, int argc,
-                                char *const argv[], const char *program_name);
-APP_NODISCARD app_error app_command_validate_invocation_ex(
+APP_NODISCARD app_error app_command_validate_invocation(
     const app_command_t *command, int argc, char *const argv[],
     const app_config_t *config, const char *program_name);
 
