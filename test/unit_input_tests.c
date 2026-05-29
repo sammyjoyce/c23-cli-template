@@ -7,13 +7,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 #include "../src/core/types.h"
 #include "../src/io/input.h"
 #include "unit_support.h"
 
+// Create the fixture readable/writable by the owner only. A plain fopen would
+// create it world-writable (0666 & ~umask), which is needlessly permissive for
+// a throwaway test file.
+static FILE *open_owner_only(const char *path) {
+#ifdef _WIN32
+  return fopen(path, "wb");
+#else
+  const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  if (fd < 0) {
+    return NULL;
+  }
+  FILE *file = fdopen(fd, "wb");
+  if (!file) {
+    close(fd);
+  }
+  return file;
+#endif
+}
+
 static bool write_repeated_file(const char *path, size_t size) {
-  FILE *file = fopen(path, "wb");
+  FILE *file = open_owner_only(path);
   if (!file) {
     return false;
   }
