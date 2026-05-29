@@ -187,6 +187,16 @@ static app_error app_dispatch_configured_command(app_config_t *config,
 }
 
 static app_error app_run_headless_json(app_config_t *config, int64_t start_ms) {
+  // Reading from a TTY would block forever waiting for input the user has no
+  // cue to provide. This path is reached on a bare invocation whenever stdout
+  // is not a terminal (e.g. `myapp > out.txt` selects machine output) even
+  // though stdin is still the keyboard. Fail fast instead of hanging.
+  if (app_terminal_stream_is_tty(APP_TERMINAL_STDIN)) {
+    app_output("Headless mode expects a JSON request object on stdin", config,
+               true);
+    return APP_ERROR_MISSING_ARG;
+  }
+
   char *content = app_read_input_from_stdin();
   if (!content) {
     app_output("Failed to read headless JSON request from stdin", config, true);
