@@ -251,9 +251,14 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc == 1) {
-    err = app_terminal_is_interactive()
-              ? app_run_tui(config)
-              : app_run_headless_json(config, start_ms);
+    // A bare invocation launches the TUI only on an interactive terminal AND
+    // when JSON output was not requested. This mirrors app_cmd_menu, which
+    // refuses to launch the TUI under --json; without this check a json setting
+    // from a config file would start the TUI here while `menu` rejected it.
+    const bool launch_tui = app_terminal_is_interactive() &&
+                            !app_config_is_json_output(config);
+    err = launch_tui ? app_run_tui(config)
+                     : app_run_headless_json(config, start_ms);
     app_config_destroy(config);
     return err;
   }
