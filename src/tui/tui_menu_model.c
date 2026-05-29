@@ -414,6 +414,32 @@ void tui_menu_state_numeric_jump(tui_menu_state_t *s, int visible_row) {
   }
 }
 
+int tui_menu_state_number_for_row(const tui_menu_state_t *s, int visible_row) {
+  if (!s || visible_row < 0 || visible_row >= s->visible_count)
+    return 0;
+  if (s->cfg->items[s->visible[visible_row]].kind == TUI_MENU_ITEM_SEPARATOR)
+    return 0;
+  int number = 0;
+  for (int v = 0; v <= visible_row; v++) {
+    if (s->cfg->items[s->visible[v]].kind != TUI_MENU_ITEM_SEPARATOR)
+      number++;
+  }
+  return number;
+}
+
+int tui_menu_state_row_for_number(const tui_menu_state_t *s, int number) {
+  if (!s || number <= 0)
+    return -1;
+  int seen = 0;
+  for (int v = 0; v < s->visible_count; v++) {
+    if (s->cfg->items[s->visible[v]].kind == TUI_MENU_ITEM_SEPARATOR)
+      continue;
+    if (++seen == number)
+      return v;
+  }
+  return -1;
+}
+
 int tui_menu_state_visible_at(const tui_menu_state_t *s, int v) {
   if (!s || v < 0 || v >= s->visible_count)
     return -1;

@@ -159,7 +159,6 @@ tui_menu_result_t result = tui_show_menu(
         .item_count = (int)(sizeof(options) / sizeof(options[0])),
         .default_index = 0,
         .enable_search = true,
-        .show_detail_pane = true,
     });
 
 if (result.status == TUI_MENU_OK) {
@@ -175,7 +174,7 @@ if (result.status == TUI_MENU_OK) {
 
 ## 4. Colors
 
-Set a color pair before drawing and unset it after. The pairs are roles, not fixed colors. The theme is defined in `src/utils/colors.c`:
+Set a color pair before drawing and unset it after. The pairs are roles, not fixed colors. The theme is defined in `tui_init_colors()` (`src/tui/tui.c`), seeded from `src/style/design_tokens.c`:
 
 ```c
 tui_set_color(window->win, TUI_COLOR_ERROR);
@@ -183,7 +182,7 @@ mvwprintw(window->win, y, x, "Error: %s", message);
 tui_unset_color(window->win, TUI_COLOR_ERROR);
 ```
 
-Available pairs: `TUI_COLOR_DEFAULT`, `HIGHLIGHT`, `ERROR`, `SUCCESS`, `WARNING`, `INFO`, `MENU_SELECTED`, `MENU_NORMAL`, `BORDER`, `TITLE`, `ACCENT`, `DIM`.
+Available pairs: `TUI_COLOR_DEFAULT`, `HIGHLIGHT`, `ERROR`, `SUCCESS`, `WARNING`, `INFO`, `MENU_NORMAL`, `BORDER`, `TITLE`, `ACCENT`, `DIM`.
 
 ## 5. Practices
 

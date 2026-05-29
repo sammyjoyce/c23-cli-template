@@ -223,7 +223,7 @@ static bool test_command_metadata_is_enforced(test_context_t *ctx) {
     const char *args[] = {"hello", "--help"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
-         cc_expect_stdout_contains(&result, "Usage:") &&
+         cc_expect_stdout_contains(&result, "USAGE") &&
          cc_expect_stdout_contains(&result, "hello") && ok;
     cc_command_result_free(&result);
   }
@@ -296,10 +296,10 @@ static bool test_valid_flat_config_skips_unknown_scalar_keys(
 static bool test_unknown_command_reports_actionable_error(test_context_t *ctx) {
   const char *args[] = {"not-a-command"};
   command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
-  const bool ok =
-      cc_expect_not_exit(&result, 0) &&
-      cc_expect_stderr_contains(&result, "Unknown command: not-a-command") &&
-      cc_expect_stderr_contains(&result, "--help");
+  const bool ok = cc_expect_not_exit(&result, 0) &&
+                  cc_expect_stderr_contains(
+                      &result, "Invalid or unknown command: not-a-command") &&
+                  cc_expect_stderr_contains(&result, "--help");
   cc_command_result_free(&result);
   return ok;
 }

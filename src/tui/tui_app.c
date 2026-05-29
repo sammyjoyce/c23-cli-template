@@ -19,7 +19,7 @@
 #include "tui_internal.h"
 
 enum {
-  MAIN_MENU_FRAME_HEIGHT = 22,
+  MAIN_MENU_FRAME_HEIGHT = 18,
   MAIN_MENU_FRAME_WIDTH = 72,
 };
 
@@ -156,14 +156,15 @@ static void app_show_config_menu(void) {
        .description = "Return to the main menu",
        .id = APP_CONFIG_BACK},
   };
-  tui_window_t *config_frame = tui_create_centered_window(16, 60);
+  /* Configuration is a secondary menu *screen*, not a modal: same borderless,
+   * centered frame as the root menu, so navigating in feels like the root. */
+  tui_window_t *config_frame =
+      tui_create_centered_window(MAIN_MENU_FRAME_HEIGHT, MAIN_MENU_FRAME_WIDTH);
   if (!config_frame) {
     tui_show_message("Configuration",
                      "The terminal is too small for the configuration menu.");
     return;
   }
-  tui_draw_border(config_frame);
-  tui_set_window_title(config_frame, "Configuration");
   tui_push_background(config_frame);
 
   bool sub_running = true;
@@ -172,13 +173,13 @@ static void app_show_config_menu(void) {
         config_frame,
         &(tui_menu_config_t){
             .title = "Configuration",
+            .subtitle = APP_NAME " · Settings",
             .items = cfg_items,
             .item_count = (int)(sizeof(cfg_items) / sizeof(cfg_items[0])),
             .default_index = 0,
-            .frame_height = 16,
-            .frame_width = 60,
+            .frame_height = MAIN_MENU_FRAME_HEIGHT,
+            .frame_width = MAIN_MENU_FRAME_WIDTH,
             .enable_search = true,
-            .show_detail_pane = true,
             .show_numeric_keys = true,
         });
     if (r.status != TUI_MENU_OK) {
@@ -209,6 +210,87 @@ static void app_show_config_menu(void) {
   }
   tui_pop_background();
   tui_destroy_window(config_frame);
+}
+
+/* gitlogue-style Esc overlay: a compact menu offering help, about, and exit
+ * without leaving the main showcase. */
+typedef enum {
+  APP_OVERLAY_KEYS = 1,
+  APP_OVERLAY_ABOUT,
+  APP_OVERLAY_EXIT,
+} app_overlay_menu_id_t;
+
+static void app_show_keybindings(void) {
+  tui_show_message("Key Bindings",
+                   "Up / Down or j / k   Move selection\n"
+                   "PgUp / PgDn          Jump a page\n"
+                   "Home / End           First / last item\n"
+                   "1-9                  Jump to a numbered item\n"
+                   "/                    Incremental search\n"
+                   "Enter                Select\n"
+                   "Esc                  Open this menu\n"
+                   "q                    Quit");
+}
+
+static void app_show_about(void) {
+  tui_show_message("About", APP_NAME
+                   " " APP_VERSION
+                   "\n\n"
+                   "A C23 + ncurses starter template: CLI argument\n"
+                   "parsing, an optional TUI with menus, dialogs, and\n"
+                   "progress bars, plus an end-to-end test harness.\n\n"
+                   "Menu UI inspired by gitlogue.");
+}
+
+/* Returns true when the user chose Exit from the overlay. */
+static bool app_show_menu_overlay(void) {
+  static const tui_menu_item_t overlay_items[] = {
+      {.label = "&Key Bindings",
+       .description = "Show all keyboard shortcuts",
+       .id = APP_OVERLAY_KEYS},
+      {.label = "&About",
+       .description = "Version and template details",
+       .id = APP_OVERLAY_ABOUT},
+      {.kind = TUI_MENU_ITEM_SEPARATOR},
+      {.label = "E&xit",
+       .description = "Leave the showcase",
+       .id = APP_OVERLAY_EXIT},
+  };
+  bool want_exit = false;
+  bool open = true;
+  while (open) {
+    tui_menu_result_t r = tui_show_menu(
+        NULL, &(tui_menu_config_t){
+                  .title = "Menu",
+                  .subtitle = APP_NAME,
+                  .items = overlay_items,
+                  .item_count =
+                      (int)(sizeof(overlay_items) / sizeof(overlay_items[0])),
+                  .default_index = 0,
+                  .frame_height = MAIN_MENU_FRAME_HEIGHT,
+                  .frame_width = MAIN_MENU_FRAME_WIDTH,
+                  .show_numeric_keys = true,
+              });
+    if (r.status != TUI_MENU_OK) {
+      open = false; /* Esc / q resumes the showcase */
+      break;
+    }
+    switch (r.selected_id) {
+    case APP_OVERLAY_KEYS:
+      app_show_keybindings();
+      break;
+    case APP_OVERLAY_ABOUT:
+      app_show_about();
+      break;
+    case APP_OVERLAY_EXIT:
+      want_exit = true;
+      open = false;
+      break;
+    default:
+      break;
+    }
+  }
+  return want_exit;
 }
 
 /* ============================================================
@@ -289,8 +371,8 @@ app_error tui_run_app(void) {
     tui_cleanup();
     return APP_ERROR_OUT_OF_RANGE;
   }
-  tui_draw_border(menu_frame);
-  tui_set_window_title(menu_frame, "Starter Showcase");
+  /* Borderless, centered panel: tui_show_menu paints the flat dawn-style
+   * layout itself. */
   tui_push_background(menu_frame);
 
   bool running = true;
@@ -299,6 +381,7 @@ app_error tui_run_app(void) {
         menu_frame,
         &(tui_menu_config_t){
             .title = "Starter Showcase",
+            .subtitle = APP_NAME " · v" APP_VERSION,
             .items = main_menu,
             .item_count = (int)(sizeof(main_menu) / sizeof(main_menu[0])),
             .default_index = 0,
@@ -306,7 +389,7 @@ app_error tui_run_app(void) {
             .frame_width = MAIN_MENU_FRAME_WIDTH,
             .enable_search = true,
             .enable_mouse = true,
-            .show_detail_pane = true,
+            .enable_menu_key = true,
             .show_numeric_keys = true,
         });
     switch (r.status) {
@@ -316,6 +399,10 @@ app_error tui_run_app(void) {
       } else {
         app_dispatch(r.selected_id);
       }
+      break;
+    case TUI_MENU_MENU:
+      if (app_show_menu_overlay())
+        running = !tui_confirm("Exit", "Return to the shell?");
       break;
     case TUI_MENU_CANCELLED:
       running = !tui_confirm("Exit", "Return to the shell?");
