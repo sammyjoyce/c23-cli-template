@@ -17,6 +17,8 @@
 #include "cli/help.h"
 #include "core/config.h"
 #include "core/error.h"
+#include "core/request_json.h"
+#include "io/input.h"
 #include "io/output.h"
 #include "io/terminal.h"
 #include "utils/logging.h"
@@ -34,11 +36,6 @@ static int64_t app_now_millis(void) {
 }
 
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
-  if (argc == 1) {
-    app_print_concise_help(argv[0]);
-    exit(0);
-  }
-
   app_error err = app_args_handle_immediate_exit(argc, argv);
   if (err != APP_SUCCESS) {
     return err;
@@ -46,6 +43,13 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
 
   err = app_config_create(config);
   if (err != APP_SUCCESS) {
+    return err;
+  }
+
+  const char *program_name = (argc > 0 && argv && argv[0]) ? argv[0] : APP_NAME;
+  err = app_config_set_program_name(*config, program_name);
+  if (err != APP_SUCCESS) {
+    app_config_destroy(*config);
     return err;
   }
 
@@ -72,7 +76,16 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
     return err;
   }
 
-  err = app_parse_args(argc, argv, *config);
+  if (argc > 1) {
+    err = app_parse_args(argc, argv, *config);
+    if (err != APP_SUCCESS) {
+      app_config_destroy(*config);
+      return err;
+    }
+  }
+
+  err = app_config_apply_output_defaults(
+      *config, app_terminal_stream_is_tty(APP_TERMINAL_STDOUT));
   if (err != APP_SUCCESS) {
     app_config_destroy(*config);
     return err;
@@ -88,6 +101,135 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
   }
 
   return APP_SUCCESS;
+}
+
+static bool app_is_blank_text(const char *text) {
+  if (!text) {
+    return true;
+  }
+  for (const unsigned char *p = (const unsigned char *)text; *p != '\0'; p++) {
+    if (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\r' && *p != '\f' &&
+        *p != '\v') {
+      return false;
+    }
+  }
+  return true;
+}
+
+static app_error app_dispatch_configured_command(app_config_t *config,
+                                                 int64_t start_ms) {
+  const char *command = app_config_get_command(config);
+  if (command == NULL) {
+    app_print_concise_help_ex(app_config_get_program_name(config), config);
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  int cmd_argc = 0;
+  char *const *cmd_argv = app_config_get_command_args(config, &cmd_argc);
+
+  const app_command_t *entry = app_command_find(command);
+  if (!entry) {
+#ifdef APP_ENABLE_CLI_STYLE
+    if (!app_config_is_json_output(config)) {
+      app_cli_render_error_code(
+          config, stderr, app_config_get_program_name(config),
+          APP_ERROR_INVALID_COMMAND, command, APP_CLI_ERROR_KIND_USAGE);
+      return APP_ERROR_INVALID_COMMAND;
+    }
+#endif
+    app_output_format(config, true, "Unknown command: %s", command);
+    app_output_format(config, true, "Run '%s --help' for available commands",
+                      app_config_get_program_name(config));
+    return APP_ERROR_INVALID_COMMAND;
+  }
+
+  // Scan for command-local --help/-h, but only before the first standalone
+  // "--" delimiter. Tokens after "--" are positionals (matching
+  // app_command_validate_invocation), so "myapp echo -- --help" must echo
+  // "--help" rather than print help.
+  for (int i = 0; i < cmd_argc; i++) {
+    if (!cmd_argv[i]) {
+      continue;
+    }
+    if (strcmp(cmd_argv[i], "--") == 0) {
+      break;
+    }
+    if (strcmp(cmd_argv[i], "--help") == 0 || strcmp(cmd_argv[i], "-h") == 0) {
+      app_print_command_help_ex(app_config_get_program_name(config), config,
+                                entry);
+      return APP_SUCCESS;
+    }
+  }
+
+  if (entry->requires_terminal && !app_terminal_is_interactive()) {
+    app_output_format(config, true,
+                      "Command '%s' requires an interactive terminal", command);
+    return APP_ERROR_IO;
+  }
+
+  app_error err = app_command_validate_invocation_ex(
+      entry, cmd_argc, cmd_argv, config, app_config_get_program_name(config));
+  if (err != APP_SUCCESS) {
+    return err;
+  }
+
+  // app_config_get_command_args returns char *const * and handlers take
+  // char *const argv[] (read-only argv vector), so no const-stripping cast.
+  err = entry->handler(config, cmd_argc, cmd_argv);
+
+  int64_t elapsed_ms = app_now_millis() - start_ms;
+  if (elapsed_ms < 0) {
+    elapsed_ms = 0;
+  }
+  LOG_INFO("Command '%s' completed in %ld ms with status %d", command,
+           (long)elapsed_ms, err);
+  return err;
+}
+
+static app_error app_run_headless_json(app_config_t *config, int64_t start_ms) {
+  char *content = app_read_input_from_stdin();
+  if (!content) {
+    app_output("Failed to read headless JSON request from stdin", config, true);
+    return APP_ERROR_IO;
+  }
+
+  if (app_is_blank_text(content)) {
+    free(content);
+    app_output("Headless mode expects a JSON request object on stdin", config,
+               true);
+    return APP_ERROR_MISSING_ARG;
+  }
+
+  app_request_t request;
+  app_request_init(&request);
+
+  app_error err = app_request_parse_json(&request, content);
+  if (err != APP_SUCCESS) {
+    app_output_format(config, true, "Invalid headless JSON request: %s",
+                      app_strerror(err));
+    app_request_destroy(&request);
+    free(content);
+    return err;
+  }
+
+  err = app_request_apply_to_config(&request, config);
+  if (err != APP_SUCCESS) {
+    app_output_format(config, true, "Invalid headless JSON request: %s",
+                      app_strerror(err));
+    app_request_destroy(&request);
+    free(content);
+    return err;
+  }
+
+  // The transport envelope is JSON by definition. Keep it JSON even if the
+  // request includes plain_output for compatibility with normal CLI commands.
+  (void)app_config_set_plain_output(config, false);
+  (void)app_config_set_json_output(config, true);
+
+  err = app_dispatch_configured_command(config, start_ms);
+  app_request_destroy(&request);
+  free(content);
+  return err;
 }
 
 int main(int argc, char *argv[]) {
@@ -108,77 +250,15 @@ int main(int argc, char *argv[]) {
     return err;
   }
 
-  const char *command = app_config_get_command(config);
-  if (command == NULL) {
-    app_print_concise_help_ex(argv[0], config);
-    app_config_destroy(config);
-    return APP_ERROR_INVALID_ARG;
-  }
-
-  int cmd_argc = 0;
-  char *const *cmd_argv = app_config_get_command_args(config, &cmd_argc);
-
-  const app_command_t *entry = app_command_find(command);
-  if (!entry) {
-#ifdef APP_ENABLE_CLI_STYLE
-    if (!app_config_is_json_output(config)) {
-      app_cli_render_error_code(
-          config, stderr, app_config_get_program_name(config),
-          APP_ERROR_INVALID_COMMAND, command, APP_CLI_ERROR_KIND_USAGE);
-      app_config_destroy(config);
-      return APP_ERROR_INVALID_COMMAND;
-    }
-#endif
-    app_output_format(config, true, "Unknown command: %s", command);
-    app_output_format(config, true, "Run '%s --help' for available commands",
-                      app_config_get_program_name(config));
-    app_config_destroy(config);
-    return APP_ERROR_INVALID_COMMAND;
-  }
-
-  // Scan for command-local --help/-h, but only before the first standalone
-  // "--" delimiter. Tokens after "--" are positionals (matching
-  // app_command_validate_invocation), so "myapp echo -- --help" must echo
-  // "--help" rather than print help.
-  for (int i = 0; i < cmd_argc; i++) {
-    if (!cmd_argv[i]) {
-      continue;
-    }
-    if (strcmp(cmd_argv[i], "--") == 0) {
-      break;
-    }
-    if (strcmp(cmd_argv[i], "--help") == 0 || strcmp(cmd_argv[i], "-h") == 0) {
-      app_print_command_help_ex(app_config_get_program_name(config), config,
-                                entry);
-      app_config_destroy(config);
-      return APP_SUCCESS;
-    }
-  }
-
-  if (entry->requires_terminal && !app_terminal_is_interactive()) {
-    app_output_format(config, true,
-                      "Command '%s' requires an interactive terminal", command);
-    app_config_destroy(config);
-    return APP_ERROR_IO;
-  }
-
-  err = app_command_validate_invocation(entry, cmd_argc, cmd_argv,
-                                        app_config_get_program_name(config));
-  if (err != APP_SUCCESS) {
+  if (argc == 1) {
+    err = app_terminal_is_interactive()
+              ? app_run_tui(config)
+              : app_run_headless_json(config, start_ms);
     app_config_destroy(config);
     return err;
   }
 
-  // app_config_get_command_args returns char *const * and handlers take
-  // char *const argv[] (read-only argv vector), so no const-stripping cast.
-  err = entry->handler(config, cmd_argc, cmd_argv);
-
-  int64_t elapsed_ms = app_now_millis() - start_ms;
-  if (elapsed_ms < 0) {
-    elapsed_ms = 0;
-  }
-  LOG_INFO("Command '%s' completed in %ld ms with status %d", command,
-           (long)elapsed_ms, err);
+  err = app_dispatch_configured_command(config, start_ms);
 
   app_config_destroy(config);
 

@@ -36,6 +36,10 @@ char *cc_copy_string(const char *value);
 command_result_t cc_run_cli(test_context_t *ctx, const char *const *args,
                             size_t arg_count, const env_var_t *env,
                             size_t env_count);
+command_result_t cc_run_cli_with_stdin(test_context_t *ctx,
+                                       const char *const *args,
+                                       size_t arg_count, const char *stdin_text,
+                                       const env_var_t *env, size_t env_count);
 void cc_command_result_free(command_result_t *result);
 bool cc_expect_exit(const command_result_t *result, int expected);
 bool cc_expect_not_exit(const command_result_t *result, int unexpected);

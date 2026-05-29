@@ -54,7 +54,7 @@ static bool test_builtins_render_expected_output(test_context_t *ctx) {
   bool ok = true;
 
   {
-    const char *args[] = {"hello"};
+    const char *args[] = {"--plain", "hello"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
          cc_expect_stdout_contains(&result, "Hello, World!") && ok;
@@ -62,7 +62,7 @@ static bool test_builtins_render_expected_output(test_context_t *ctx) {
   }
 
   {
-    const char *args[] = {"hello", "Alice"};
+    const char *args[] = {"--plain", "hello", "Alice"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
          cc_expect_stdout_contains(&result, "Hello, Alice!") && ok;
@@ -70,7 +70,7 @@ static bool test_builtins_render_expected_output(test_context_t *ctx) {
   }
 
   {
-    const char *args[] = {"echo", "test", "message"};
+    const char *args[] = {"--plain", "echo", "test", "message"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
          cc_expect_stdout_contains(&result, "test message") && ok;
@@ -78,7 +78,7 @@ static bool test_builtins_render_expected_output(test_context_t *ctx) {
   }
 
   {
-    const char *args[] = {"info"};
+    const char *args[] = {"--plain", "info"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
          cc_expect_stdout_contains(&result, "Application:") &&
@@ -86,6 +86,17 @@ static bool test_builtins_render_expected_output(test_context_t *ctx) {
     cc_command_result_free(&result);
   }
 
+  return ok;
+}
+
+static bool test_json_is_default_when_stdout_is_not_tty(test_context_t *ctx) {
+  const char *args[] = {"hello"};
+  command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+  const bool ok =
+      cc_expect_exit(&result, 0) &&
+      cc_expect_stdout_contains(&result, "\"format_version\":\"1.0\"") &&
+      cc_expect_stdout_contains(&result, "\"message\":\"Hello, World!\"");
+  cc_command_result_free(&result);
   return ok;
 }
 
@@ -122,7 +133,7 @@ static bool test_quiet_json_commands_suppress_stdout(test_context_t *ctx) {
 }
 
 static bool test_doctor_reports_binary_state(test_context_t *ctx) {
-  const char *args[] = {"doctor"};
+  const char *args[] = {"--plain", "doctor"};
   command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "doctor") &&
@@ -168,7 +179,8 @@ static bool test_plain_mode_disables_forced_color(test_context_t *ctx) {
 
 static bool test_command_arguments_are_not_global_config_flags(
     test_context_t *ctx) {
-  const char *args[] = {"echo", "-c", "/definitely/not/a/config.json"};
+  const char *args[] = {"--plain", "echo", "-c",
+                        "/definitely/not/a/config.json"};
   command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
   const bool ok =
       cc_expect_exit(&result, 0) &&
@@ -198,7 +210,7 @@ static bool test_command_metadata_is_enforced(test_context_t *ctx) {
   }
 
   {
-    const char *args[] = {"echo", "--", "--version"};
+    const char *args[] = {"--plain", "echo", "--", "--version"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&
          cc_expect_stdout_contains(&result, "--version") && ok;
@@ -207,7 +219,7 @@ static bool test_command_metadata_is_enforced(test_context_t *ctx) {
 
   {
     // Tokens after "--" are positionals: echo must print "--help", not help.
-    const char *args[] = {"echo", "--", "--help"};
+    const char *args[] = {"--plain", "echo", "--", "--help"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     const bool printed_help =
         result.out != NULL && strstr(result.out, "Usage:") != NULL;
@@ -244,7 +256,7 @@ static bool test_explicit_config_file_failures_are_visible(
 }
 
 static bool test_verbose_mode_emits_diagnostics_on_stderr(test_context_t *ctx) {
-  const char *args[] = {"--verbose", "hello"};
+  const char *args[] = {"--plain", "--verbose", "hello"};
   command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
   const bool ok = cc_expect_exit(&result, 0) &&
                   cc_expect_stdout_contains(&result, "Hello, World!") &&
@@ -296,10 +308,31 @@ static bool test_valid_flat_config_skips_unknown_scalar_keys(
 static bool test_unknown_command_reports_actionable_error(test_context_t *ctx) {
   const char *args[] = {"not-a-command"};
   command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
-  const bool ok = cc_expect_not_exit(&result, 0) &&
-                  cc_expect_stderr_contains(
-                      &result, "Invalid or unknown command: not-a-command") &&
-                  cc_expect_stderr_contains(&result, "--help");
+  const bool ok =
+      cc_expect_not_exit(&result, 0) &&
+      cc_expect_stderr_contains(&result, "Unknown command: not-a-command") &&
+      cc_expect_stderr_contains(&result, "--help");
+  cc_command_result_free(&result);
+  return ok;
+}
+
+static bool test_headless_json_request_dispatches_command(test_context_t *ctx) {
+  command_result_t result = cc_run_cli_with_stdin(
+      ctx, NULL, 0, "{\"command\":\"hello\",\"args\":[\"Alice\"]}", NULL, 0);
+  const bool ok =
+      cc_expect_exit(&result, 0) &&
+      cc_expect_stdout_contains(&result, "\"format_version\":\"1.0\"") &&
+      cc_expect_stdout_contains(&result, "\"message\":\"Hello, Alice!\"");
+  cc_command_result_free(&result);
+  return ok;
+}
+
+static bool test_headless_json_rejects_empty_stdin(test_context_t *ctx) {
+  command_result_t result = cc_run_cli_with_stdin(ctx, NULL, 0, "", NULL, 0);
+  const bool ok =
+      cc_expect_exit(&result, APP_ERROR_MISSING_ARG) &&
+      cc_expect_stderr_contains(&result, "Headless mode expects") &&
+      cc_expect_stderr_contains(&result, "\"format_version\":\"1.0\"");
   cc_command_result_free(&result);
   return ok;
 }
@@ -376,6 +409,8 @@ const test_case_t cli_contract_cases[] = {
     {"installed binary starts", test_installed_binary_starts},
     {"help is human readable", test_help_is_human_readable},
     {"builtins render expected output", test_builtins_render_expected_output},
+    {"json is default when stdout is not a tty",
+     test_json_is_default_when_stdout_is_not_tty},
     {"json info is versioned machine output",
      test_json_info_is_versioned_machine_output},
     {"quiet json commands suppress stdout",
@@ -398,6 +433,10 @@ const test_case_t cli_contract_cases[] = {
     {"unknown command reports actionable error",
      test_unknown_command_reports_actionable_error},
     {"terminal commands require a tty", test_terminal_command_requires_tty},
+    {"headless json request dispatches command",
+     test_headless_json_request_dispatches_command},
+    {"headless json rejects empty stdin",
+     test_headless_json_rejects_empty_stdin},
     {"opencli contract matches checked-in spec",
      test_opencli_contract_matches_checked_in_spec},
 };

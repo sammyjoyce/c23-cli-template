@@ -106,6 +106,12 @@ const app_command_option_t *app_command_option_find(
 APP_NODISCARD app_error
 app_command_validate_invocation(const app_command_t *command, int argc,
                                 char *const argv[], const char *program_name);
+APP_NODISCARD app_error app_command_validate_invocation_ex(
+    const app_command_t *command, int argc, char *const argv[],
+    const app_config_t *config, const char *program_name);
+
+// Shared TUI entry point used by both `myapp menu` and bare TTY launches.
+APP_NODISCARD app_error app_run_tui(const app_config_t *config);
 
 static inline const char *app_yes_no(bool value) {
   return app_bool_word(value);

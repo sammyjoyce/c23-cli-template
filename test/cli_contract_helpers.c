@@ -24,7 +24,9 @@
 #define fdopen _fdopen
 #define fileno _fileno
 #define getpid _getpid
+#define lseek _lseek
 #define open _open
+#define write _write
 #define unlink _unlink
 #else
 #include <fcntl.h>
@@ -367,12 +369,17 @@ void cc_command_result_free(command_result_t *result) {
   *result = (command_result_t){0};
 }
 
-static int run_child(char *const *argv, int stdout_fd, int stderr_fd) {
+static int run_child(char *const *argv, int stdin_fd, int stdout_fd,
+                     int stderr_fd) {
 #ifdef _WIN32
   fflush(NULL);
+  const int saved_stdin = dup(fileno(stdin));
   const int saved_stdout = dup(fileno(stdout));
   const int saved_stderr = dup(fileno(stderr));
-  if (saved_stdout < 0 || saved_stderr < 0) {
+  if (saved_stdin < 0 || saved_stdout < 0 || saved_stderr < 0) {
+    if (saved_stdin >= 0) {
+      close(saved_stdin);
+    }
     if (saved_stdout >= 0) {
       close(saved_stdout);
     }
@@ -381,11 +388,14 @@ static int run_child(char *const *argv, int stdout_fd, int stderr_fd) {
     }
     return -1;
   }
-  if (dup2(stdout_fd, fileno(stdout)) != 0 ||
+  if ((stdin_fd >= 0 && dup2(stdin_fd, fileno(stdin)) != 0) ||
+      dup2(stdout_fd, fileno(stdout)) != 0 ||
       dup2(stderr_fd, fileno(stderr)) != 0) {
     const int saved_errno = errno;
+    (void)dup2(saved_stdin, fileno(stdin));
     (void)dup2(saved_stdout, fileno(stdout));
     (void)dup2(saved_stderr, fileno(stderr));
+    close(saved_stdin);
     close(saved_stdout);
     close(saved_stderr);
     errno = saved_errno;
@@ -395,8 +405,10 @@ static int run_child(char *const *argv, int stdout_fd, int stderr_fd) {
   const int status = _spawnv(_P_WAIT, argv[0], (const char *const *)argv);
   const int saved_errno = errno;
   fflush(NULL);
+  (void)dup2(saved_stdin, fileno(stdin));
   (void)dup2(saved_stdout, fileno(stdout));
   (void)dup2(saved_stderr, fileno(stderr));
+  close(saved_stdin);
   close(saved_stdout);
   close(saved_stderr);
   errno = saved_errno;
@@ -407,7 +419,8 @@ static int run_child(char *const *argv, int stdout_fd, int stderr_fd) {
     return -1;
   }
   if (pid == 0) {
-    if (dup2(stdout_fd, STDOUT_FILENO) < 0 ||
+    if ((stdin_fd >= 0 && dup2(stdin_fd, STDIN_FILENO) < 0) ||
+        dup2(stdout_fd, STDOUT_FILENO) < 0 ||
         dup2(stderr_fd, STDERR_FILENO) < 0) {
       _exit(126);
     }
@@ -432,16 +445,47 @@ static int run_child(char *const *argv, int stdout_fd, int stderr_fd) {
 #endif
 }
 
+static bool write_stdin_fixture(temp_file_t *file, const char *stdin_text) {
+  if (!stdin_text) {
+    return true;
+  }
+  const size_t len = strlen(stdin_text);
+  const char *cursor = stdin_text;
+  size_t remaining = len;
+  while (remaining > 0) {
+    const int written = write(file->fd, cursor, remaining);
+    if (written <= 0) {
+      return false;
+    }
+    cursor += written;
+    remaining -= (size_t)written;
+  }
+  return lseek(file->fd, 0, SEEK_SET) >= 0;
+}
+
 static command_result_t run_process(char *const *argv, const env_var_t *env,
-                                    size_t env_count) {
+                                    size_t env_count, const char *stdin_text) {
+  temp_file_t stdin_file = {.path = NULL, .fd = -1};
   temp_file_t stdout_file;
   temp_file_t stderr_file;
+  if (stdin_text && !make_temp_file(&stdin_file, "stdin")) {
+    return make_error_result("failed to create stdin fixture file");
+  }
   if (!make_temp_file(&stdout_file, "stdout")) {
+    cleanup_temp_file(&stdin_file);
     return make_error_result("failed to create stdout capture file");
   }
   if (!make_temp_file(&stderr_file, "stderr")) {
+    cleanup_temp_file(&stdin_file);
     cleanup_temp_file(&stdout_file);
     return make_error_result("failed to create stderr capture file");
+  }
+
+  if (stdin_text && !write_stdin_fixture(&stdin_file, stdin_text)) {
+    cleanup_temp_file(&stdin_file);
+    cleanup_temp_file(&stdout_file);
+    cleanup_temp_file(&stderr_file);
+    return make_error_result("failed to write stdin fixture");
   }
 
   env_restore_t *restore = NULL;
@@ -452,23 +496,27 @@ static command_result_t run_process(char *const *argv, const env_var_t *env,
         restore_env(restore, env_count);
       }
       free(restore);
+      cleanup_temp_file(&stdin_file);
       cleanup_temp_file(&stdout_file);
       cleanup_temp_file(&stderr_file);
       return make_error_result("failed to apply child environment");
     }
   }
 
-  const int status = run_child(argv, stdout_file.fd, stderr_file.fd);
+  const int status = run_child(argv, stdin_text ? stdin_file.fd : -1,
+                               stdout_file.fd, stderr_file.fd);
   const int child_errno = errno;
   if (restore) {
     restore_env(restore, env_count);
     free(restore);
   }
+  close_temp_fd(&stdin_file);
   close_temp_fd(&stdout_file);
   close_temp_fd(&stderr_file);
 
   char *out = read_entire_file(stdout_file.path);
   char *err = read_entire_file(stderr_file.path);
+  cleanup_temp_file(&stdin_file);
   cleanup_temp_file(&stdout_file);
   cleanup_temp_file(&stderr_file);
 
@@ -499,7 +547,27 @@ command_result_t cc_run_cli(test_context_t *ctx, const char *const *args,
   }
   argv[arg_count + 1] = NULL;
 
-  command_result_t result = run_process(argv, env, env_count);
+  command_result_t result = run_process(argv, env, env_count, NULL);
+  free(argv);
+  return result;
+}
+
+command_result_t cc_run_cli_with_stdin(test_context_t *ctx,
+                                       const char *const *args,
+                                       size_t arg_count, const char *stdin_text,
+                                       const env_var_t *env, size_t env_count) {
+  char **argv = calloc(arg_count + 2, sizeof(*argv));
+  if (!argv) {
+    return make_error_result("out of memory building argv");
+  }
+  argv[0] = (char *)ctx->binary;
+  for (size_t i = 0; i < arg_count; i++) {
+    argv[i + 1] = (char *)args[i];
+  }
+  argv[arg_count + 1] = NULL;
+
+  command_result_t result =
+      run_process(argv, env, env_count, stdin_text ? stdin_text : "");
   free(argv);
   return result;
 }

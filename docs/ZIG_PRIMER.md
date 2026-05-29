@@ -29,7 +29,7 @@ zig build                         # build + install the binary to zig-out/bin/
 zig build run -- hello Alice      # build, then run with arguments after --
 zig build test                    # CLI contract tests + in-process unit tests
 zig build -Doptimize=ReleaseSafe  # optimized build
-zig build -Denable-tui=true run -- menu   # build with the TUI and open the demo menu
+zig build run                     # on a TTY, open the default TUI menu
 ```
 
 A `justfile` wraps the common ones if you prefer: `just build`, `just check`, `just test-fast`, `just clean`. Run `just help` to list them.
@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const app_name = b.option([]const u8, "app-name", "Application and binary name") orelse "myapp";
-    const enable_tui = b.option(bool, "enable-tui", "Enable the ncurses/PDCurses TUI") orelse false;
+    const enable_tui = b.option(bool, "enable-tui", "Enable the ncurses/PDCurses TUI") orelse true;
 
     const exe = b.addExecutable(.{
         .name = app_name,
@@ -108,7 +108,7 @@ Pass these as `-D<name>=<value>` on any `zig build` command.
 | --- | --- | --- |
 | `-Doptimize=` | `Debug` (default), `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | C optimization level (no Zig runtime is linked into this C-only binary) |
 | `-Dtarget=` | e.g. `x86_64-windows`, `aarch64-macos` | Cross-compile target |
-| `-Denable-tui=` | `true` / `false` (default `false`) | Compile the ncurses TUI and link curses |
+| `-Denable-tui=` | `true` / `false` (default `true`) | Compile the ncurses TUI and link curses |
 | `-Dapp-name=` | string (default `myapp`) | Application and binary name |
 | `-Dversion=` | string (default `0.1.0`) | Version baked into the binary |
 | `-Dstrict=` | `true` / `false` (default `false`) | Add extra warnings and treat warnings as errors |
@@ -155,7 +155,9 @@ zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSafe
 zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 ```
 
-The default CLI cross-compiles with no extra setup. A cross **TUI** build (`-Denable-tui=true`) also needs the curses library for the target; point at it with `-Dcurses-prefix=`.
+The default build includes the TUI, so cross builds need the curses library for the
+target; point at it with `-Dcurses-prefix=`. Use `-Denable-tui=false` for a
+CLI/headless-only cross build with no curses dependency.
 
 ## Zig vs Make and CMake
 
@@ -199,10 +201,10 @@ b.installArtifact(exe);
 
 **`zig: command not found`**. Install Zig 0.16.0. The simplest route is [zvm](https://github.com/tristanisham/zvm): `zvm install 0.16.0 && zvm use 0.16.0`.
 
-**ncurses/PDCurses headers or library not found.** Only happens with
-`-Denable-tui=true`. Install the dev package (`apt install libncurses-dev`, `brew
-install ncurses`, `dnf install ncurses-devel`), or point at a custom install with
-`-Dcurses-prefix=/path`.
+**ncurses/PDCurses headers or library not found.** The TUI is enabled by default.
+Install the dev package (`apt install libncurses-dev`, `brew install ncurses`,
+`dnf install ncurses-devel`), point at a custom install with `-Dcurses-prefix=/path`,
+or pass `-Denable-tui=false` for a CLI/headless-only build.
 
 **libghostty-vt not found for terminal tests.** The PTY/TUI backend is optional. See
 [TESTING.md](TESTING.md), or pass `-Dghostty-vt-prefix=/path`. Without it, auto mode

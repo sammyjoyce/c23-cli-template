@@ -72,14 +72,14 @@
         "required": false,
         "aliases": [],
         "arguments": [],
-        "description": "Output a versioned JSON response where supported"
+        "description": "Force a versioned JSON response (default when stdout is not a TTY)"
       },
       {
         "name": "plain",
         "required": false,
         "aliases": [],
         "arguments": [],
-        "description": "Output plain text without colors"
+        "description": "Force plain text without colors, even when stdout is not a TTY"
       },
       {
         "name": "no-color",
@@ -177,11 +177,11 @@
       },
       {
         "name": "menu",
-        "description": "Launch the interactive TUI main menu (requires --enable-tui).",
+        "description": "Launch the interactive TUI main menu.",
         "options": [],
         "arguments": [],
         "examples": [
-          "zig build -Denable-tui=true run -- menu"
+          "myapp menu"
         ],
         "metadata": {
           "requires": "ncurses",
@@ -297,7 +297,7 @@
       "myapp --json info",
       "myapp doctor",
       "myapp --json doctor",
-      "zig build -Denable-tui=true run -- menu",
+      "myapp menu",
       "myapp opencli",
       "myapp --help",
       "myapp --version"

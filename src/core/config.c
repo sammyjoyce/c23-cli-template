@@ -26,12 +26,10 @@
 
 #include "../utils/logging.h"
 
-#define MAX_COMMAND_ARGS 100
-
 struct app_config {
   char *program_name;
   char *command;
-  char *command_args[MAX_COMMAND_ARGS];
+  char *command_args[APP_MAX_COMMAND_ARGS];
   int command_arg_count;
   char *config_file;
   bool flags[APP_FLAG_COUNT];
@@ -73,7 +71,8 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--json",
-     .description = "Output a versioned JSON response where supported",
+     .description =
+         "Force a versioned JSON response (default when stdout is not a TTY)",
      .exclusive_mask = APP_FLAG_MASK(APP_FLAG_PLAIN_OUTPUT)},
     {.id = APP_FLAG_PLAIN_OUTPUT,
      .json_key = "plain_output",
@@ -81,7 +80,8 @@ static const app_flag_spec_t g_app_flag_table[APP_FLAG_COUNT] = {
      .env_match = NULL,
      .cli_short = NULL,
      .cli_long = "--plain",
-     .description = "Output plain text without colors",
+     .description =
+         "Force plain text without colors, even when stdout is not a TTY",
      .exclusive_mask = APP_FLAG_MASK(APP_FLAG_JSON_OUTPUT)},
     {.id = APP_FLAG_NO_COLOR,
      .json_key = "no_color",
@@ -403,6 +403,17 @@ bool app_config_is_verbose(const app_config_t *config) {
   return app_config_get_flag(config, APP_FLAG_VERBOSE);
 }
 
+app_error app_config_apply_output_defaults(app_config_t *config,
+                                           bool stdout_is_tty) {
+  CHECK_NULL(config, APP_ERROR_INVALID_ARG);
+
+  if (!stdout_is_tty && !app_config_is_plain_output(config) &&
+      !app_config_is_json_output(config)) {
+    return app_config_set_json_output(config, true);
+  }
+  return APP_SUCCESS;
+}
+
 // Setters
 app_error app_config_set_flag(app_config_t *config, app_flag_id id,
                               bool value) {
@@ -457,7 +468,7 @@ app_error app_config_add_command_arg(app_config_t *config, const char *arg) {
   if (!config || !arg) {
     return APP_ERROR_INVALID_ARG;
   }
-  if (config->command_arg_count >= MAX_COMMAND_ARGS) {
+  if (config->command_arg_count >= APP_MAX_COMMAND_ARGS) {
     return APP_ERROR_OUT_OF_RANGE;
   }
   char *copy = strdup(arg);

@@ -94,6 +94,12 @@ bool app_config_is_plain_output(const app_config_t *config);
 bool app_config_is_no_color(const app_config_t *config);
 bool app_config_is_verbose(const app_config_t *config);
 
+// Apply output defaults that depend on the launch context after all explicit
+// config sources have been loaded. Explicit plain/json flags already present on
+// the config win; otherwise stdout redirection defaults to JSON output.
+APP_NODISCARD app_error app_config_apply_output_defaults(app_config_t *config,
+                                                         bool stdout_is_tty);
+
 // Generic flag setter that also enforces exclusivity (e.g. setting json
 // clears plain). Prefer this from new code; the named setters below remain
 // for source compatibility.

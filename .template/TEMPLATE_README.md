@@ -8,7 +8,7 @@ A ready-to-use C23 TUI + CLI starter.
 - Human-readable and JSON output modes for automation-friendly commands.
 - Layered configuration from config files, environment, and CLI flags.
 - A live OpenCLI contract (`myapp opencli`) checked against `opencli.json`.
-- Optional ncurses/PDCurses TUI with windows, menus, dialogs, and progress bars.
+- Default ncurses/PDCurses TUI with windows, menus, dialogs, and progress bars (`-Denable-tui=false` disables it).
 - Optional `tui-menu-lib` static library exposing the reusable TUI menu.
 - A small module layout that keeps CLI routing, core state, I/O, TUI, and utilities separate.
 - Build, run, test, terminal-test, check, format, and clean steps in `build.zig`.
@@ -16,12 +16,11 @@ A ready-to-use C23 TUI + CLI starter.
 
 ## Requirements
 
-Default CLI builds need only:
+Default builds need:
 
 - Zig 0.16.0 (the version pinned by this template).
 - A system C toolchain for libc.
-
-Optional TUI builds (`-Denable-tui=true`) also need curses development files:
+- Curses development files for the default TUI build (`-Denable-tui=false` disables it):
 
 - Ubuntu/Debian: `sudo apt-get install pkg-config libncurses-dev`
 - macOS: `brew install pkg-config ncurses`
@@ -35,8 +34,8 @@ Optional PTY-backed TUI scenarios need `libghostty-vt` development files discove
 ```bash
 zig build                          # debug
 zig build -Doptimize=ReleaseSafe   # optimized
-zig build -Denable-tui=true        # with the ncurses/PDCurses TUI
-zig build -Denable-tui=true -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
+zig build -Denable-tui=false       # without the ncurses/PDCurses TUI
+zig build -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
 zig build tui-menu-lib             # the reusable TUI menu static library
 ```
 
@@ -55,10 +54,10 @@ The binary is named `myapp`; override it without editing source via `-Dapp-name=
 ./zig-out/bin/myapp opencli
 ```
 
-Build with TUI support before launching the interactive showcase:
+Run the interactive showcase in a real terminal:
 
 ```bash
-zig build -Denable-tui=true run -- menu
+zig build run
 ```
 
 ## Test and check
@@ -66,8 +65,7 @@ zig build -Denable-tui=true run -- menu
 ```bash
 zig build test            # unit tests + CLI contract tests
 zig build terminal-test   # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
-zig build -Denable-tui=true terminal-test  # TUI build; PTY scenarios run if libghostty-vt is found
-zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require Ghostty VT
+zig build -Dterminal-backend=ghostty terminal-test  # require Ghostty VT
 zig build -Dterminal-backend=none terminal-test  # never run PTY/TUI scenarios
 zig build check           # fmt-check + tests (the CI gate)
 ```
@@ -87,7 +85,7 @@ Auto mode skips them cleanly when it is absent, `-Dterminal-backend=ghostty` req
 |   |-- cli/      command parsing, help, and the command table
 |   |-- core/     configuration and typed errors
 |   |-- io/       text and JSON output
-|   |-- tui/      ncurses windows, menus, dialogs, progress (opt-in)
+|   |-- tui/      ncurses windows, menus, dialogs, progress
 |   `-- utils/    logging, colors, secret zeroing
 |-- test/
 |-- docs/

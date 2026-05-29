@@ -9,6 +9,7 @@ zig-pkg/
 
 # Local agent state
 .pi/
+TASK.md
 
 # OS files
 .DS_Store
@@ -28,6 +29,7 @@ Thumbs.db
 *.so
 *.dylib
 *.dll
+a.out
 
 # Test artifacts
 *.pid

@@ -264,6 +264,46 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
   return failed;
 }
 
+int run_tui_bare_invocation(test_stats_t *stats, const char *binary,
+                            bool tui_enabled) {
+  const char *name = "bare TTY invocation launches the TUI menu";
+  if (!tui_enabled) {
+    test_skip(stats, name, "rebuild with -Denable-tui=true");
+    return 0;
+  }
+
+  vt_session_t session;
+  if (!vt_session_start(&session, binary, NULL, 0, 80, 24)) {
+    return test_fail(stats, name, "failed to start PTY session");
+  }
+
+  char *snapshot = NULL;
+  int failed = 0;
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS,
+                      &snapshot)) {
+    failed = test_fail(stats, name, "bare invocation did not render the menu");
+  }
+  if (!failed && (!vt_send(&session, "q") ||
+                  !vt_expect_text(&session, "Return to the shell?",
+                                  PTY_TIMEOUT_MS, &snapshot) ||
+                  !vt_send(&session, "y"))) {
+    failed = test_fail(stats, name, "failed to drive clean TUI exit");
+  }
+  if (!failed) {
+    const int exit_code = vt_wait_for_exit(&session, PTY_TIMEOUT_MS);
+    if (exit_code != 0) {
+      failed = test_fail(stats, name, "expected exit 0, got %d", exit_code);
+    }
+  }
+
+  if (!failed) {
+    test_pass(stats, name);
+  }
+  free(snapshot);
+  vt_session_close(&session);
+  return failed;
+}
+
 int run_tui_stress_smoke(test_stats_t *stats, const char *binary,
                          bool tui_enabled) {
   const char *name = "tui deterministic input and resize smoke";

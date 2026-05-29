@@ -12,21 +12,7 @@
 #endif
 #include "commands.h"
 
-app_error app_cmd_menu(const app_config_t *config, int argc,
-                       char *const argv[]);
-
-app_error app_cmd_menu(const app_config_t *config, int argc,
-                       char *const argv[]) {
-  (void)argc;
-  (void)argv;
-
-  if (app_config_is_json_output(config)) {
-    app_output(
-        "The menu command is interactive; remove --json to launch the TUI.",
-        config, true);
-    return APP_ERROR_INVALID_ARG;
-  }
-
+app_error app_run_tui(const app_config_t *config) {
 #ifdef ENABLE_TUI
   const app_error tui_err = tui_run_app();
   if (tui_err == APP_ERROR_OUT_OF_RANGE) {
@@ -49,4 +35,22 @@ app_error app_cmd_menu(const app_config_t *config, int argc,
   }
   return APP_ERROR_CONFIG;
 #endif
+}
+
+app_error app_cmd_menu(const app_config_t *config, int argc,
+                       char *const argv[]);
+
+app_error app_cmd_menu(const app_config_t *config, int argc,
+                       char *const argv[]) {
+  (void)argc;
+  (void)argv;
+
+  if (app_config_is_json_output(config)) {
+    app_output(
+        "The menu command is interactive; remove --json to launch the TUI.",
+        config, true);
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  return app_run_tui(config);
 }

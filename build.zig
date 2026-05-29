@@ -61,13 +61,13 @@ fn resolveTerminalTestPlan(b: *std.Build, enable_tui: bool, terminal_backend: Te
         return .{ .fail = "-Dterminal-backend=ghostty is not supported on Windows" };
     }
     if (terminal_backend == .ghostty and !enable_tui) {
-        return .{ .fail = "-Dterminal-backend=ghostty requires -Denable-tui=true because the PTY scenarios exercise the TUI." };
+        return .{ .fail = "-Dterminal-backend=ghostty requires TUI support; omit -Denable-tui=false because the PTY scenarios exercise the TUI." };
     }
     if (terminal_backend == .none) {
         return .{ .skip = "Skipping PTY/TUI terminal scenarios: disabled by -Dterminal-backend=none." };
     }
     if (!enable_tui) {
-        return .{ .skip = "Skipping PTY/TUI terminal scenarios: pass -Denable-tui=true to build the TUI." };
+        return .{ .skip = "Skipping PTY/TUI terminal scenarios: TUI support was disabled with -Denable-tui=false." };
     }
     if (target_is_windows) {
         return .{ .skip = "Skipping PTY/TUI terminal scenarios: Ghostty VT backend is POSIX-only." };
@@ -272,7 +272,7 @@ pub fn build(b: *std.Build) void {
     // build script. Returns a []const u8 to match how build_date is consumed.
     const build_date = b.graph.environ_map.get("SOURCE_DATE_EPOCH") orelse "omitted";
 
-    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
+    const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: true)") orelse true;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
     const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto, none, or ghostty") orelse .auto;
     const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
@@ -314,6 +314,7 @@ pub fn build(b: *std.Build) void {
         "src/core/error.c",
         "src/core/config.c",
         "src/core/config_json.c",
+        "src/core/request_json.c",
         "src/utils/logging.c",
         "src/utils/memory.c",
         "src/utils/colors.c",
@@ -573,6 +574,7 @@ pub fn build(b: *std.Build) void {
             "src/core/diagnostics.c",
             "src/core/config.c",
             "src/core/config_json.c",
+            "src/core/request_json.c",
             "src/io/input.c",
             "src/io/terminal.c",
             "src/cli/option_meta.c",

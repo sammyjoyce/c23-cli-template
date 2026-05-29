@@ -1,7 +1,7 @@
 # Example: Creating a Custom TUI Screen
 
-The terminal UI is opt-in: it only compiles with `-Denable-tui=true` (which defines
-`ENABLE_TUI`). `tui.h` gives you a window wrapper, dialogs, a progress bar, and one
+The terminal UI is compiled by default (which defines `ENABLE_TUI`). Pass
+`-Denable-tui=false` for a CLI/headless-only build. `tui.h` gives you a window wrapper, dialogs, a progress bar, and one
 modal menu primitive, so command code never calls ncurses directly. Every screen
 follows the same rule: call `tui_init()` first, and `tui_cleanup()` before you return,
 on every path.
@@ -96,7 +96,7 @@ app_error app_cmd_viewer(const app_config_t *config, int argc,
     return show_data_viewer();
 #else
     fprintf(stderr, "Error: TUI support not compiled in.\n");
-    fprintf(stderr, "Rebuild with: zig build -Denable-tui=true\n");
+    fprintf(stderr, "Rebuild with TUI enabled (omit -Denable-tui=false).\n");
     return APP_ERROR_CONFIG;
 #endif
 }
@@ -197,7 +197,7 @@ Available pairs: `TUI_COLOR_DEFAULT`, `HIGHLIGHT`, `ERROR`, `SUCCESS`, `WARNING`
   ```
 
 - **Respect interrupts.** Check `tui_interrupted()` in long loops and exit cleanly.
-- **Test both builds.** Confirm `zig build` (no TUI) and `zig build -Denable-tui=true` both compile and behave. Drive TUI screens with the scenario harness in [TESTING.md](../docs/TESTING.md).
+- **Test both builds.** Confirm `zig build` (default TUI) and `zig build -Denable-tui=false` both compile and behave. Drive TUI screens with the scenario harness in [TESTING.md](../docs/TESTING.md).
 
 ## See also
 

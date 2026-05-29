@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../io/output.h"
 #include "option_meta.h"
 
 // Forward declarations for handlers defined in their own translation units.
@@ -76,7 +77,7 @@ static const char *const doctor_examples[] = {
 };
 
 static const char *const menu_examples[] = {
-    "zig build -Denable-tui=true run -- menu",
+    APP_NAME " menu",
 };
 
 static const char *const opencli_examples[] = {
@@ -136,7 +137,7 @@ static const app_command_t g_app_commands[] = {
      .example_count = sizeof(doctor_examples) / sizeof(doctor_examples[0]),
      .requires_terminal = false},
     {.name = "menu",
-     .summary = "Launch the interactive TUI main menu (requires --enable-tui).",
+     .summary = "Launch the interactive TUI main menu.",
      .handler = app_cmd_menu,
      .examples = menu_examples,
      .example_count = sizeof(menu_examples) / sizeof(menu_examples[0]),
@@ -259,12 +260,25 @@ static int app_command_max_positionals(const app_command_t *command) {
   return maximum;
 }
 
-app_error app_command_validate_invocation(const app_command_t *command,
-                                          int argc, char *const argv[],
-                                          const char *program_name) {
+static void app_command_report_validation_error(const app_config_t *config,
+                                                const char *message) {
+  if (config && app_config_is_json_output(config)) {
+    app_output(message, config, true);
+  } else {
+    fprintf(stderr, "%s\n", message);
+  }
+}
+
+app_error app_command_validate_invocation_ex(const app_command_t *command,
+                                             int argc, char *const argv[],
+                                             const app_config_t *config,
+                                             const char *program_name) {
   if (!command || argc < 0 || (argc > 0 && !argv)) {
     return APP_ERROR_INVALID_ARG;
   }
+
+  char message[256];
+  char hint[256];
 
   bool end_of_options = false;
   int positional_count = 0;
@@ -283,10 +297,13 @@ app_error app_command_validate_invocation(const app_command_t *command,
       if (app_command_option_find(command, arg)) {
         continue;
       }
-      fprintf(stderr, "Error: Unknown option '%s' for command '%s'\n", arg,
-              command->name);
-      fprintf(stderr, "Run '%s --help' for usage information\n",
-              program_name ? program_name : APP_NAME);
+      snprintf(message, sizeof(message),
+               "Error: Unknown option '%s' for command '%s'", arg,
+               command->name);
+      snprintf(hint, sizeof(hint), "Run '%s --help' for usage information",
+               program_name ? program_name : APP_NAME);
+      app_command_report_validation_error(config, message);
+      app_command_report_validation_error(config, hint);
       return APP_ERROR_UNKNOWN_OPTION;
     }
 
@@ -296,15 +313,26 @@ app_error app_command_validate_invocation(const app_command_t *command,
   const int minimum = app_command_min_positionals(command);
   const int maximum = app_command_max_positionals(command);
   if (positional_count < minimum) {
-    fprintf(stderr, "Error: Command '%s' expects at least %d argument%s\n",
-            command->name, minimum, minimum == 1 ? "" : "s");
+    snprintf(message, sizeof(message),
+             "Error: Command '%s' expects at least %d argument%s",
+             command->name, minimum, minimum == 1 ? "" : "s");
+    app_command_report_validation_error(config, message);
     return APP_ERROR_MISSING_ARG;
   }
   if (maximum != APP_ARG_ARITY_UNBOUNDED && positional_count > maximum) {
-    fprintf(stderr, "Error: Command '%s' expects at most %d argument%s\n",
-            command->name, maximum, maximum == 1 ? "" : "s");
+    snprintf(message, sizeof(message),
+             "Error: Command '%s' expects at most %d argument%s", command->name,
+             maximum, maximum == 1 ? "" : "s");
+    app_command_report_validation_error(config, message);
     return APP_ERROR_INVALID_ARG;
   }
 
   return APP_SUCCESS;
+}
+
+app_error app_command_validate_invocation(const app_command_t *command,
+                                          int argc, char *const argv[],
+                                          const char *program_name) {
+  return app_command_validate_invocation_ex(command, argc, argv, NULL,
+                                            program_name);
 }
