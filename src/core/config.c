@@ -211,7 +211,7 @@ static char *find_config_file(void) {
 
   // Check environment variable first
   const char *config_env = getenv("APP_CONFIG_PATH");
-  if (config_env && access(config_env, R_OK) == 0) {
+  if (config_env && config_env[0] != '\0') {
     return strdup(config_env);
   }
 
@@ -276,10 +276,10 @@ app_error app_config_load_file(app_config_t *const config, const char *path) {
   }
 
   long file_size = ftell(f);
-  if (file_size < 0 || (uintmax_t)file_size > (uintmax_t)SIZE_MAX - 1U) {
+  if (file_size < 0 || (uintmax_t)file_size > (uintmax_t)CONFIG_MAX_SIZE) {
     fclose(f);
     free(config_path);
-    return APP_ERROR_IO;
+    return APP_ERROR_OUT_OF_RANGE;
   }
 
   if (fseek(f, 0, SEEK_SET) != 0) {
@@ -335,8 +335,12 @@ app_error app_config_load_env(app_config_t *config) {
 
   for (size_t i = 0; i < APP_FLAG_COUNT; i++) {
     const app_flag_spec_t *spec = &g_app_flag_table[i];
-    if (app_flag_env_enabled(spec->id))
-      app_config_set_flag(config, spec->id, true);
+    if (app_flag_env_enabled(spec->id)) {
+      const app_error err = app_config_set_flag(config, spec->id, true);
+      if (err != APP_SUCCESS) {
+        return err;
+      }
+    }
   }
 
   return APP_SUCCESS;
@@ -354,12 +358,13 @@ const char *app_config_get_command(const app_config_t *config) {
   return config ? config->command : NULL;
 }
 
-char **app_config_get_command_args(const app_config_t *config, int *count) {
+char *const *app_config_get_command_args(const app_config_t *config,
+                                         int *count) {
   if (!config || !count) {
     return NULL;
   }
   *count = config->command_arg_count;
-  return (char **)config->command_args;
+  return config->command_args;
 }
 
 const char *app_config_get_config_file(const app_config_t *config) {
@@ -399,57 +404,74 @@ bool app_config_is_verbose(const app_config_t *config) {
 }
 
 // Setters
-void app_config_set_flag(app_config_t *config, app_flag_id id, bool value) {
+app_error app_config_set_flag(app_config_t *config, app_flag_id id,
+                              bool value) {
   if (!config || (int)id < 0 || id >= APP_FLAG_COUNT) {
-    return;
+    return APP_ERROR_INVALID_ARG;
   }
   app_flag_apply(config->flags, id, value);
+  return APP_SUCCESS;
 }
 
-void app_config_set_debug(app_config_t *config, bool debug) {
-  app_config_set_flag(config, APP_FLAG_DEBUG, debug);
+app_error app_config_set_debug(app_config_t *config, bool debug) {
+  return app_config_set_flag(config, APP_FLAG_DEBUG, debug);
 }
 
-void app_config_set_quiet(app_config_t *config, bool quiet) {
-  app_config_set_flag(config, APP_FLAG_QUIET, quiet);
+app_error app_config_set_quiet(app_config_t *config, bool quiet) {
+  return app_config_set_flag(config, APP_FLAG_QUIET, quiet);
 }
 
-void app_config_set_verbose(app_config_t *config, bool verbose) {
-  app_config_set_flag(config, APP_FLAG_VERBOSE, verbose);
+app_error app_config_set_verbose(app_config_t *config, bool verbose) {
+  return app_config_set_flag(config, APP_FLAG_VERBOSE, verbose);
 }
 
-void app_config_set_json_output(app_config_t *config, bool json) {
-  app_config_set_flag(config, APP_FLAG_JSON_OUTPUT, json);
+app_error app_config_set_json_output(app_config_t *config, bool json) {
+  return app_config_set_flag(config, APP_FLAG_JSON_OUTPUT, json);
 }
 
-void app_config_set_plain_output(app_config_t *config, bool plain) {
-  app_config_set_flag(config, APP_FLAG_PLAIN_OUTPUT, plain);
+app_error app_config_set_plain_output(app_config_t *config, bool plain) {
+  return app_config_set_flag(config, APP_FLAG_PLAIN_OUTPUT, plain);
 }
 
-void app_config_set_no_color(app_config_t *config, bool no_color) {
-  app_config_set_flag(config, APP_FLAG_NO_COLOR, no_color);
+app_error app_config_set_no_color(app_config_t *config, bool no_color) {
+  return app_config_set_flag(config, APP_FLAG_NO_COLOR, no_color);
 }
 
-void app_config_set_program_name(app_config_t *config, const char *name) {
-  if (config) {
-    app_config_set_string(&config->program_name, name);
+app_error app_config_set_program_name(app_config_t *config, const char *name) {
+  if (!config || !name) {
+    return APP_ERROR_INVALID_ARG;
   }
+  return app_config_set_string(&config->program_name, name) ? APP_SUCCESS
+                                                            : APP_ERROR_MEMORY;
 }
 
-void app_config_set_command(app_config_t *config, const char *command) {
-  if (config) {
-    app_config_set_string(&config->command, command);
+app_error app_config_set_command(app_config_t *config, const char *command) {
+  if (!config || !command) {
+    return APP_ERROR_INVALID_ARG;
   }
+  return app_config_set_string(&config->command, command) ? APP_SUCCESS
+                                                          : APP_ERROR_MEMORY;
 }
 
-void app_config_add_command_arg(app_config_t *config, const char *arg) {
-  if (config && arg && config->command_arg_count < MAX_COMMAND_ARGS) {
-    config->command_args[config->command_arg_count++] = strdup(arg);
+app_error app_config_add_command_arg(app_config_t *config, const char *arg) {
+  if (!config || !arg) {
+    return APP_ERROR_INVALID_ARG;
   }
+  if (config->command_arg_count >= MAX_COMMAND_ARGS) {
+    return APP_ERROR_OUT_OF_RANGE;
+  }
+  char *copy = strdup(arg);
+  if (!copy) {
+    return APP_ERROR_MEMORY;
+  }
+  config->command_args[config->command_arg_count++] = copy;
+  return APP_SUCCESS;
 }
 
-void app_config_set_config_file(app_config_t *config, const char *path) {
-  if (config) {
-    app_config_set_string(&config->config_file, path);
+app_error app_config_set_config_file(app_config_t *config, const char *path) {
+  if (!config || !path) {
+    return APP_ERROR_INVALID_ARG;
   }
+  return app_config_set_string(&config->config_file, path) ? APP_SUCCESS
+                                                           : APP_ERROR_MEMORY;
 }

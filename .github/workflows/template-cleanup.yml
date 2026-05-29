@@ -30,6 +30,9 @@ on:
         required: true
         default: "MIT"
 
+permissions:
+  contents: write
+
 jobs:
   cleanup:
     name: "Cleanup Template Files"
@@ -38,18 +41,16 @@ jobs:
     runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: "Checkout repository"
-        uses: "actions/checkout@v4"
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "Install Dependencies"
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
-          # Install 'sd', a fast find-and-replace tool.
-          # We are fetching a pre-built binary for efficiency.
-          curl -L https://github.com/chmln/sd/releases/download/v0.7.6/sd-v0.7.6-x86_64-unknown-linux-musl.tar.gz | tar xz -C /usr/local/bin --strip-components=1
+          cargo install sd --locked --version 1.0.0
 
       - name: "Set up Zig"
-        uses: mlugg/setup-zig@v2
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
         with:
           version: 0.16.0
 
@@ -67,8 +68,8 @@ jobs:
           bash ./.template/setup.sh --non-interactive --cleanup
 
       - name: "Commit and Push Changes"
-        uses: "stefanzweifel/git-auto-commit-action@v5"
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5
         with:
           commit_message: "chore: cleanup template files"
           branch: main
-          file_pattern: "**/*" # Commit all changes made by the scripts
+          file_pattern: "README.md CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE SECURITY.md build.zig build.zig.zon opencli.json renovate.json .github .devcontainer .template .templatesyncignore docs examples src test .clang-format .editorconfig .envrc .gitattributes .gitignore .markdownlint.json .pre-commit-config.yaml"

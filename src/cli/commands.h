@@ -13,13 +13,16 @@
 
 #define APP_ARG_ARITY_UNBOUNDED (-1)
 
+// Handlers only read the argv vector (they never reorder or rewrite entries),
+// so argv is passed as char *const argv[]. This matches the char *const *
+// returned by app_config_get_command_args and avoids a const-stripping cast at
+// the dispatch site.
 typedef app_error (*app_command_fn)(const app_config_t *config, int argc,
-                                    char **argv);
+                                    char *const argv[]);
 
 typedef struct {
   const char *name;
   bool required;
-  int ordinal;
   int arity_minimum;
   int arity_maximum;  // APP_ARG_ARITY_UNBOUNDED means JSON null
   const char *description;
@@ -95,6 +98,13 @@ const app_command_t *app_command_find(const char *name);
 // Look up a command option by CLI spelling, for example "--deep".
 const app_command_option_t *app_command_option_find(
     const app_command_t *command, const char *arg);
+
+// Validate an invocation against command metadata before dispatch. Command
+// options are recognized as --name before a -- delimiter; remaining tokens are
+// positionals and must satisfy the declared arity.
+APP_NODISCARD app_error
+app_command_validate_invocation(const app_command_t *command, int argc,
+                                char *const argv[], const char *program_name);
 
 static inline const char *app_yes_no(bool value) {
   return value ? "yes" : "no";

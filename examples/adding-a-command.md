@@ -7,7 +7,8 @@ This example adds a `greet` command that greets one or more people. The same fiv
 Create a command translation unit, for example `src/cli/commands_greet.c`. Every handler has the same signature: it takes the resolved config and the command's arguments, and returns an `app_error`.
 
 ```c
-app_error app_cmd_greet(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_greet(const app_config_t *config, int argc,
+                        char *const argv[]) {
     if (argc == 0) {
         fprintf(stderr, "Error: greet command requires at least one name\n");
         return APP_ERROR_MISSING_ARG;
@@ -34,12 +35,12 @@ Add the new file to the `base_sources` array in `build.zig` so it is compiled (s
 Add the forward declaration, argument table, examples, and a command row to `g_app_commands` in `src/cli/commands.c`. This one table feeds dispatch, help text, and `myapp opencli`.
 
 ```c
-app_error app_cmd_greet(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_greet(const app_config_t *config, int argc,
+                        char *const argv[]);
 
 static const app_command_arg_t greet_args[] = {
     {.name = "names",
      .required = true,
-     .ordinal = 1,
      .arity_minimum = 1,
      .arity_maximum = APP_ARG_ARITY_UNBOUNDED,
      .description = "Names of people to greet"},
@@ -71,7 +72,7 @@ The contract is checked in, and `zig build test` fails if it drifts from the bin
 zig build run -- opencli > opencli.json
 ```
 
-Your command should now appear in the `commands` array:
+Your command should now appear in the root command's `commands` array:
 
 ```json
 {
@@ -82,7 +83,6 @@ Your command should now appear in the `commands` array:
     {
       "name": "names",
       "required": true,
-      "ordinal": 1,
       "arity": {
         "minimum": 1,
         "maximum": null

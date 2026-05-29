@@ -220,3 +220,52 @@ void app_print_verbose_usage(const char *program_name) {
   printf(
       "  Documentation: https://github.com/yourusername/yourproject#readme\n");
 }
+
+void app_print_command_help(const char *program_name,
+                            const app_command_t *command) {
+  program_name = program_or_default(program_name);
+  if (!command) {
+    app_print_concise_help(program_name);
+    return;
+  }
+
+  printf("%s - %s\n\n", command->name,
+         command->summary ? command->summary : "Command");
+  printf("Usage: %s %s", program_name, command->name);
+  for (size_t i = 0; i < command->argument_count; i++) {
+    const app_command_arg_t *arg = &command->arguments[i];
+    printf(arg->required ? " <%s>" : " [%s]", arg->name);
+    if (arg->arity_maximum == APP_ARG_ARITY_UNBOUNDED) {
+      printf("...");
+    }
+  }
+  printf("\n\n");
+
+  if (command->option_count > 0) {
+    printf("Options:\n");
+    for (size_t i = 0; i < command->option_count; i++) {
+      char left[64];
+      format_option_label(left, sizeof(left), NULL, command->options[i].name,
+                          NULL);
+      printf("  %-20s%s\n", left, command->options[i].description);
+    }
+    printf("\n");
+  }
+
+  if (command->argument_count > 0) {
+    printf("Arguments:\n");
+    for (size_t i = 0; i < command->argument_count; i++) {
+      const app_command_arg_t *arg = &command->arguments[i];
+      printf("  %-20s%s\n", arg->name,
+             arg->description ? arg->description : "");
+    }
+    printf("\n");
+  }
+
+  if (command->example_count > 0) {
+    printf("Examples:\n");
+    for (size_t i = 0; i < command->example_count; i++) {
+      printf("  %s\n", command->examples[i]);
+    }
+  }
+}

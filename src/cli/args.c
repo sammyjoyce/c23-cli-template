@@ -32,7 +32,9 @@ static bool app_args_try_bool_flag(const char *arg, app_config_t *config) {
     const bool long_match = spec->cli_long && strcmp(arg, spec->cli_long) == 0;
     if (short_match || long_match) {
       if (config) {
-        app_config_set_flag(config, spec->id, true);
+        if (app_config_set_flag(config, spec->id, true) != APP_SUCCESS) {
+          return false;
+        }
       }
       return true;
     }
@@ -75,7 +77,10 @@ static app_error app_scan_global_args(int argc, char *argv[],
         args->config_path = config_path;
       }
       if (value_option->id == APP_GLOBAL_VALUE_OPTION_CONFIG && config) {
-        app_config_set_config_file(config, config_path);
+        const app_error err = app_config_set_config_file(config, config_path);
+        if (err != APP_SUCCESS) {
+          return err;
+        }
       }
       continue;
     }
@@ -92,8 +97,25 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
   CHECK_NULL(argv, APP_ERROR_INVALID_ARG);
 
   for (int i = 1; i < argc; i++) {
+    if (!argv[i]) {
+      return APP_ERROR_INVALID_ARG;
+    }
+
+    if (strcmp(argv[i], "--") == 0) {
+      break;
+    }
+
+    if (argv[i][0] != '-') {
+      break;
+    }
+
     const app_builtin_option_t *option = app_builtin_option_find(argv[i]);
     if (!option) {
+      const app_global_value_option_t *value_option =
+          app_global_value_option_find(argv[i]);
+      if (value_option) {
+        i++;
+      }
       continue;
     }
     switch (option->id) {
@@ -103,7 +125,12 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
     case APP_BUILTIN_OPTION_VERSION:
       printf("%s %s\n", APP_NAME, APP_VERSION);
       printf("A C23 TUI + CLI starter application\n");
-      printf("Built with: Zig, C23, ncurses/PDCurses\n");
+      printf("Built with: Zig, C23\n");
+#ifdef ENABLE_TUI
+      printf("TUI: enabled via curses\n");
+#else
+      printf("TUI: disabled\n");
+#endif
       exit(0);
     }
   }
@@ -130,9 +157,12 @@ app_error app_parse_args(int argc, char *argv[], app_config_t *config) {
   CHECK_NULL(config, APP_ERROR_INVALID_ARG);
 
   // Store program name
-  app_config_set_program_name(config, argv[0]);
+  app_error err = app_config_set_program_name(config, argv[0]);
+  if (err != APP_SUCCESS) {
+    return err;
+  }
 
-  app_error err = app_args_handle_immediate_exit(argc, argv);
+  err = app_args_handle_immediate_exit(argc, argv);
   if (err != APP_SUCCESS) {
     return err;
   }
@@ -145,11 +175,18 @@ app_error app_parse_args(int argc, char *argv[], app_config_t *config) {
 
   // Set command and its arguments
   if (args.command_index >= 0) {
-    app_config_set_command(config, argv[args.command_index]);
+    err = app_config_set_command(config, argv[args.command_index]);
+    if (err != APP_SUCCESS) {
+      return err;
+    }
 
-    // Add remaining arguments as command arguments
+    // Add remaining arguments as command arguments. A bare -- is preserved so
+    // validation can treat subsequent flag-shaped tokens as positionals.
     for (int i = args.command_index + 1; i < argc; i++) {
-      app_config_add_command_arg(config, argv[i]);
+      err = app_config_add_command_arg(config, argv[i]);
+      if (err != APP_SUCCESS) {
+        return err;
+      }
     }
   }
 

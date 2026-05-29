@@ -87,6 +87,10 @@ void tui_replace_background(tui_window_t *old_window,
 /* ---- signal handling ---------------------------------------------------- */
 
 #ifndef _WIN32
+static struct sigaction tui_previous_sigint;
+static struct sigaction tui_previous_sigterm;
+static bool tui_signal_handlers_installed = false;
+
 static void tui_signal_handler(int signum) {
   (void)signum;
   const int saved_errno = errno;
@@ -95,27 +99,40 @@ static void tui_signal_handler(int signum) {
 }
 #endif
 
-static void tui_install_signal_handlers(void) {
+static app_error tui_install_signal_handlers(void) {
 #ifndef _WIN32
   struct sigaction sa_int = {.sa_handler = tui_signal_handler};
   sigemptyset(&sa_int.sa_mask);
   /* Clear SA_RESTART so wgetch returns ERR and the menu loop can react. */
   sa_int.sa_flags = 0;
-  sigaction(SIGINT, &sa_int, NULL);
+  if (sigaction(SIGINT, &sa_int, &tui_previous_sigint) != 0) {
+    LOG_ERROR("Failed to install SIGINT handler: %s", strerror(errno));
+    return APP_ERROR_SIGNAL;
+  }
 
   struct sigaction sa_term = {.sa_handler = tui_signal_handler};
   sigemptyset(&sa_term.sa_mask);
   sa_term.sa_flags = SA_RESTART;
-  sigaction(SIGTERM, &sa_term, NULL);
+  if (sigaction(SIGTERM, &sa_term, &tui_previous_sigterm) != 0) {
+    const int saved_errno = errno;
+    (void)sigaction(SIGINT, &tui_previous_sigint, NULL);
+    errno = saved_errno;
+    LOG_ERROR("Failed to install SIGTERM handler: %s", strerror(errno));
+    return APP_ERROR_SIGNAL;
+  }
+  tui_signal_handlers_installed = true;
 #endif
+  return APP_SUCCESS;
 }
 
 static void tui_uninstall_signal_handlers(void) {
 #ifndef _WIN32
-  struct sigaction sa = {.sa_handler = SIG_DFL};
-  sigemptyset(&sa.sa_mask);
-  sigaction(SIGINT, &sa, NULL);
-  sigaction(SIGTERM, &sa, NULL);
+  if (!tui_signal_handlers_installed) {
+    return;
+  }
+  (void)sigaction(SIGINT, &tui_previous_sigint, NULL);
+  (void)sigaction(SIGTERM, &tui_previous_sigterm, NULL);
+  tui_signal_handlers_installed = false;
 #endif
 }
 
@@ -188,11 +205,27 @@ app_error tui_init(void) {
     return APP_ERROR_INTERNAL;
   }
 
-  tui_install_signal_handlers();
+  app_error err = tui_install_signal_handlers();
+  if (err != APP_SUCCESS) {
+    endwin();
+    return err;
+  }
 
-  cbreak();
-  noecho();
-  keypad(stdscr, TRUE);
+  if (cbreak() == ERR) {
+    LOG_ERROR("Failed to enable cbreak mode");
+    err = APP_ERROR_INTERNAL;
+    goto fail;
+  }
+  if (noecho() == ERR) {
+    LOG_ERROR("Failed to disable terminal echo");
+    err = APP_ERROR_INTERNAL;
+    goto fail;
+  }
+  if (keypad(stdscr, TRUE) == ERR) {
+    LOG_ERROR("Failed to enable keypad input");
+    err = APP_ERROR_INTERNAL;
+    goto fail;
+  }
   tui_saved_cursor_state = curs_set(0);
 
   if (has_colors()) {
@@ -208,6 +241,13 @@ app_error tui_init(void) {
   tui_initialized = true;
   LOG_DEBUG("TUI initialized successfully");
   return APP_SUCCESS;
+
+fail:
+  tui_uninstall_signal_handlers();
+  endwin();
+  tui_default_colors = false;
+  tui_interrupted_flag = 0;
+  return err;
 }
 
 void tui_cleanup(void) {
@@ -679,6 +719,7 @@ bool tui_modal_run(int height, int width, const char *title,
       continue;
     }
     if (ch == ERR) {
+      napms(10);
       continue;
     }
     if (handle(window, ch, userdata) == TUI_MODAL_DONE) {

@@ -128,6 +128,24 @@ static bool test_config_json_rejects_trailing_garbage(void) {
   return app_config_parse_json_state(&state, input) != APP_SUCCESS;
 }
 
+static bool test_config_json_rejects_long_keys(void) {
+  char input[96];
+  memset(input, 'a', sizeof(input));
+  input[0] = '{';
+  input[1] = '"';
+  input[sizeof(input) - 8] = '"';
+  input[sizeof(input) - 7] = ':';
+  input[sizeof(input) - 6] = 't';
+  input[sizeof(input) - 5] = 'r';
+  input[sizeof(input) - 4] = 'u';
+  input[sizeof(input) - 3] = 'e';
+  input[sizeof(input) - 2] = '}';
+  input[sizeof(input) - 1] = '\0';
+
+  app_config_json_state_t state = {0};
+  return app_config_parse_json_state(&state, input) == APP_ERROR_OUT_OF_RANGE;
+}
+
 static bool test_config_json_output_exclusivity(void) {
   app_config_json_state_t state = {0};
   const char *input = "{\"plain_output\":true,\"json_output\":true}";
@@ -154,14 +172,14 @@ static bool test_config_setter_log_level_exclusivity(void) {
     return false;
   }
 
-  app_config_set_debug(config, true);
-  bool ok = app_config_is_debug(config) && !app_config_is_quiet(config) &&
+  bool ok = app_config_set_debug(config, true) == APP_SUCCESS &&
+            app_config_is_debug(config) && !app_config_is_quiet(config) &&
             !app_config_is_verbose(config);
-  app_config_set_quiet(config, true);
-  ok = ok && !app_config_is_debug(config) && app_config_is_quiet(config) &&
+  ok = ok && app_config_set_quiet(config, true) == APP_SUCCESS &&
+       !app_config_is_debug(config) && app_config_is_quiet(config) &&
        !app_config_is_verbose(config);
-  app_config_set_verbose(config, true);
-  ok = ok && !app_config_is_debug(config) && !app_config_is_quiet(config) &&
+  ok = ok && app_config_set_verbose(config, true) == APP_SUCCESS &&
+       !app_config_is_debug(config) && !app_config_is_quiet(config) &&
        app_config_is_verbose(config);
 
   app_config_destroy(config);
@@ -193,6 +211,8 @@ void run_config_unit_tests(unit_stats_t *stats) {
               "config_json rejects \\uXXXX escapes");
   unit_record(stats, test_config_json_rejects_trailing_garbage(),
               "config_json rejects trailing garbage");
+  unit_record(stats, test_config_json_rejects_long_keys(),
+              "config_json rejects truncated keys");
   unit_record(stats, test_config_json_output_exclusivity(),
               "config_json enforces output flag exclusivity");
   unit_record(stats, test_config_json_log_level_exclusivity(),

@@ -95,8 +95,51 @@ static app_error app_config_parse_json_string(const char **cursor, char *out,
       return APP_ERROR_CONFIG_PARSE;
     }
 
-    if (used + 1 < out_size) {
-      out[used++] = (char)ch;
+    if (used + 1 >= out_size) {
+      return APP_ERROR_OUT_OF_RANGE;
+    }
+    out[used++] = (char)ch;
+  }
+
+  return APP_ERROR_CONFIG_PARSE;
+}
+
+static app_error app_config_skip_json_string(const char **cursor) {
+  if (!cursor || !*cursor) {
+    return APP_ERROR_INVALID_ARG;
+  }
+
+  const char *p = app_config_skip_json_ws(*cursor);
+  if (!p || *p != '"') {
+    return APP_ERROR_CONFIG_PARSE;
+  }
+  p++;
+
+  while (*p != '\0') {
+    unsigned char ch = (unsigned char)*p++;
+    if (ch == '"') {
+      *cursor = p;
+      return APP_SUCCESS;
+    }
+    if (ch == '\\') {
+      ch = (unsigned char)*p++;
+      switch (ch) {
+      case '"':
+      case '\\':
+      case '/':
+      case 'b':
+      case 'f':
+      case 'n':
+      case 'r':
+      case 't':
+        break;
+      case 'u':
+        return APP_ERROR_CONFIG_PARSE;
+      default:
+        return APP_ERROR_CONFIG_PARSE;
+      }
+    } else if (ch < 0x20) {
+      return APP_ERROR_CONFIG_PARSE;
     }
   }
 
@@ -165,8 +208,7 @@ static app_error app_config_skip_json_scalar(const char **cursor) {
   }
 
   if (*p == '"') {
-    char ignored[1];
-    return app_config_parse_json_string(cursor, ignored, sizeof(ignored));
+    return app_config_skip_json_string(cursor);
   }
   if (*p == 't') {
     return app_config_skip_json_literal(cursor, "true");

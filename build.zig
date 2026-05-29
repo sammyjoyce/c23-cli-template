@@ -1,5 +1,42 @@
 const std = @import("std");
 
+fn buildPanic(err: anyerror) noreturn {
+    std.debug.panic("build allocation failed: {s}", .{@errorName(err)});
+}
+
+fn appendEscapedCString(out: *std.ArrayList(u8), allocator: std.mem.Allocator, value: []const u8) void {
+    out.append(allocator, '"') catch |err| buildPanic(err);
+    for (value) |ch| {
+        switch (ch) {
+            '\\' => out.appendSlice(allocator, "\\\\") catch |err| buildPanic(err),
+            '"' => out.appendSlice(allocator, "\\\"") catch |err| buildPanic(err),
+            '\n' => out.appendSlice(allocator, "\\n") catch |err| buildPanic(err),
+            '\r' => out.appendSlice(allocator, "\\r") catch |err| buildPanic(err),
+            '\t' => out.appendSlice(allocator, "\\t") catch |err| buildPanic(err),
+            0 => out.appendSlice(allocator, "\\0") catch |err| buildPanic(err),
+            else => if (ch < 0x20) {
+                const hex = "0123456789abcdef";
+                out.appendSlice(allocator, "\\x") catch |err| buildPanic(err);
+                out.append(allocator, hex[ch >> 4]) catch |err| buildPanic(err);
+                out.append(allocator, hex[ch & 0x0f]) catch |err| buildPanic(err);
+            } else {
+                out.append(allocator, ch) catch |err| buildPanic(err);
+            },
+        }
+    }
+    out.append(allocator, '"') catch |err| buildPanic(err);
+}
+
+fn cStringDefine(b: *std.Build, name: []const u8, value: []const u8) []const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(b.allocator);
+    out.appendSlice(b.allocator, "-D") catch |err| buildPanic(err);
+    out.appendSlice(b.allocator, name) catch |err| buildPanic(err);
+    out.append(b.allocator, '=') catch |err| buildPanic(err);
+    appendEscapedCString(&out, b.allocator, value);
+    return out.toOwnedSlice(b.allocator) catch |err| buildPanic(err);
+}
+
 const TerminalTestBackend = enum {
     auto,
     none,
@@ -191,10 +228,19 @@ pub fn build(b: *std.Build) void {
         break :blk b.dupe(trimmed);
     };
 
+    // Read SOURCE_DATE_EPOCH from the build graph's captured environment rather
+    // than std.c.getenv: the latter forces the build runner to link libc, which
+    // breaks Linux/Windows CI ("dependency on libc must be explicitly
+    // specified"). graph.environ_map is the libc-free std way to read env in a
+    // build script. Returns a []const u8 to match how build_date is consumed.
+    const build_date = b.graph.environ_map.get("SOURCE_DATE_EPOCH") orelse "omitted";
+
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");
     const terminal_backend = b.option(TerminalTestBackend, "terminal-backend", "Terminal test backend: auto, none, or ghostty") orelse .auto;
     const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
+    const strict = b.option(bool, "strict", "Treat warnings as errors and enable extra diagnostics") orelse false;
+    const harden = b.option(bool, "harden", "Add supported compiler hardening flags") orelse false;
 
     const exe = b.addExecutable(.{
         .name = binary_name,
@@ -249,10 +295,23 @@ pub fn build(b: *std.Build) void {
         }
     }.die;
     c_flags.appendSlice(b.allocator, &base_flags) catch |err| oom(err);
-    c_flags.append(b.allocator, b.fmt("-DAPP_VERSION=\"{s}\"", .{version_str})) catch |err| oom(err);
-    c_flags.append(b.allocator, b.fmt("-DAPP_NAME=\"{s}\"", .{app_name})) catch |err| oom(err);
-    c_flags.append(b.allocator, b.fmt("-DAPP_GIT_COMMIT=\"{s}\"", .{git_commit})) catch |err| oom(err);
-    c_flags.append(b.allocator, "-DAPP_BUILD_DATE=\"reproducible\"") catch |err| oom(err);
+    if (strict) {
+        c_flags.appendSlice(b.allocator, &.{
+            "-Werror",
+            "-Wpedantic",
+            "-Wshadow",
+        }) catch |err| oom(err);
+    }
+    if (harden) {
+        c_flags.appendSlice(b.allocator, &.{
+            "-fstack-protector-strong",
+            "-D_FORTIFY_SOURCE=2",
+        }) catch |err| oom(err);
+    }
+    c_flags.append(b.allocator, cStringDefine(b, "APP_VERSION", version_str)) catch |err| oom(err);
+    c_flags.append(b.allocator, cStringDefine(b, "APP_NAME", app_name)) catch |err| oom(err);
+    c_flags.append(b.allocator, cStringDefine(b, "APP_GIT_COMMIT", git_commit)) catch |err| oom(err);
+    c_flags.append(b.allocator, cStringDefine(b, "APP_BUILD_DATE", build_date)) catch |err| oom(err);
 
     if (enable_tui) {
         c_flags.append(b.allocator, "-DENABLE_TUI=1") catch |err| oom(err);
@@ -386,10 +445,12 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "test/unit_runner.c",
             "test/unit_config_tests.c",
+            "test/unit_input_tests.c",
             "test/unit_tui_menu_tests.c",
             "src/core/error.c",
             "src/core/config.c",
             "src/core/config_json.c",
+            "src/io/input.c",
             "src/tui/tui_menu_model.c",
             "src/utils/colors.c",
             "src/utils/memory.c",
@@ -474,7 +535,7 @@ pub fn build(b: *std.Build) void {
 
     // Clean command – cross-platform
     const clean_cmd = if (target.result.os.tag == .windows)
-        b.addSystemCommand(&.{ "cmd", "/C", "rmdir", "/S", "/Q", "zig-out", "&&", "rmdir", "/S", "/Q", ".zig-cache" })
+        b.addSystemCommand(&.{ "cmd", "/C", "if exist zig-out rmdir /S /Q zig-out & if exist .zig-cache rmdir /S /Q .zig-cache" })
     else
         b.addSystemCommand(&.{ "rm", "-rf", "zig-out", ".zig-cache" });
     const clean_step = b.step("clean", "Clean build artifacts");

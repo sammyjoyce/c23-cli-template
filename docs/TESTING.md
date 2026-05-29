@@ -16,7 +16,8 @@ The first two run everywhere with no extra dependencies. The third needs libghos
 zig build unit-test       # just the in-process unit tests
 zig build test            # unit tests + CLI contract tests
 zig build terminal-test   # unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
-zig build check           # fmt-check + tests (the gate CI runs)
+zig build check           # fmt-check + tests
+zig build -Dstrict=true check  # stricter local/CI gate: extra warnings as errors
 ```
 
 PTY/TUI scenarios only run when the TUI is built and a terminal backend is present:
@@ -98,7 +99,7 @@ Prefer small step tables (`expect`, `send`, `resize`, `wait`) over long branch l
 
 ## What CI runs
 
-CI runs `zig build check` on Linux, macOS, and Windows without Nix, so the unit and CLI
+CI runs `zig build -Dstrict=true check` on Linux, macOS, and Windows without Nix, so the unit and CLI
 contract suites are enforced on every platform. CI also builds the TUI with platform
 package managers and runs a `--json info` smoke check.
 

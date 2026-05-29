@@ -437,6 +437,15 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
   if (!wmouse_trafo(L->frame->win, &wy, &wx, FALSE))
     return TUI_MENU_EV_NONE;
 
+  if (ev.bstate & BUTTON4_PRESSED) {
+    tui_menu_state_step(s, -1);
+    return TUI_MENU_EV_NONE;
+  }
+  if (ev.bstate & BUTTON5_PRESSED) {
+    tui_menu_state_step(s, 1);
+    return TUI_MENU_EV_NONE;
+  }
+
   if (wy < L->item_area_y || wy >= L->item_area_y + L->item_area_h) {
     return TUI_MENU_EV_NONE;
   }
@@ -447,15 +456,6 @@ static tui_menu_event_t menu_handle_mouse(tui_menu_state_t *s,
   const tui_menu_config_t *cfg = tui_menu_state_config(s);
   const int idx = tui_menu_state_visible_at(s, v);
   const tui_menu_item_t *it = &cfg->items[idx];
-
-  if (ev.bstate & BUTTON4_PRESSED) {
-    tui_menu_state_step(s, -1);
-    return TUI_MENU_EV_NONE;
-  }
-  if (ev.bstate & BUTTON5_PRESSED) {
-    tui_menu_state_step(s, 1);
-    return TUI_MENU_EV_NONE;
-  }
 
   if (it->kind == TUI_MENU_ITEM_SEPARATOR || it->disabled) {
     tui_beep();
@@ -562,6 +562,8 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
         tui_acknowledge_interrupt();
         result.status = TUI_MENU_INTERRUPTED;
         exit_loop = true;
+      } else {
+        napms(10);
       }
       continue;
     }

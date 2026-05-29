@@ -14,7 +14,7 @@
       "validation": "^[a-z][a-z0-9_]*$"
     },
     "PROJECT_NAME_KEBAB": {
-      "placeholders": ["myapp", "my-cli-app", "cli-starter"],
+      "placeholders": ["myapp", "my-cli-app", "cli-starter", "yourproject"],
       "description": "Project name in kebab-case for CLI commands, binaries, and URLs.",
       "sources": ["repository_name"],
       "transform": "kebab_case",

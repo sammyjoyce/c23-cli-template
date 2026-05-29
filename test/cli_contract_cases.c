@@ -177,6 +177,60 @@ static bool test_command_arguments_are_not_global_config_flags(
   return ok;
 }
 
+static bool test_command_metadata_is_enforced(test_context_t *ctx) {
+  bool ok = true;
+
+  {
+    const char *args[] = {"hello", "Alice", "Bob"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, APP_ERROR_INVALID_ARG) &&
+         cc_expect_stderr_contains(&result, "expects at most 1 argument") && ok;
+    cc_command_result_free(&result);
+  }
+
+  {
+    const char *args[] = {"doctor", "--not-real"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, APP_ERROR_UNKNOWN_OPTION) &&
+         cc_expect_stderr_contains(&result, "Unknown option '--not-real'") &&
+         ok;
+    cc_command_result_free(&result);
+  }
+
+  {
+    const char *args[] = {"echo", "--", "--version"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "--version") && ok;
+    cc_command_result_free(&result);
+  }
+
+  {
+    // Tokens after "--" are positionals: echo must print "--help", not help.
+    const char *args[] = {"echo", "--", "--help"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    const bool printed_help =
+        result.out != NULL && strstr(result.out, "Usage:") != NULL;
+    if (printed_help) {
+      fprintf(stderr, "echo -- --help must echo, not print help\n");
+    }
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "--help") && !printed_help && ok;
+    cc_command_result_free(&result);
+  }
+
+  {
+    const char *args[] = {"hello", "--help"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "Usage:") &&
+         cc_expect_stdout_contains(&result, "hello") && ok;
+    cc_command_result_free(&result);
+  }
+
+  return ok;
+}
+
 static bool test_explicit_config_file_failures_are_visible(
     test_context_t *ctx) {
   const char *args[] = {"--config", "/definitely/not/a/config.json", "hello"};
@@ -199,7 +253,7 @@ static bool test_verbose_mode_emits_diagnostics_on_stderr(test_context_t *ctx) {
   return ok;
 }
 
-static bool test_invalid_default_config_does_not_leak_partial_settings(
+static bool test_invalid_env_config_fails_without_partial_settings(
     test_context_t *ctx) {
   char *config_path = NULL;
   if (!cc_write_temp_config("{\"quiet\":true,\"ignored\":{\"nested\":true}}",
@@ -212,8 +266,9 @@ static bool test_invalid_default_config_does_not_leak_partial_settings(
   const env_var_t env[] = {{"APP_CONFIG_PATH", config_path}};
   command_result_t result =
       cc_run_cli(ctx, args, ARRAY_LEN(args), env, ARRAY_LEN(env));
-  const bool ok = cc_expect_exit(&result, 0) &&
-                  cc_expect_stdout_contains(&result, "Hello, World!");
+  const bool ok = cc_expect_not_exit(&result, 0) &&
+                  cc_expect_stderr_contains(&result, "failed to load config") &&
+                  cc_expect_stdout_empty(&result);
   cc_command_result_free(&result);
   (void)unlink(config_path);
   free(config_path);
@@ -268,7 +323,13 @@ static bool test_opencli_contract_matches_checked_in_spec(test_context_t *ctx) {
 
   bool ok = cc_expect_exit(&result, 0) &&
             cc_expect_stdout_contains(&result, "\"opencli\": \"0.1\"") &&
+            cc_expect_stdout_contains(&result, "\"command\": {") &&
+            cc_expect_stdout_contains(&result, "\"commands\": [") &&
             cc_expect_stdout_contains(&result, "\"name\": \"opencli\"");
+  if (ok && result.out && strstr(result.out, "\"ordinal\"") != NULL) {
+    fprintf(stderr, "opencli output must not contain stale ordinal fields\n");
+    ok = false;
+  }
   if (!expected) {
     fprintf(stderr, "failed to read opencli.json\n");
     ok = false;
@@ -298,6 +359,16 @@ static bool test_opencli_contract_matches_checked_in_spec(test_context_t *ctx) {
   free(binary_name);
   free(expected);
   cc_command_result_free(&result);
+
+  {
+    const char *json_args[] = {"--json", "opencli"};
+    command_result_t json_result =
+        cc_run_cli(ctx, json_args, ARRAY_LEN(json_args), NULL, 0);
+    ok = cc_expect_exit(&json_result, 0) &&
+         cc_expect_stdout_contains(&json_result, "\"command\": {") && ok;
+    cc_command_result_free(&json_result);
+  }
+
   return ok;
 }
 
@@ -315,12 +386,13 @@ const test_case_t cli_contract_cases[] = {
     {"plain mode disables forced color", test_plain_mode_disables_forced_color},
     {"command arguments are not global config flags",
      test_command_arguments_are_not_global_config_flags},
+    {"command metadata is enforced", test_command_metadata_is_enforced},
     {"explicit config file failures are visible",
      test_explicit_config_file_failures_are_visible},
     {"verbose mode emits diagnostics on stderr",
      test_verbose_mode_emits_diagnostics_on_stderr},
-    {"invalid default config does not leak partial settings",
-     test_invalid_default_config_does_not_leak_partial_settings},
+    {"invalid env config fails without partial settings",
+     test_invalid_env_config_fails_without_partial_settings},
     {"valid flat config skips unknown scalar keys",
      test_valid_flat_config_skips_unknown_scalar_keys},
     {"unknown command reports actionable error",

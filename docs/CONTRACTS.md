@@ -20,7 +20,7 @@ myapp opencli
 
 | Source | Owns |
 | --- | --- |
-| `src/cli/opencli_contract.c` | OpenCLI info, conventions, root arguments, extra examples, top-level metadata |
+| `src/cli/opencli_contract.c` | OpenCLI info, conventions, root command arguments, extra examples, and metadata |
 | `src/cli/commands.c` | `--help`/`--version` metadata, command names and summaries, global value options such as `--config`, command arguments and options, examples, terminal requirements |
 | `src/core/config.c` | Global flag metadata |
 | `src/core/error.c` | Public exit codes and descriptions |
@@ -38,7 +38,7 @@ zig build test
 - command names, arguments, options, and examples in `opencli.json`
 - public exit codes in `opencli.json`
 - `--json` responses that include `format_version`
-- `myapp opencli` always writes the schema document; `--json opencli` is rejected so callers do not confuse it with a command-result envelope
+- `myapp opencli` and `myapp --json opencli` both write the same schema document because the contract is already JSON
 - stdout for command output, stderr for errors and diagnostics
 - config precedence: CLI args > environment > config file > defaults
 

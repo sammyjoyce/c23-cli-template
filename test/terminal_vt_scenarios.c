@@ -273,8 +273,8 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
   return failed;
 }
 
-int run_tui_fuzz_smoke(test_stats_t *stats, const char *binary,
-                       bool tui_enabled) {
+int run_tui_stress_smoke(test_stats_t *stats, const char *binary,
+                         bool tui_enabled) {
   const char *name = "tui deterministic input and resize smoke";
   if (!tui_enabled) {
     test_skip(stats, name, "rebuild with -Denable-tui=true");

@@ -38,13 +38,13 @@ Use `--quiet`, `--verbose`, or `--debug` to dial verbosity up or down.
 
 ```bash
 # Every command name
-myapp opencli | jq -r '.commands[].name'
+myapp opencli | jq -r '.command.commands[].name'
 
 # Public exit codes as a table
-myapp opencli | jq -r '.exitCodes[] | "\(.code)\t\(.description)"'
+myapp opencli | jq -r '.command.exitCodes[] | "\(.code)\t\(.description)"'
 
 # All global options
-myapp opencli | jq -r '.options[].name'
+myapp opencli | jq -r '.command.options[].name'
 
 # Version straight from the binary
 myapp opencli | jq -r '.info.version'
@@ -62,7 +62,7 @@ myapp --json info | jq -r '.format_version'
 Commands return specific exit codes: `0` for success, non-zero for a categorized failure (for example `2` unknown command, `6` missing argument, `7` unknown option). The full list is in the contract:
 
 ```bash
-myapp opencli | jq -r '.exitCodes[] | "\(.code) \(.description)"'
+myapp opencli | jq -r '.command.exitCodes[] | "\(.code) \(.description)"'
 ```
 
 Branch on them like any Unix tool:
@@ -109,14 +109,15 @@ printf 'Alice\nBob\nCharlie\n' | parallel myapp hello
 myapp echo "build complete" | tr '[:lower:]' '[:upper:]'
 
 # Count the commands the binary exposes
-myapp opencli | jq '.commands | length'
+myapp opencli | jq '.command.commands | length'
 ```
 
 ## Configuration and environment
 
 Configuration resolves by precedence: **CLI args > environment > config file > defaults**.
 
-- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans (see [config.json](config.json)).
+- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans up to 64 KiB
+  (see [config.json](config.json)); nested objects/arrays and `\uXXXX` escapes are intentionally rejected by the minimal parser.
 - **Environment:** `APP_LOG_LEVEL` (`ERROR`, `WARNING`, `INFO`, `DEBUG`) and `NO_COLOR`.
 
 ```bash

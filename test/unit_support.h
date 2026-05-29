@@ -25,4 +25,5 @@ static inline void unit_record(unit_stats_t *stats, bool ok, const char *name) {
 }
 
 void run_config_unit_tests(unit_stats_t *stats);
+void run_input_unit_tests(unit_stats_t *stats);
 void run_tui_menu_unit_tests(unit_stats_t *stats);
