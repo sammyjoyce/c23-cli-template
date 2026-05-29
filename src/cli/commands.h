@@ -76,6 +76,8 @@ typedef struct {
   const char *const *examples;
   size_t example_count;
   bool requires_terminal;  // hint: command is interactive (e.g. TUI)
+  // Omit from root human help while keeping dispatch/API visibility.
+  bool hidden_from_help;
 } app_command_t;
 
 // Return the registered command list. count is set to the number of entries.

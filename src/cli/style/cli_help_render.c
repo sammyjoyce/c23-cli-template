@@ -1,7 +1,7 @@
 /*
  * Styled help rendering. See cli_help_render.h. Iterates the same command/flag
  * tables the plain renderer used, so new commands and flags appear
- * automatically.
+ * automatically unless command metadata hides them from root help.
  */
 
 #include "cli_help_render.h"
@@ -151,6 +151,9 @@ static void help_render_commands(app_cli_render_ctx_t *ctx) {
   help_row_t rows[APP_HELP_MAX_ROWS];
   size_t n = 0;
   for (size_t i = 0; i < count && n < APP_HELP_MAX_ROWS; i++) {
+    if (commands[i].hidden_from_help) {
+      continue;
+    }
     help_row_set(&rows[n++], commands[i].name,
                  commands[i].summary ? commands[i].summary : "", NULL);
   }

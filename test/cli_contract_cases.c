@@ -46,6 +46,12 @@ static bool test_help_is_human_readable(test_context_t *ctx) {
                   cc_expect_stdout_contains(
                       &result, "Enable debug output (DEBUG level logs)") &&
                   cc_expect_stdout_contains(&result, "(env: APP_LOG_LEVEL)");
+  if (ok && result.out && strstr(result.out, "  menu") != NULL) {
+    fprintf(stderr, "root help must not list the interactive menu command\n");
+    fprintf(stderr, "stdout:\n%s\n", result.out);
+    cc_command_result_free(&result);
+    return false;
+  }
   cc_command_result_free(&result);
   return ok;
 }
