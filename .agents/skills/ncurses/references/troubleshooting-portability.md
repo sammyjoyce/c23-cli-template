@@ -51,8 +51,11 @@ an interactive terminal, not a plain pipe or log capture.
   available.
 - If `pkg-config` is absent, inspect platform package names and installed
   headers/libraries rather than guessing include paths.
-- Include `<curses.h>` for portable curses code. Use implementation-specific
-  headers only when the project intentionally targets that implementation.
+- Include `<curses.h>` for portable curses code. For wide-character
+  (`ncursesw`) support, define `_XOPEN_SOURCE_EXTENDED` before including
+  `<curses.h>` to expose wide-character functions and types (e.g. `cchar_t`,
+  `get_wch`). Use implementation-specific headers only when the project
+  intentionally targets that implementation.
 - Avoid mixing headers from one curses implementation with libraries from
   another.
 

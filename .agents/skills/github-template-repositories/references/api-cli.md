@@ -70,8 +70,9 @@ gh api -X POST repos/TEMPLATE_OWNER/TEMPLATE_REPO/generate \
 
 ## REST Permissions
 
-- For a non-public template, the authenticated user must own it or belong to
-  the owning organization.
+- For a non-public template, the authenticated user must have read access to
+  the template repository, subject to owner and organization
+  repository-creation permissions.
 - Classic tokens need `public_repo` or `repo` scope for public targets, and
   `repo` scope for private targets.
 - Fine-grained tokens need repository Administration write and Contents read
