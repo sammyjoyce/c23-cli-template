@@ -317,9 +317,9 @@ int run_tui_bare_invocation_json(test_stats_t *stats, const char *binary,
   }
 
   // Force JSON output through a config file. A bare invocation on a TTY must
-  // then take the headless path (mirroring `myapp menu` rejecting --json)
-  // rather than launching the TUI, and headless mode must reject the
-  // interactive stdin instead of blocking on it.
+  // then reject the contradictory request (mirroring `myapp menu` rejecting
+  // --json) with clear guidance rather than launching the TUI or blocking on
+  // interactive stdin.
   const char *tmpdir = getenv("TMPDIR");
   if (!tmpdir || !*tmpdir) {
     tmpdir = "/tmp";
@@ -353,11 +353,11 @@ int run_tui_bare_invocation_json(test_stats_t *stats, const char *binary,
     failed = test_fail(stats, name, "failed to start PTY session");
   }
   if (!failed &&
-      !vt_expect_text(&session, "expects a JSON request object on stdin",
+      !vt_expect_text(&session, "unset json_output to launch the TUI",
                       PTY_TIMEOUT_MS, &snapshot)) {
     failed = test_fail(
         stats, name,
-        "headless JSON guard message did not appear (TUI may have launched)");
+        "json_output conflict message did not appear (TUI may have launched)");
   }
   if (!failed && contains_text(snapshot, "STARTER SHOWCASE")) {
     failed = test_fail(stats, name, "TUI launched despite json_output=true");

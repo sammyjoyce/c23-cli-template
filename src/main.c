@@ -261,14 +261,25 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc == 1) {
-    // A bare invocation launches the TUI only on an interactive terminal AND
-    // when JSON output was not requested. This mirrors app_cmd_menu, which
-    // refuses to launch the TUI under --json; without this check a json setting
-    // from a config file would start the TUI here while `menu` rejected it.
-    const bool launch_tui =
-        app_terminal_is_interactive() && !app_config_is_json_output(config);
-    err = launch_tui ? app_run_tui(config)
-                     : app_run_headless_json(config, start_ms);
+    // A bare invocation launches the TUI on an interactive terminal. JSON
+    // output (set via config or env, since argc == 1 means no flags) targets
+    // machine consumers and conflicts with the interactive TUI, so reject it
+    // with the same guidance app_cmd_menu gives. Falling through to the
+    // headless path here would instead emit "expects a JSON request object on
+    // stdin", which misdescribes the real problem.
+    if (app_terminal_is_interactive()) {
+      if (app_config_is_json_output(config)) {
+        app_output(
+            "JSON output is enabled on an interactive terminal; "
+            "unset json_output to launch the TUI",
+            config, true);
+        app_config_destroy(config);
+        return APP_ERROR_INVALID_ARG;
+      }
+      err = app_run_tui(config);
+    } else {
+      err = app_run_headless_json(config, start_ms);
+    }
     app_config_destroy(config);
     return err;
   }
