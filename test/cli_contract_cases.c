@@ -206,6 +206,20 @@ static bool test_command_metadata_is_enforced(test_context_t *ctx) {
   }
 
   {
+    // Tokens after "--" are positionals: echo must print "--help", not help.
+    const char *args[] = {"echo", "--", "--help"};
+    command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
+    const bool printed_help =
+        result.out != NULL && strstr(result.out, "Usage:") != NULL;
+    if (printed_help) {
+      fprintf(stderr, "echo -- --help must echo, not print help\n");
+    }
+    ok = cc_expect_exit(&result, 0) &&
+         cc_expect_stdout_contains(&result, "--help") && !printed_help && ok;
+    cc_command_result_free(&result);
+  }
+
+  {
     const char *args[] = {"hello", "--help"};
     command_result_t result = cc_run_cli(ctx, args, ARRAY_LEN(args), NULL, 0);
     ok = cc_expect_exit(&result, 0) &&

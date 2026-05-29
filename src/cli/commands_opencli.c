@@ -12,7 +12,7 @@
 #include "commands.h"
 #include "opencli_contract.h"
 
-app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_opencli(const app_config_t *config, int argc, char *const argv[]);
 
 static const char *opencli_option_name(const char *cli_long) {
   if (!cli_long) {
@@ -406,7 +406,7 @@ static void opencli_print_conventions(FILE *stream,
   fputs("  },\n", stream);
 }
 
-app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_opencli(const app_config_t *config, int argc, char *const argv[]) {
   (void)config;
   (void)argc;
   (void)argv;

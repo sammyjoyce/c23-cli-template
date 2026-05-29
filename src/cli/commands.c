@@ -9,17 +9,16 @@
 #include <string.h>
 
 // Forward declarations for handlers defined in their own translation units.
-app_error app_cmd_hello(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_echo(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_info(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_menu(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_opencli(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_hello(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_echo(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_info(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_doctor(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_menu(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_opencli(const app_config_t *config, int argc, char *const argv[]);
 
 static const app_command_arg_t hello_args[] = {
     {.name = "name",
      .required = false,
-     .ordinal = 1,
      .arity_minimum = 0,
      .arity_maximum = 1,
      .description = "Name to greet (default: World)"},
@@ -33,7 +32,6 @@ static const char *const hello_examples[] = {
 static const app_command_arg_t echo_args[] = {
     {.name = "text",
      .required = false,
-     .ordinal = 1,
      .arity_minimum = 0,
      .arity_maximum = APP_ARG_ARITY_UNBOUNDED,
      .description = "Text to echo"},
@@ -42,7 +40,6 @@ static const app_command_arg_t echo_args[] = {
 static const app_command_arg_t config_option_args[] = {
     {.name = "path",
      .required = true,
-     .ordinal = 1,
      .arity_minimum = 1,
      .arity_maximum = 1,
      .description = "Path to configuration file"},

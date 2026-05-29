@@ -35,7 +35,7 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build
-        run: zig build -Doptimize=ReleaseSafe
+        run: zig build -Doptimize=ReleaseSafe -Dstrict=true -Dharden=true
         shell: bash
 
       - name: Perform CodeQL Analysis

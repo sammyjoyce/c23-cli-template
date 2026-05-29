@@ -116,7 +116,8 @@ myapp opencli | jq '.command.commands | length'
 
 Configuration resolves by precedence: **CLI args > environment > config file > defaults**.
 
-- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans up to 64 KiB (see [config.json](config.json)); nested objects/arrays and `\uXXXX` escapes are intentionally rejected by the minimal parser.
+- **Config file:** `~/.config/myapp/config.json`, or an explicit path via `--config`. It is a flat JSON object of booleans up to 64 KiB
+  (see [config.json](config.json)); nested objects/arrays and `\uXXXX` escapes are intentionally rejected by the minimal parser.
 - **Environment:** `APP_LOG_LEVEL` (`ERROR`, `WARNING`, `INFO`, `DEBUG`) and `NO_COLOR`.
 
 ```bash

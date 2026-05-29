@@ -28,7 +28,7 @@
 #endif
 #include "commands.h"
 
-app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_doctor(const app_config_t *config, int argc, char *const argv[]);
 
 typedef struct {
   const char *name;
@@ -83,7 +83,7 @@ static void doctor_write_json_check(const doctor_check_t *check,
   app_json_end_object(stdout);
 }
 
-app_error app_cmd_doctor(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_doctor(const app_config_t *config, int argc, char *const argv[]) {
   if (app_config_is_quiet(config)) {
     return APP_SUCCESS;
   }

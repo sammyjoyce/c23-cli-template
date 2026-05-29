@@ -12,10 +12,10 @@
 #include "../io/output.h"
 #include "commands.h"
 
-app_error app_cmd_hello(const app_config_t *config, int argc, char **argv);
-app_error app_cmd_echo(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_hello(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_echo(const app_config_t *config, int argc, char *const argv[]);
 
-app_error app_cmd_hello(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_hello(const app_config_t *config, int argc, char *const argv[]) {
   const char *name = argc > 0 ? argv[0] : "World";
   app_output_format(config, false, "Hello, %s!", name);
   return APP_SUCCESS;
@@ -23,7 +23,7 @@ app_error app_cmd_hello(const app_config_t *config, int argc, char **argv) {
 
 // Echo joins its arguments into a single line. We grow a buffer instead of
 // using a fixed 4 KiB stack buffer so very long arg lists print intact.
-app_error app_cmd_echo(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_echo(const app_config_t *config, int argc, char *const argv[]) {
   size_t total = 0;
   for (int i = 0; i < argc; i++) {
     const char *arg = argv[i] ? argv[i] : "";

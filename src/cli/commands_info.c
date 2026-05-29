@@ -10,9 +10,9 @@
 #include "../io/output.h"
 #include "commands.h"
 
-app_error app_cmd_info(const app_config_t *config, int argc, char **argv);
+app_error app_cmd_info(const app_config_t *config, int argc, char *const argv[]);
 
-app_error app_cmd_info(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_info(const app_config_t *config, int argc, char *const argv[]) {
   (void)argc;
   (void)argv;
 

@@ -94,7 +94,8 @@ The template's defenses are the ones actually wired into the code and CI, not co
   (`mlock` / `VirtualLock`) is not wired in either.
 - **Compiler warnings.** C sources compile with `-Wall -Wextra -std=c23`. `-Doptimize=` selects the optimization level; no Zig runtime is linked into the C-only binary.
 - **Static analysis in CI.** GitHub Actions runs `clang-tidy` and `cppcheck` over the C sources on every change.
-- **Supply chain in CI.** Gitleaks secret scanning, CodeQL, an OpenSSF Scorecard run, SBOM generation, and release gates are scaffolded in GitHub Actions. Keep third-party actions and downloaded tools pinned to immutable revisions in production projects.
+- **Supply chain in CI.** Gitleaks secret scanning, CodeQL, an OpenSSF Scorecard run, SBOM generation, and release gates are scaffolded in GitHub Actions.
+  Keep third-party actions and downloaded tools pinned to immutable revisions in production projects.
 
 Compiler-level hardening (`-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, PIE/RELRO) is **not** enabled by default. If your threat model needs it, add the flags to `base_flags` in `build.zig`.
 

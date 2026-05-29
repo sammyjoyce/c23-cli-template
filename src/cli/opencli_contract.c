@@ -7,7 +7,6 @@
 static const app_command_arg_t root_arguments[] = {
     {.name = "command",
      .required = true,
-     .ordinal = 1,
      .arity_minimum = 1,
      .arity_maximum = 1,
      .description = "The command to execute"},

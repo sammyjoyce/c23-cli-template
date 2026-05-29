@@ -90,6 +90,7 @@ void app_json_write_string(FILE *stream, const char *text) {
   }
 
   fputc('"', stream);
+  const unsigned char *end = (const unsigned char *)text + strlen(text);
   for (const unsigned char *p = (const unsigned char *)text; *p != '\0'; p++) {
     switch (*p) {
     case '"':
@@ -117,7 +118,7 @@ void app_json_write_string(FILE *stream, const char *text) {
       if (*p < 0x20) {
         fprintf(stream, "\\u%04x", *p);
       } else if (*p >= 0x80) {
-        const size_t len = app_utf8_sequence_len(p, strlen((const char *)p));
+        const size_t len = app_utf8_sequence_len(p, (size_t)(end - p));
         if (len == 0) {
           fputs("\\ufffd", stream);
         } else {

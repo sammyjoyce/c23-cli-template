@@ -228,12 +228,12 @@ pub fn build(b: *std.Build) void {
         break :blk b.dupe(trimmed);
     };
 
-    const build_date = blk: {
-        if (std.c.getenv("SOURCE_DATE_EPOCH")) |epoch| {
-            break :blk b.dupe(std.mem.span(epoch));
-        }
-        break :blk "omitted";
-    };
+    // Read SOURCE_DATE_EPOCH from the build graph's captured environment rather
+    // than std.c.getenv: the latter forces the build runner to link libc, which
+    // breaks Linux/Windows CI ("dependency on libc must be explicitly
+    // specified"). graph.environ_map is the libc-free std way to read env in a
+    // build script. Returns a []const u8 to match how build_date is consumed.
+    const build_date = b.graph.environ_map.get("SOURCE_DATE_EPOCH") orelse "omitted";
 
     const enable_tui = b.option(bool, "enable-tui", "Enable TUI support with ncurses/PDCurses (default: false)") orelse false;
     const curses_prefix = b.option([]const u8, "curses-prefix", "Override ncurses/PDCurses prefix (e.g. /usr/local/opt/ncurses)");

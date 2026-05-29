@@ -13,13 +13,16 @@
 
 #define APP_ARG_ARITY_UNBOUNDED (-1)
 
+// Handlers only read the argv vector (they never reorder or rewrite entries),
+// so argv is passed as char *const argv[]. This matches the char *const *
+// returned by app_config_get_command_args and avoids a const-stripping cast at
+// the dispatch site.
 typedef app_error (*app_command_fn)(const app_config_t *config, int argc,
-                                    char **argv);
+                                    char *const argv[]);
 
 typedef struct {
   const char *name;
   bool required;
-  int ordinal;
   int arity_minimum;
   int arity_maximum;  // APP_ARG_ARITY_UNBOUNDED means JSON null
   const char *description;

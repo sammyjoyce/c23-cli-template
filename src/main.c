@@ -126,8 +126,19 @@ int main(int argc, char *argv[]) {
     return APP_ERROR_INVALID_COMMAND;
   }
 
+  // Scan for command-local --help/-h, but only before the first standalone
+  // "--" delimiter. Tokens after "--" are positionals (matching
+  // app_command_validate_invocation), so "myapp echo -- --help" must echo
+  // "--help" rather than print help.
   for (int i = 0; i < cmd_argc; i++) {
-    if (cmd_argv[i] && strcmp(cmd_argv[i], "--help") == 0) {
+    if (!cmd_argv[i]) {
+      continue;
+    }
+    if (strcmp(cmd_argv[i], "--") == 0) {
+      break;
+    }
+    if (strcmp(cmd_argv[i], "--help") == 0 ||
+        strcmp(cmd_argv[i], "-h") == 0) {
       app_print_command_help(app_config_get_program_name(config), entry);
       app_config_destroy(config);
       return APP_SUCCESS;
@@ -148,7 +159,9 @@ int main(int argc, char *argv[]) {
     return err;
   }
 
-  err = entry->handler(config, cmd_argc, (char **)cmd_argv);
+  // app_config_get_command_args returns char *const * and handlers take
+  // char *const argv[] (read-only argv vector), so no const-stripping cast.
+  err = entry->handler(config, cmd_argc, cmd_argv);
 
   int64_t elapsed_ms = app_now_millis() - start_ms;
   if (elapsed_ms < 0) {
