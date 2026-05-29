@@ -9,12 +9,18 @@
 #include <string.h>
 
 // Forward declarations for handlers defined in their own translation units.
-app_error app_cmd_hello(const app_config_t *config, int argc, char *const argv[]);
-app_error app_cmd_echo(const app_config_t *config, int argc, char *const argv[]);
-app_error app_cmd_info(const app_config_t *config, int argc, char *const argv[]);
-app_error app_cmd_doctor(const app_config_t *config, int argc, char *const argv[]);
-app_error app_cmd_menu(const app_config_t *config, int argc, char *const argv[]);
-app_error app_cmd_opencli(const app_config_t *config, int argc, char *const argv[]);
+app_error app_cmd_hello(const app_config_t *config, int argc,
+                        char *const argv[]);
+app_error app_cmd_echo(const app_config_t *config, int argc,
+                       char *const argv[]);
+app_error app_cmd_info(const app_config_t *config, int argc,
+                       char *const argv[]);
+app_error app_cmd_doctor(const app_config_t *config, int argc,
+                         char *const argv[]);
+app_error app_cmd_menu(const app_config_t *config, int argc,
+                       char *const argv[]);
+app_error app_cmd_opencli(const app_config_t *config, int argc,
+                          char *const argv[]);
 
 static const app_command_arg_t hello_args[] = {
     {.name = "name",

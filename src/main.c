@@ -137,8 +137,7 @@ int main(int argc, char *argv[]) {
     if (strcmp(cmd_argv[i], "--") == 0) {
       break;
     }
-    if (strcmp(cmd_argv[i], "--help") == 0 ||
-        strcmp(cmd_argv[i], "-h") == 0) {
+    if (strcmp(cmd_argv[i], "--help") == 0 || strcmp(cmd_argv[i], "-h") == 0) {
       app_print_command_help(app_config_get_program_name(config), entry);
       app_config_destroy(config);
       return APP_SUCCESS;
