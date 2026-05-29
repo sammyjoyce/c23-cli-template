@@ -20,6 +20,9 @@ bool app_json_value_boundary(char ch) {
 
 bool app_json_match_literal(const char *cursor, const char *literal,
                             const char **end) {
+  if (!cursor || !literal) {
+    return false;
+  }
   size_t i = 0;
   while (literal[i] != '\0') {
     if (cursor[i] == '\0' || cursor[i] != literal[i]) {
@@ -37,10 +40,11 @@ bool app_json_match_literal(const char *cursor, const char *literal,
 }
 
 app_error app_json_skip_number(const char **cursor) {
-  const char *p = app_json_skip_ws(*cursor);
-  if (!p) {
-    return APP_ERROR_CONFIG_PARSE;
+  if (!cursor || !*cursor) {
+    return APP_ERROR_INVALID_ARG;
   }
+
+  const char *p = app_json_skip_ws(*cursor);
   if (*p == '-') {
     p++;
   }

@@ -24,12 +24,13 @@ bool app_json_value_boundary(char ch);
 
 // Match literal at cursor, requiring a value boundary immediately after. On a
 // match, *end (when non-NULL) is set just past the literal. Used for the
-// true/false/null keywords.
+// true/false/null keywords. Returns false when cursor or literal is NULL.
 bool app_json_match_literal(const char *cursor, const char *literal,
                             const char **end);
 
 // Skip one JSON number (RFC 8259 grammar). Advances *cursor past the number on
-// success; returns APP_ERROR_CONFIG_PARSE on a malformed number.
+// success. Returns APP_ERROR_INVALID_ARG when cursor or *cursor is NULL and
+// APP_ERROR_CONFIG_PARSE on a malformed number.
 app_error app_json_skip_number(const char **cursor);
 
 // Read a JSON boolean (true/false) at *cursor. On success, stores the value and
