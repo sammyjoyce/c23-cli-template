@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 
+#include "../core/app_info.h"
 #include "../core/config.h"
 #include "../core/error.h"
 #include "../core/types.h"
@@ -22,12 +23,9 @@ app_error app_cmd_info(const app_config_t *config, int argc,
     return APP_SUCCESS;
   }
 
-  const bool tui_enabled =
-#ifdef ENABLE_TUI
-      true;
-#else
-      false;
-#endif
+  const app_build_info_t *build = app_build_info();
+  size_t feature_count = 0;
+  const app_feature_info_t *features = app_feature_table(&feature_count);
 
   if (app_config_is_json_output(config)) {
     bool root_comma = false;
@@ -35,24 +33,30 @@ app_error app_cmd_info(const app_config_t *config, int argc,
 
     app_json_begin_object(stdout);
     app_json_write_string_field(stdout, "format_version", "1.0", &root_comma);
-    app_json_write_string_field(stdout, "app", APP_NAME, &root_comma);
-    app_json_write_string_field(stdout, "version", APP_VERSION, &root_comma);
-    app_json_write_string_field(stdout, "git_commit", APP_GIT_COMMIT,
+    app_json_write_string_field(stdout, "app", build->name, &root_comma);
+    app_json_write_string_field(stdout, "version", build->version, &root_comma);
+    app_json_write_string_field(stdout, "git_commit", build->git_commit,
                                 &root_comma);
-    app_json_write_string_field(stdout, "build_date", APP_BUILD_DATE,
+    app_json_write_string_field(stdout, "build_date", build->build_date,
                                 &root_comma);
     app_json_write_raw_field(stdout, "features", "{", &root_comma);
-    app_json_write_bool_field(stdout, "tui", tui_enabled, &feature_comma);
+    for (size_t i = 0; i < feature_count; i++) {
+      app_json_write_bool_field(stdout, features[i].key, features[i].compiled,
+                                &feature_comma);
+    }
     app_json_end_object(stdout);
     app_json_end_object(stdout);
     app_json_end_line(stdout);
     return APP_SUCCESS;
   }
 
-  app_output_format(config, false, "Application: %s", APP_NAME);
-  app_output_format(config, false, "Version: %s", APP_VERSION);
-  app_output_format(config, false, "Git Commit: %s", APP_GIT_COMMIT);
-  app_output_format(config, false, "Build: %s", APP_BUILD_DATE);
-  app_output_format(config, false, "TUI Support: %s", app_yes_no(tui_enabled));
+  app_output_format(config, false, "Application: %s", build->name);
+  app_output_format(config, false, "Version: %s", build->version);
+  app_output_format(config, false, "Git Commit: %s", build->git_commit);
+  app_output_format(config, false, "Build: %s", build->build_date);
+  for (size_t i = 0; i < feature_count; i++) {
+    app_output_format(config, false, "%s: %s", features[i].label,
+                      app_bool_word(features[i].compiled));
+  }
   return APP_SUCCESS;
 }

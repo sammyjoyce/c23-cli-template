@@ -7,8 +7,8 @@
  * semantic tokens onto them, so both surfaces share one identity instead of two
  * look-alike palettes.
  *
- * Values are 8-bit sRGB. app_design_rgb_to_curses() converts to the 0..1000
- * scale ncurses init_color() expects.
+ * Values are 8-bit sRGB. app_design_chan_to_curses() converts each channel to
+ * the 0..1000 scale ncurses init_color() expects.
  */
 
 #pragma once

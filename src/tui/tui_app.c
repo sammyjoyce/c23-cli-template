@@ -15,11 +15,16 @@
  */
 #include <stdio.h>
 
+#include "../core/app_info.h"
+#include "../ui/action_item.h"
 #include "tui.h"
 #include "tui_internal.h"
+#include "tui_menu_adapter.h"
 
 enum {
-  MAIN_MENU_FRAME_HEIGHT = 18,
+  /* Tall enough to show the full main menu - now ten entries plus two
+   * separators - without scrolling at the documented 80x24 baseline. */
+  MAIN_MENU_FRAME_HEIGHT = 20,
   MAIN_MENU_FRAME_WIDTH = 72,
 };
 
@@ -38,6 +43,7 @@ static void app_show_overview(void) {
 }
 
 static void app_show_system_info(void) {
+  const app_build_info_t *build = app_build_info();
   char info[512];
   snprintf(info, sizeof(info),
            "Application: %s\n"
@@ -46,7 +52,7 @@ static void app_show_system_info(void) {
            "Build Date: %s\n"
            "Terminal Size: %dx%d\n"
            "Colors Supported: %s",
-           APP_NAME, APP_VERSION, APP_GIT_COMMIT, APP_BUILD_DATE,
+           build->name, build->version, build->git_commit, build->build_date,
            tui_get_max_x(), tui_get_max_y(), has_colors() ? "yes" : "no");
   tui_show_message("System Information", info);
 }
@@ -101,6 +107,7 @@ typedef enum {
   APP_MENU_PROGRESS,
   APP_MENU_LAYOUT,
   APP_MENU_CONFIGURATION,
+  APP_MENU_COMMANDS,
   APP_MENU_EXIT,
 } app_main_menu_id_t;
 
@@ -212,6 +219,95 @@ static void app_show_config_menu(void) {
   tui_destroy_window(config_frame);
 }
 
+/* Maximum command rows surfaced in the Commands screen. The CLI command table
+ * is small; this cap also bounds the local stack buffers below. */
+enum { APP_COMMANDS_MAX = 16 };
+
+/* "Back" sits above the command rows in id space. app_actions_from_commands
+ * assigns ids 1..N to the command rows, so reserve a high id for Back. */
+enum { APP_COMMANDS_BACK_ID = 1000 };
+
+/* Show one command's metadata. This deliberately does NOT execute the CLI
+ * command from inside the TUI; surfacing the descriptor (name, summary, and
+ * whether it needs an interactive terminal) is the safe demonstration of the
+ * shared action seam. */
+static void app_show_command_detail(const app_action_item_t *action) {
+  const bool interactive =
+      (action->capabilities & APP_ACTION_CAP_INTERACTIVE_TERMINAL) != 0;
+  char detail[512];
+  snprintf(detail, sizeof(detail),
+           "Command: %s\n\n"
+           "%s\n\n"
+           "Requires interactive terminal: %s",
+           action->command_name ? action->command_name : action->label,
+           action->description ? action->description : "(no description)",
+           interactive ? "yes" : "no");
+  tui_show_message("Command Details", detail);
+}
+
+/* Build the Commands screen rows from the CLI command table via the shared
+ * action descriptors and the curses-free tui_menu adapter, then run the same
+ * borderless menu screen the rest of the showcase uses. */
+static void app_show_commands(void) {
+  app_action_item_t actions[APP_COMMANDS_MAX];
+  const size_t total = app_actions_from_commands(actions, APP_COMMANDS_MAX);
+  const size_t action_count =
+      total < APP_COMMANDS_MAX ? total : APP_COMMANDS_MAX;
+
+  /* One menu row per action, plus a separator and a Back row. */
+  tui_menu_item_t items[APP_COMMANDS_MAX + 2];
+  int item_count = 0;
+  for (size_t i = 0; i < action_count; i++) {
+    if (!tui_menu_item_from_action(&actions[i], &items[item_count])) {
+      continue;
+    }
+    item_count++;
+  }
+  items[item_count++] = (tui_menu_item_t){.kind = TUI_MENU_ITEM_SEPARATOR};
+  items[item_count++] = (tui_menu_item_t){
+      .label = "&Back",
+      .description = "Return to the main menu",
+      .id = APP_COMMANDS_BACK_ID,
+  };
+
+  tui_window_t *commands_frame =
+      tui_create_centered_window(MAIN_MENU_FRAME_HEIGHT, MAIN_MENU_FRAME_WIDTH);
+  if (!commands_frame) {
+    tui_show_message("Commands",
+                     "The terminal is too small for the commands menu.");
+    return;
+  }
+  tui_push_background(commands_frame);
+
+  bool sub_running = true;
+  while (sub_running) {
+    tui_menu_result_t r = tui_show_menu(
+        commands_frame, &(tui_menu_config_t){
+                            .title = "Commands",
+                            .subtitle = APP_NAME " · CLI commands",
+                            .items = items,
+                            .item_count = item_count,
+                            .default_index = 0,
+                            .frame_height = MAIN_MENU_FRAME_HEIGHT,
+                            .frame_width = MAIN_MENU_FRAME_WIDTH,
+                            .enable_search = true,
+                            .show_numeric_keys = true,
+                        });
+    if (r.status != TUI_MENU_OK || r.selected_id == APP_COMMANDS_BACK_ID) {
+      sub_running = false;
+      continue;
+    }
+    /* Action ids are 1..action_count, matching actions[id - 1]. */
+    if (r.selected_id >= 1 && (size_t)r.selected_id <= action_count) {
+      app_show_command_detail(&actions[r.selected_id - 1]);
+    } else {
+      tui_beep();
+    }
+  }
+  tui_pop_background();
+  tui_destroy_window(commands_frame);
+}
+
 /* gitlogue-style Esc overlay: a compact menu offering help, about, and exit
  * without leaving the main showcase. */
 typedef enum {
@@ -233,13 +329,16 @@ static void app_show_keybindings(void) {
 }
 
 static void app_show_about(void) {
-  tui_show_message("About", APP_NAME
-                   " " APP_VERSION
-                   "\n\n"
-                   "A C23 + ncurses starter template: CLI argument\n"
-                   "parsing, an optional TUI with menus, dialogs, and\n"
-                   "progress bars, plus an end-to-end test harness.\n\n"
-                   "Menu UI inspired by gitlogue.");
+  const app_build_info_t *build = app_build_info();
+  char about[384];
+  snprintf(about, sizeof(about),
+           "%s %s\n\n"
+           "A C23 + ncurses starter template: CLI argument\n"
+           "parsing, an optional TUI with menus, dialogs, and\n"
+           "progress bars, plus an end-to-end test harness.\n\n"
+           "Menu UI inspired by gitlogue.",
+           build->name, build->version);
+  tui_show_message("About", about);
 }
 
 /* Returns true when the user chose Exit from the overlay. */
@@ -320,6 +419,10 @@ static const tui_menu_item_t main_menu[] = {
     {.label = "&Configuration",
      .description = "Adjust output mode, log level, and terminal settings",
      .id = APP_MENU_CONFIGURATION},
+    {.label = "Co&mmands",
+     .description = "Browse CLI command metadata surfaced via the shared "
+                    "action adapter",
+     .id = APP_MENU_COMMANDS},
     {.kind = TUI_MENU_ITEM_SEPARATOR},
     {.label = "E&xit",
      .description = "Return to the shell",
@@ -345,6 +448,9 @@ static void app_dispatch(int id) {
     break;
   case APP_MENU_CONFIGURATION:
     app_show_config_menu();
+    break;
+  case APP_MENU_COMMANDS:
+    app_show_commands();
     break;
   default:
     tui_beep();

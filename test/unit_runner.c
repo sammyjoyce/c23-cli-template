@@ -17,6 +17,7 @@ int main(void) {
   run_tui_menu_unit_tests(&stats);
   run_cli_style_unit_tests(&stats);
   run_cli_osc11_unit_tests(&stats);
+  run_shared_primitives_unit_tests(&stats);
 
   printf("1..%d\n", stats.passed + stats.failed);
   fprintf(stderr, "%d passed, %d failed\n", stats.passed, stats.failed);

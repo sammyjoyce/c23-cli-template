@@ -2,6 +2,7 @@
  * "menu" command - launches the TUI showcase when compiled in.
  */
 
+#include "../core/app_info.h"
 #include "../core/config.h"
 #include "../core/error.h"
 #include "../core/types.h"
@@ -37,10 +38,15 @@ app_error app_cmd_menu(const app_config_t *config, int argc,
   }
   return tui_err;
 #else
-  app_output(
-      "TUI support is not compiled in. Rebuild with "
-      "'zig build -Denable-tui=true'.",
-      config, true);
+  const app_feature_info_t *feature = app_feature_find(APP_FEATURE_TUI);
+  if (feature && feature->build_option) {
+    app_output_format(
+        config, true,
+        "TUI support is not compiled in. Rebuild with 'zig build %s'.",
+        feature->build_option);
+  } else {
+    app_output("TUI support is not compiled in.", config, true);
+  }
   return APP_ERROR_CONFIG;
 #endif
 }

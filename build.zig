@@ -308,6 +308,9 @@ pub fn build(b: *std.Build) void {
     // Base source files
     const base_sources = [_][]const u8{
         "src/main.c",
+        "src/ui/action_item.c",
+        "src/core/app_info.c",
+        "src/core/diagnostics.c",
         "src/core/error.c",
         "src/core/config.c",
         "src/core/config_json.c",
@@ -316,9 +319,11 @@ pub fn build(b: *std.Build) void {
         "src/utils/colors.c",
         "src/io/input.c",
         "src/io/output.c",
+        "src/io/terminal.c",
         "src/cli/help.c",
         "src/cli/args.c",
         "src/cli/commands.c",
+        "src/cli/option_meta.c",
         "src/cli/commands_basic.c",
         "src/cli/commands_info.c",
         "src/cli/commands_doctor.c",
@@ -376,6 +381,7 @@ pub fn build(b: *std.Build) void {
     // CLI styling sources (shared tokens + cli/style renderers). The terminal
     // backend is chosen at build time: terminfo when available, else ANSI.
     const cli_style_sources = [_][]const u8{
+        "src/ui/text_layout.c",
         "src/style/color_math.c",
         "src/style/design_tokens.c",
         "src/cli/style/cli_term.c",
@@ -422,6 +428,7 @@ pub fn build(b: *std.Build) void {
             "src/tui/tui.c",
             "src/tui/tui_app.c",
             "src/tui/tui_menu.c",
+            "src/tui/tui_menu_adapter.c",
             "src/tui/tui_menu_model.c",
             "src/tui/tui_progress.c",
         };
@@ -473,11 +480,13 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/core/error.c",
             "src/utils/logging.c",
+            "src/io/terminal.c",
             // Shared design palette: tui.c seeds its truecolor entries from
             // APP_DESIGN_PALETTE, so the token definition must be linked in.
             "src/style/design_tokens.c",
             "src/tui/tui.c",
             "src/tui/tui_menu.c",
+            "src/tui/tui_menu_adapter.c",
             "src/tui/tui_menu_model.c",
             "src/tui/tui_progress.c",
         },
@@ -558,15 +567,22 @@ pub fn build(b: *std.Build) void {
             "test/unit_tui_menu_tests.c",
             "test/unit_cli_style_tests.c",
             "test/unit_cli_osc11_tests.c",
+            "test/unit_shared_primitives_tests.c",
             "src/core/error.c",
+            "src/core/app_info.c",
+            "src/core/diagnostics.c",
             "src/core/config.c",
             "src/core/config_json.c",
             "src/io/input.c",
+            "src/io/terminal.c",
+            "src/cli/option_meta.c",
+            "src/tui/tui_menu_adapter.c",
             "src/tui/tui_menu_model.c",
             "src/utils/colors.c",
             "src/utils/memory.c",
             "src/utils/logging.c",
             // CLI styling layer (ANSI backend: no ncurses link needed).
+            "src/ui/text_layout.c",
             "src/style/color_math.c",
             "src/style/design_tokens.c",
             "src/cli/style/cli_term.c",
