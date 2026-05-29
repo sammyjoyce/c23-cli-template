@@ -41,7 +41,9 @@ static void app_cli_emit_cap(app_cli_term_t *term, const char *cap) {
 // tigetstr returns (char *)-1 for an absent/cancelled capability and (char *)0
 // for "not a string capability"; treat both as missing.
 static const char *app_cli_str_cap(const char *name) {
-  char *s = tigetstr(name);
+  // macOS ncurses declares tigetstr(char *) (non-const); the cast keeps this
+  // portable since the string is not modified. Linux ncursesw accepts char *.
+  char *s = tigetstr((char *)name);
   if (s == (char *)-1 || s == nullptr) {
     return nullptr;
   }
@@ -115,7 +117,8 @@ void app_cli_backend_emit_indexed(app_cli_term_t *term, bool background,
   if (term->backend_term) {
     set_curterm((TERMINAL *)term->backend_term);
   }
-  char *seq = tparm(cap, (int)index);
+  // tparm(char *) is non-const on macOS ncurses; cast for portability.
+  char *seq = tparm((char *)cap, (int)index);
   if (seq) {
     app_cli_emit_cap(term, seq);
   }
