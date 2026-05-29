@@ -5,8 +5,11 @@
 
 #include "cli_theme.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "../../style/design_tokens.h"
 
@@ -199,4 +202,91 @@ const app_cli_style_t *app_cli_style(const app_cli_styles_t *styles,
     return &empty;
   }
   return &styles->tokens[token];
+}
+
+bool app_cli_color_parse(const char *spec, app_cli_color_t *out) {
+  if (!spec || !out || !spec[0]) {
+    return false;
+  }
+  const char *s = (spec[0] == '#') ? spec + 1 : spec;
+  size_t len = strlen(s);
+
+  // Hex RGB: exactly 6 hex digits, optionally '#'-prefixed.
+  bool all_hex = len == 6;
+  for (size_t i = 0; all_hex && i < len; i++) {
+    if (!isxdigit((unsigned char)s[i])) {
+      all_hex = false;
+    }
+  }
+  if (all_hex) {
+    // Parse each two-digit channel through the shared hex reader so #RRGGBB and
+    // OSC 11 share one code path (a two-digit field has max 0xff, so the scale
+    // is the identity here).
+    const char *p = s;
+    uint8_t ch[3];
+    for (int i = 0; i < 3; i++) {
+      unsigned value;
+      unsigned field_max;
+      if (!app_color_read_hex(&p, p + 2, 2, &value, &field_max)) {
+        return false;
+      }
+      ch[i] = app_color_channel_to_u8(value, field_max);
+    }
+    app_rgb_t rgb = {ch[0], ch[1], ch[2]};
+    *out = (app_cli_color_t){.kind = APP_CLI_COLOR_RGB,
+                             .rgb = rgb,
+                             .has_ansi16_hint = true,
+                             .ansi16_hint = app_color_rgb_to_ansi16(rgb)};
+    return true;
+  }
+
+  // Decimal ANSI palette index (not valid with a '#' prefix).
+  if (spec[0] != '#' && len > 0) {
+    bool all_digits = true;
+    for (size_t i = 0; i < len; i++) {
+      if (!isdigit((unsigned char)s[i])) {
+        all_digits = false;
+        break;
+      }
+    }
+    if (all_digits) {
+      long v = strtol(s, NULL, 10);
+      if (v < 0 || v > 255) {
+        return false;
+      }
+      if (v < 16) {
+        *out = (app_cli_color_t){.kind = APP_CLI_COLOR_ANSI16,
+                                 .ansi16 = (uint8_t)v};
+      } else {
+        *out = (app_cli_color_t){.kind = APP_CLI_COLOR_ANSI256,
+                                 .ansi256 = (uint8_t)v};
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+void app_cli_theme_apply_env_overrides(app_cli_color_scheme_t *scheme) {
+  if (!scheme) {
+    return;
+  }
+  const char *accent = getenv("APP_CLI_ACCENT");
+  if (!accent || !accent[0]) {
+    return;
+  }
+  app_cli_color_t color;
+  if (!app_cli_color_parse(accent, &color)) {
+    return;
+  }
+  static const app_cli_color_token_id accent_tokens[] = {
+      APP_CLI_COLOR_TOKEN_TITLE,   APP_CLI_COLOR_TOKEN_PROGRAM,
+      APP_CLI_COLOR_TOKEN_COMMAND, APP_CLI_COLOR_TOKEN_FLAG,
+      APP_CLI_COLOR_TOKEN_HELP,    APP_CLI_COLOR_TOKEN_CODEBLOCK,
+  };
+  for (size_t i = 0; i < sizeof(accent_tokens) / sizeof(accent_tokens[0]);
+       i++) {
+    scheme->tokens[accent_tokens[i]].dark = color;
+    scheme->tokens[accent_tokens[i]].light = color;
+  }
 }

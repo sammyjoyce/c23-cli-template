@@ -28,8 +28,9 @@ typedef struct app_cli_render_ctx {
 } app_cli_render_ctx_t;
 
 // Initialize a render context for `stream`. Resolves terminal capabilities,
-// theme mode (APP_CLI_THEME=dark|light, default dark), compiles styles, and
-// clamps width. Returns ctx->styled. Always safe; falls back to plain output.
+// theme mode (APP_CLI_THEME=auto|dark|light, default auto with dark fallback),
+// compiles styles, and clamps width. Returns ctx->styled. Always safe; falls
+// back to plain output.
 bool app_cli_render_ctx_init(app_cli_render_ctx_t *ctx,
                              const app_config_t *config, FILE *stream,
                              const char *program_name,

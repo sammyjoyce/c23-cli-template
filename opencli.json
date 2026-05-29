@@ -308,7 +308,11 @@
         "name": "environment",
         "value": {
           "APP_LOG_LEVEL": "Set logging verbosity: ERROR, WARNING, INFO, DEBUG (default: ERROR)",
-          "NO_COLOR": "Disable colored output when set"
+          "NO_COLOR": "Disable colored output when set",
+          "APP_CLI_THEME": "CLI theme: auto (detect), dark, or light",
+          "APP_CLI_COLOR": "Color profile: auto, never, 16, 256, truecolor",
+          "APP_CLI_OSC11": "Set 0 to disable terminal background detection",
+          "APP_CLI_ACCENT": "Override accent color (#rrggbb or palette index)"
         }
       },
       {

@@ -112,6 +112,16 @@ typedef struct app_cli_styles {
 // Built-in default scheme.
 const app_cli_color_scheme_t *app_cli_theme_default_scheme(void);
 
+// Parse a color spec into an app_cli_color_t. Accepts "#rrggbb"/"rrggbb" (RGB,
+// with an auto-derived ANSI-16 fallback hint) or a decimal 0-255 ANSI index.
+// Returns false on malformed input.
+bool app_cli_color_parse(const char *spec, app_cli_color_t *out);
+
+// Apply environment-based theme overrides to a mutable scheme copy. Currently
+// honors APP_CLI_ACCENT, which recolors the accent tokens (title, program,
+// command, flag, help, codeblock). Safe to call on a copy of a built-in scheme.
+void app_cli_theme_apply_env_overrides(app_cli_color_scheme_t *scheme);
+
 // Compile a scheme into emit-ready styles for the given mode/profile.
 void app_cli_styles_compile(app_cli_styles_t *out,
                             const app_cli_color_scheme_t *scheme,

@@ -93,3 +93,29 @@ void app_cli_term_emit_indexed(app_cli_term_t *term, bool background,
 void app_cli_term_emit_truecolor(app_cli_term_t *term, bool background,
                                  app_rgb_t rgb);
 void app_cli_term_emit_reset(app_cli_term_t *term);
+
+// ---- Background detection (OSC 11) ---------------------------------------
+
+typedef enum app_cli_bg_kind_id {
+  APP_CLI_BG_UNKNOWN = 0,
+  APP_CLI_BG_DARK,
+  APP_CLI_BG_LIGHT,
+} app_cli_bg_kind_id;
+
+// The low-level OSC 11 response parser (app_cli_osc11_parse) and query
+// round-trip (app_cli_osc11_query_fd) are deliberately NOT re-exported here.
+// They live in cli_term_osc11.h; only the .c files (and tests) that drive the
+// raw I/O include that header directly.
+
+// Detect the terminal background by querying the controlling terminal
+// (/dev/tty), which is both gated and queried (the render stream's fd is not
+// consulted, so a piped stdout with an interactive controlling terminal still
+// detects). The probe result is cached per process only after a real /dev/tty
+// round-trip; benign/contextual skips do not freeze the cache. Honors skip
+// conditions (NO_COLOR, plain/json config, TERM=dumb, no usable /dev/tty, CI
+// unless APP_CLI_OSC11=1, APP_CLI_OSC11=0). Returns APP_CLI_BG_UNKNOWN when
+// detection is skipped or fails. APP_CLI_TEST_BG=light|dark is a test hook that
+// stands in for the /dev/tty round-trip (it sits after every skip gate) so the
+// caching contract can be exercised without a real terminal.
+app_cli_bg_kind_id app_cli_term_detect_background(const app_cli_term_t *term,
+                                                  const app_config_t *config);

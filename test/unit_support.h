@@ -28,3 +28,4 @@ void run_config_unit_tests(unit_stats_t *stats);
 void run_input_unit_tests(unit_stats_t *stats);
 void run_tui_menu_unit_tests(unit_stats_t *stats);
 void run_cli_style_unit_tests(unit_stats_t *stats);
+void run_cli_osc11_unit_tests(unit_stats_t *stats);
