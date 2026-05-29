@@ -18,10 +18,6 @@
 // already at a non-space byte.
 const char *app_json_skip_ws(const char *cursor);
 
-// True when ch legally terminates a JSON scalar value (separator, container
-// close, whitespace, or end of input).
-bool app_json_value_boundary(char ch);
-
 // Match literal at cursor, requiring a value boundary immediately after. On a
 // match, *end (when non-NULL) is set just past the literal. Used for the
 // true/false/null keywords. Returns false when cursor or literal is NULL.

@@ -13,7 +13,10 @@ const char *app_json_skip_ws(const char *cursor) {
   return cursor;
 }
 
-bool app_json_value_boundary(char ch) {
+// True when ch legally terminates a JSON scalar value (separator, container
+// close, whitespace, or end of input). Internal to this module — only the
+// literal and number scanners below need it.
+static bool app_json_value_boundary(char ch) {
   return ch == '\0' || ch == ',' || ch == '}' || ch == ']' ||
          isspace((unsigned char)ch) != 0;
 }
