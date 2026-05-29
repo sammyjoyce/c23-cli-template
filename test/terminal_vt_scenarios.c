@@ -61,21 +61,16 @@ static const char *find_line_containing(const char *text, const char *needle,
   return NULL;
 }
 
+/* The menu is borderless (dawn-style): the title is centered text rather than
+ * a label on a box edge. Verify the title is horizontally centered within a
+ * frame of `expected_width` positioned at `expected_left` - this still proves
+ * the frame recentered/resized correctly. */
 static bool snapshot_has_menu_frame(const char *snapshot, int expected_left,
                                     int expected_width) {
-  static const char title[] = "Starter Showcase";
+  static const char title[] = "STARTER SHOWCASE";
   size_t line_len = 0;
   const char *line = find_line_containing(snapshot, title, &line_len);
   if (!line) {
-    return false;
-  }
-
-  size_t first_non_space = 0;
-  while (first_non_space < line_len && line[first_non_space] == ' ') {
-    first_non_space++;
-  }
-  const int frame_left = utf8_columns_until(line, first_non_space);
-  if (frame_left != expected_left) {
     return false;
   }
 
@@ -85,12 +80,8 @@ static bool snapshot_has_menu_frame(const char *snapshot, int expected_left,
   }
   const int title_col = utf8_columns_until(line, (size_t)(title_at - line));
   const int expected_title_col =
-      expected_left + ((expected_width - (int)strlen(title)) / 2) + 1;
-  if (title_col != expected_title_col) {
-    return false;
-  }
-
-  return utf8_columns_until(line, line_len) - frame_left == expected_width;
+      expected_left + (expected_width - (int)strlen(title)) / 2;
+  return title_col == expected_title_col;
 }
 
 static bool vt_expect_menu_frame(vt_session_t *session, int expected_left,
@@ -98,7 +89,7 @@ static bool vt_expect_menu_frame(vt_session_t *session, int expected_left,
                                  char **snapshot) {
   const int64_t deadline = monotonic_ms() + timeout_ms;
   while (monotonic_ms() <= deadline) {
-    if (vt_expect_text(session, "Starter Showcase", 100, snapshot) &&
+    if (vt_expect_text(session, "STARTER SHOWCASE", 100, snapshot) &&
         snapshot_has_menu_frame(*snapshot, expected_left, expected_width)) {
       return true;
     }
@@ -152,8 +143,8 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
   }
 
   const tui_step_t steps[] = {
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
-       "Starter Showcase did not appear"},
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
+       "STARTER SHOWCASE did not appear"},
       {TUI_STEP_EXPECT, "Overview", 0, 0, 0, 1000,
        "menu label did not appear: Overview"},
       {TUI_STEP_EXPECT, "System Information", 0, 0, 0, 1000,
@@ -168,16 +159,16 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
        "menu label did not appear: Exit"},
 
       {TUI_STEP_SEND, "o", 0, 0, 0, 0, "failed to select Overview"},
-      {TUI_STEP_EXPECT, "Starter Overview", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER OVERVIEW", 0, 0, 0, PTY_TIMEOUT_MS,
        "Starter Overview did not appear"},
       {TUI_STEP_EXPECT, "C23 modules", 0, 0, 0, 1000,
        "overview body did not appear"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to dismiss overview"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after overview"},
 
       {TUI_STEP_SEND, "s", 0, 0, 0, 0, "failed to select System Information"},
-      {TUI_STEP_EXPECT, "System Information", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "SYSTEM INFORMATION", 0, 0, 0, PTY_TIMEOUT_MS,
        "System Information did not appear"},
       {TUI_STEP_EXPECT, "Application:", 0, 0, 0, 1000,
        "system information body was incomplete: Application"},
@@ -186,71 +177,71 @@ int run_tui_menu_test(test_stats_t *stats, const char *binary,
       {TUI_STEP_EXPECT, "Colors Supported:", 0, 0, 0, 1000,
        "system information body was incomplete: Colors Supported"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to dismiss system information"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after system info"},
 
       {TUI_STEP_SEND, "i", 0, 0, 0, 0, "failed to select Input Dialog"},
-      {TUI_STEP_EXPECT, "Input Dialog", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "INPUT DIALOG", 0, 0, 0, PTY_TIMEOUT_MS,
        "Input Dialog did not appear"},
       {TUI_STEP_EXPECT, "Enter a display name:", 0, 0, 0, 1000,
        "input prompt did not appear"},
       {TUI_STEP_SEND, "Ada Lovelace\r", 0, 0, 0, 0,
        "failed to submit input dialog text"},
-      {TUI_STEP_EXPECT, "Input Captured", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "INPUT CAPTURED", 0, 0, 0, PTY_TIMEOUT_MS,
        "Input Captured did not appear"},
       {TUI_STEP_EXPECT, "Hello, Ada Lovelace.", 0, 0, 0, 1000,
        "captured input message did not appear"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0,
        "failed to dismiss input captured message"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after input flow"},
 
       {TUI_STEP_SEND, "p", 0, 0, 0, 0, "failed to select Progress Pattern"},
-      {TUI_STEP_EXPECT, "Progress Complete", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "PROGRESS COMPLETE", 0, 0, 0, PTY_TIMEOUT_MS,
        "Progress Complete did not appear"},
       {TUI_STEP_EXPECT, "window lifecycle", 0, 0, 0, 1000,
        "progress completion body did not appear"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to dismiss progress completion"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after progress"},
 
       {TUI_STEP_SEND, "l", 0, 0, 0, 0, "failed to select Layout Pattern"},
-      {TUI_STEP_EXPECT, "Layout Pattern", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "LAYOUT PATTERN", 0, 0, 0, PTY_TIMEOUT_MS,
        "Layout Pattern did not appear"},
       {TUI_STEP_EXPECT, "Composable terminal UI", 0, 0, 0, 1000,
        "layout screen body was incomplete: Composable terminal UI"},
       {TUI_STEP_EXPECT, "Enter/Esc closes this panel", 0, 0, 0, 1000,
        "layout screen body was incomplete: close hint"},
       {TUI_STEP_SEND, "\x1b", 0, 0, 0, 0, "failed to close layout screen"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after layout"},
 
       {TUI_STEP_SEND, "c", 0, 0, 0, 0, "failed to select Configuration"},
-      {TUI_STEP_EXPECT, "Configuration", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "CONFIGURATION", 0, 0, 0, PTY_TIMEOUT_MS,
        "Configuration menu did not appear"},
       {TUI_STEP_EXPECT, "Output mode", 0, 0, 0, 1000,
        "Configuration item did not appear: Output mode"},
       {TUI_STEP_SEND, "\r", 0, 0, 0, 0, "failed to select Output mode"},
-      {TUI_STEP_EXPECT, "Output Mode", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "OUTPUT MODE", 0, 0, 0, PTY_TIMEOUT_MS,
        "Output Mode message did not appear"},
       {TUI_STEP_EXPECT, "Set via --json", 0, 0, 0, 1000,
        "Output Mode body did not appear"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to dismiss Output Mode message"},
-      {TUI_STEP_EXPECT, "Configuration", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "CONFIGURATION", 0, 0, 0, PTY_TIMEOUT_MS,
        "Configuration menu did not reappear after handler modal"},
       {TUI_STEP_SEND, "b", 0, 0, 0, 0, "failed to return from Configuration"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after configuration"},
 
       {TUI_STEP_RESIZE, NULL, 0, 100, 28, 0,
        "failed to resize PTY/Ghostty terminal"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
-       "Starter Showcase disappeared after resize"},
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
+       "STARTER SHOWCASE disappeared after resize"},
       {TUI_STEP_SEND, "q", 0, 0, 0, 0, "failed to send q"},
       {TUI_STEP_EXPECT, "Return to the shell?", 0, 0, 0, PTY_TIMEOUT_MS,
        "exit confirmation did not appear"},
       {TUI_STEP_SEND, "n", 0, 0, 0, 0, "failed to cancel exit confirmation"},
-      {TUI_STEP_EXPECT, "Starter Showcase", 0, 0, 0, PTY_TIMEOUT_MS,
+      {TUI_STEP_EXPECT, "STARTER SHOWCASE", 0, 0, 0, PTY_TIMEOUT_MS,
        "menu did not reappear after exit cancel"},
       {TUI_STEP_SEND, "x", 0, 0, 0, 0, "failed to select Exit"},
       {TUI_STEP_EXPECT, "Return to the shell?", 0, 0, 0, PTY_TIMEOUT_MS,
@@ -289,7 +280,7 @@ int run_tui_stress_smoke(test_stats_t *stats, const char *binary,
 
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS,
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS,
                       &snapshot)) {
     failed = test_fail(stats, name, "initial menu did not render");
   }
@@ -314,7 +305,7 @@ int run_tui_stress_smoke(test_stats_t *stats, const char *binary,
         break;
       }
     }
-    if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS,
+    if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS,
                         &snapshot)) {
       print_tail(stderr, "screen:\n", snapshot ? snapshot : "",
                  snapshot ? strlen(snapshot) : 0, 4000);
@@ -361,7 +352,7 @@ int run_tui_menu_separator(test_stats_t *stats, const char *binary,
   }
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   /* Selection starts on Overview. j j j should advance past the separator
    * to Progress Pattern (item 4). */
@@ -401,7 +392,7 @@ int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
   }
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   /* Send Ctrl-C through the PTY. The shell/terminal converts \x03 to SIGINT. */
   if (!failed && !vt_send(&session, "\x03"))
@@ -436,7 +427,7 @@ int run_tui_menu_resize(test_stats_t *stats, const char *binary,
   }
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   /* Shrink: above minimum but smaller than initial frame_width=72. */
   if (!failed && !vt_resize(&session, 60, 16))
@@ -546,7 +537,7 @@ int run_tui_menu_mnemonic(test_stats_t *stats, const char *binary,
   }
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   /* "&System Information" has unique mnemonic 's' - auto-confirms. */
   if (!failed && !vt_send(&session, "s"))
@@ -585,12 +576,11 @@ int run_tui_menu_search(test_stats_t *stats, const char *binary,
   }
   char *snapshot = NULL;
   int failed = 0;
-  if (!vt_expect_text(&session, "Starter Showcase", PTY_TIMEOUT_MS, &snapshot))
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   if (!failed && !vt_send(&session, "/"))
     failed = test_fail(stats, name, "failed to enter search mode");
-  if (!failed &&
-      !vt_expect_text(&session, "Search:", PTY_TIMEOUT_MS, &snapshot))
+  if (!failed && !vt_expect_text(&session, "find:", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "search prompt did not appear");
   if (!failed && !vt_send(&session, "prog"))
     failed = test_fail(stats, name, "failed to type 'prog'");

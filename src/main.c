@@ -25,6 +25,9 @@
 #include "core/error.h"
 #include "io/output.h"
 #include "utils/logging.h"
+#ifdef APP_ENABLE_CLI_STYLE
+#include "cli/style/cli_error_render.h"
+#endif
 
 static int64_t app_now_millis(void) {
   struct timespec now;
@@ -109,7 +112,7 @@ int main(int argc, char *argv[]) {
 
   const char *command = app_config_get_command(config);
   if (command == NULL) {
-    app_print_concise_help(argv[0]);
+    app_print_concise_help_ex(argv[0], config);
     app_config_destroy(config);
     return APP_ERROR_INVALID_ARG;
   }
@@ -119,6 +122,15 @@ int main(int argc, char *argv[]) {
 
   const app_command_t *entry = app_command_find(command);
   if (!entry) {
+#ifdef APP_ENABLE_CLI_STYLE
+    if (!app_config_is_json_output(config)) {
+      app_cli_render_error_code(
+          config, stderr, app_config_get_program_name(config),
+          APP_ERROR_INVALID_COMMAND, command, APP_CLI_ERROR_KIND_USAGE);
+      app_config_destroy(config);
+      return APP_ERROR_INVALID_COMMAND;
+    }
+#endif
     app_output_format(config, true, "Unknown command: %s", command);
     app_output_format(config, true, "Run '%s --help' for available commands",
                       app_config_get_program_name(config));
@@ -138,7 +150,8 @@ int main(int argc, char *argv[]) {
       break;
     }
     if (strcmp(cmd_argv[i], "--help") == 0 || strcmp(cmd_argv[i], "-h") == 0) {
-      app_print_command_help(app_config_get_program_name(config), entry);
+      app_print_command_help_ex(app_config_get_program_name(config), config,
+                                entry);
       app_config_destroy(config);
       return APP_SUCCESS;
     }

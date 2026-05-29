@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+#include "../style/design_tokens.h"
 #include "../utils/logging.h"
 
 static bool tui_initialized = false;
@@ -281,26 +282,78 @@ void tui_acknowledge_interrupt(void) {
 
 /* ---- color management --------------------------------------------------- */
 
+/* Warm "amber on near-black" palette inspired by gitlogue's ayu/gruvbox
+ * themes. When the terminal can redefine palette entries we mix exact RGB
+ * tones; otherwise we fall back to a coherent warm mapping over the 8 base
+ * colors. Custom entries live at indices 16+ so the base colors stay intact
+ * for any code that references COLOR_RED/GREEN/... directly. */
+enum {
+  TUI_RGB_AMBER = 16, /* accent: titles, numbers, markers */
+  TUI_RGB_FG,         /* primary warm foreground */
+  TUI_RGB_MUTED,      /* dim gray: borders, separators, hints */
+  TUI_RGB_GREEN,      /* soft success green */
+  TUI_RGB_LAST,
+};
+
+static bool tui_palette_is_truecolor(void) {
+  return can_change_color() && COLORS >= TUI_RGB_LAST;
+}
+
+/* Seed one custom palette entry from a design-token RGB triple, converting the
+ * 0..255 channels to the 0..1000 scale init_color() expects. */
+static void tui_init_color_from(short slot, app_rgb_t c) {
+  init_color(slot, (short)app_design_chan_to_curses(c.r),
+             (short)app_design_chan_to_curses(c.g),
+             (short)app_design_chan_to_curses(c.b));
+}
+
+static void tui_define_rgb_palette(void) {
+  /* Drive the truecolor palette from the shared design tokens so the TUI and
+   * the CLI styling layer stay one source of truth (see design_tokens.h);
+   * init_color() takes the 0..1000 scale. */
+  const app_design_palette_t *p = &APP_DESIGN_PALETTE;
+  tui_init_color_from(TUI_RGB_AMBER, p->amber);
+  tui_init_color_from(TUI_RGB_FG, p->fg);
+  tui_init_color_from(TUI_RGB_MUTED, p->muted);
+  tui_init_color_from(TUI_RGB_GREEN, p->green);
+}
+
 app_error tui_init_colors(void) {
   if (!has_colors()) {
     LOG_WARNING("Terminal does not support colors");
     return APP_SUCCESS;
   }
 
-  const short default_fg = tui_default_fg();
-  const short default_bg = tui_default_bg();
+  const short bg = tui_default_bg();
 
+  if (tui_palette_is_truecolor()) {
+    tui_define_rgb_palette();
+    init_pair(TUI_COLOR_HIGHLIGHT, COLOR_BLACK, TUI_RGB_AMBER);
+    init_pair(TUI_COLOR_ERROR, COLOR_RED, bg);
+    init_pair(TUI_COLOR_SUCCESS, TUI_RGB_GREEN, bg);
+    init_pair(TUI_COLOR_WARNING, TUI_RGB_AMBER, bg);
+    init_pair(TUI_COLOR_INFO, TUI_RGB_AMBER, bg);
+    init_pair(TUI_COLOR_MENU_NORMAL, TUI_RGB_FG, bg);
+    init_pair(TUI_COLOR_BORDER, TUI_RGB_MUTED, bg);
+    init_pair(TUI_COLOR_TITLE, TUI_RGB_FG, bg);
+    init_pair(TUI_COLOR_ACCENT, TUI_RGB_AMBER, bg);
+    init_pair(TUI_COLOR_DIM, TUI_RGB_MUTED, bg);
+    return APP_SUCCESS;
+  }
+
+  /* Fallback: warm mapping over the 8 base colors (amber -> yellow, a
+   * calmer blue selection bar instead of loud cyan). */
+  const short default_fg = tui_default_fg();
   init_pair(TUI_COLOR_HIGHLIGHT, COLOR_BLACK, COLOR_WHITE);
-  init_pair(TUI_COLOR_ERROR, COLOR_RED, default_bg);
-  init_pair(TUI_COLOR_SUCCESS, COLOR_GREEN, default_bg);
-  init_pair(TUI_COLOR_WARNING, COLOR_YELLOW, default_bg);
-  init_pair(TUI_COLOR_INFO, COLOR_CYAN, default_bg);
-  init_pair(TUI_COLOR_MENU_SELECTED, COLOR_BLACK, COLOR_CYAN);
-  init_pair(TUI_COLOR_MENU_NORMAL, default_fg, default_bg);
-  init_pair(TUI_COLOR_BORDER, COLOR_BLUE, default_bg);
-  init_pair(TUI_COLOR_TITLE, COLOR_MAGENTA, default_bg);
-  init_pair(TUI_COLOR_ACCENT, COLOR_WHITE, COLOR_CYAN);
-  init_pair(TUI_COLOR_DIM, COLOR_WHITE, default_bg);
+  init_pair(TUI_COLOR_ERROR, COLOR_RED, bg);
+  init_pair(TUI_COLOR_SUCCESS, COLOR_GREEN, bg);
+  init_pair(TUI_COLOR_WARNING, COLOR_YELLOW, bg);
+  init_pair(TUI_COLOR_INFO, COLOR_YELLOW, bg);
+  init_pair(TUI_COLOR_MENU_NORMAL, default_fg, bg);
+  init_pair(TUI_COLOR_BORDER, COLOR_BLUE, bg);
+  init_pair(TUI_COLOR_TITLE, default_fg, bg);
+  init_pair(TUI_COLOR_ACCENT, COLOR_YELLOW, bg);
+  init_pair(TUI_COLOR_DIM, COLOR_WHITE, bg);
 
   return APP_SUCCESS;
 }
@@ -369,14 +422,27 @@ static void tui_draw_window_title(tui_window_t *window, const char *title) {
     return;
   }
 
-  const int max_width = window->width - 4;
+  const int max_width = window->width - 2;
   if (max_width <= 0) {
     return;
   }
-  const int display_len = tui_clamped_strlen(title, max_width);
-  const int x_pos = (window->width - display_len) / 2;
+  /* Centered, bold, UPPERCASE title rendered one row inside the top border
+   * (dawn-style), not on the border edge. ASCII-safe upper preserves any
+   * multibyte UTF-8, and we centre by display columns, not byte length. */
+  char up[128];
+  tui_ascii_upper_copy(up, sizeof(up), title);
+  int cols = tui_display_cols(up);
+  if (cols > max_width) {
+    cols = max_width;
+  }
+  int x_pos = (window->width - cols) / 2;
+  if (x_pos < 1) {
+    x_pos = 1;
+  }
   tui_set_color(window->win, TUI_COLOR_TITLE);
-  mvwprintw(window->win, 0, x_pos, " %.*s ", max_width, title);
+  wattron(window->win, A_BOLD);
+  mvwaddnstr(window->win, 1, x_pos, up, max_width);
+  wattroff(window->win, A_BOLD);
   tui_unset_color(window->win, TUI_COLOR_TITLE);
 }
 
@@ -424,9 +490,25 @@ void tui_draw_border(tui_window_t *window) {
     return;
   }
 
-  tui_set_color(window->win, TUI_COLOR_BORDER);
-  box(window->win, 0, 0);
-  tui_unset_color(window->win, TUI_COLOR_BORDER);
+  WINDOW *win = window->win;
+  const int h = getmaxy(win);
+  const int w = getmaxx(win);
+  tui_set_color(win, TUI_COLOR_BORDER);
+  if (h >= 2 && w >= 2) {
+    /* Rounded box (dawn-style). Sides use ACS line glyphs; only the four
+     * corners need the rounded Unicode characters. */
+    mvwhline(win, 0, 1, ACS_HLINE, w - 2);
+    mvwhline(win, h - 1, 1, ACS_HLINE, w - 2);
+    mvwvline(win, 1, 0, ACS_VLINE, h - 2);
+    mvwvline(win, 1, w - 1, ACS_VLINE, h - 2);
+    mvwaddnstr(win, 0, 0, "╭", -1);         /* top-left  */
+    mvwaddnstr(win, 0, w - 1, "╮", -1);     /* top-right */
+    mvwaddnstr(win, h - 1, 0, "╰", -1);     /* bottom-left */
+    mvwaddnstr(win, h - 1, w - 1, "╯", -1); /* bottom-right */
+  } else {
+    box(win, 0, 0);
+  }
+  tui_unset_color(win, TUI_COLOR_BORDER);
   window->has_border = true;
 
   if (window->title) {
@@ -657,6 +739,12 @@ static tui_window_t *tui_modal_open(int preferred_height, int preferred_width,
     return NULL;
   }
 
+  /* Blank the screen so the dialog floats on a clean backdrop instead of
+   * letting the structured menu behind it peek around the box edges. The
+   * background is restored when the dialog closes. */
+  clear();
+  refresh();
+
   tui_draw_border(window);
   if (title) {
     tui_set_window_title(window, title);
@@ -742,7 +830,7 @@ typedef struct {
 static void tui_message_redraw(tui_window_t *window, void *userdata) {
   const tui_message_state_t *state = userdata;
   if (state->message) {
-    tui_print_wrapped(window->win, 2, 2, window->width - 4, state->message);
+    tui_print_wrapped(window->win, 3, 2, window->width - 4, state->message);
   }
   tui_set_color(window->win, TUI_COLOR_INFO);
   tui_print_centered(window->win, window->height - 2, "Press any key");
@@ -758,9 +846,9 @@ static tui_modal_decision_t tui_message_key(tui_window_t *window, int ch,
 }
 
 void tui_show_message(const char *title, const char *message) {
-  int height = 8;
+  int height = 9;
   if (message) {
-    height = 6;
+    height = 7; /* border + title + blank + body + blank + prompt + border */
     for (const char *p = message; *p != '\0'; p++) {
       if (*p == '\n') {
         height++;
@@ -781,7 +869,7 @@ typedef struct {
 static void tui_confirm_redraw(tui_window_t *window, void *userdata) {
   const tui_confirm_state_t *state = userdata;
   if (state->question) {
-    tui_print_wrapped(window->win, 2, 2, window->width - 4, state->question);
+    tui_print_wrapped(window->win, 3, 2, window->width - 4, state->question);
   }
   tui_set_color(window->win, TUI_COLOR_INFO);
   tui_print_centered(window->win, window->height - 2, "y/n, Esc cancels");
@@ -805,7 +893,7 @@ static tui_modal_decision_t tui_confirm_key(tui_window_t *window, int ch,
 
 bool tui_confirm(const char *title, const char *question) {
   tui_confirm_state_t state = {.question = question, .result = false};
-  if (!tui_modal_run(8, 50, title, tui_confirm_redraw, tui_confirm_key,
+  if (!tui_modal_run(9, 50, title, tui_confirm_redraw, tui_confirm_key,
                      &state)) {
     return false;
   }
@@ -823,19 +911,19 @@ typedef struct {
 static void tui_input_redraw(tui_window_t *window, void *userdata) {
   tui_input_state_t *state = userdata;
   if (state->prompt) {
-    tui_write_clamped(window->win, 2, 2, window->width - 4, state->prompt);
+    tui_write_clamped(window->win, 3, 2, window->width - 4, state->prompt);
   }
 
-  mvwprintw(window->win, 4, 2, "> ");
+  mvwprintw(window->win, 5, 2, "> ");
   const int max_cols = window->width > 6 ? window->width - 6 : 0;
   size_t start = 0;
   if (max_cols > 0 && state->len > (size_t)max_cols) {
     start = state->len - (size_t)max_cols;
   }
   if (max_cols > 0) {
-    tui_write_clamped(window->win, 4, 4, max_cols, state->buffer + start);
+    tui_write_clamped(window->win, 5, 4, max_cols, state->buffer + start);
   }
-  wmove(window->win, 4, 4 + (int)(state->len - start));
+  wmove(window->win, 5, 4 + (int)(state->len - start));
 }
 
 static tui_modal_decision_t tui_input_key(tui_window_t *window, int ch,
@@ -892,7 +980,7 @@ app_error tui_input_dialog(const char *title, const char *prompt, char *buffer,
                              .result = APP_ERROR_IO};
 
   const bool opened =
-      tui_modal_run(8, 60, title, tui_input_redraw, tui_input_key, &state);
+      tui_modal_run(9, 60, title, tui_input_redraw, tui_input_key, &state);
   if (previous_cursor != ERR) {
     (void)curs_set(previous_cursor);
   } else {

@@ -16,6 +16,9 @@
 #include "../utils/logging.h"
 #include "commands.h"
 #include "help.h"
+#ifdef APP_ENABLE_CLI_STYLE
+#include "style/cli_version_render.h"
+#endif
 
 typedef struct {
   const char *config_path;
@@ -123,6 +126,9 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
       app_print_verbose_usage(argv[0]);
       exit(0);
     case APP_BUILTIN_OPTION_VERSION:
+#ifdef APP_ENABLE_CLI_STYLE
+      app_cli_render_version(nullptr, stdout, argv[0]);
+#else
       printf("%s %s\n", APP_NAME, APP_VERSION);
       printf("A C23 TUI + CLI starter application\n");
       printf("Built with: Zig, C23\n");
@@ -130,6 +136,7 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
       printf("TUI: enabled via curses\n");
 #else
       printf("TUI: disabled\n");
+#endif
 #endif
       exit(0);
     }

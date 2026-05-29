@@ -356,6 +356,32 @@ static bool test_numeric_jump(void) {
   return ok;
 }
 
+static bool test_numbering_skips_separators(void) {
+  const tui_menu_item_t items[] = {
+      {.label = "a", .id = 1},
+      {.kind = TUI_MENU_ITEM_SEPARATOR},
+      {.label = "b", .id = 2},
+      {.label = "c", .id = 3},
+  };
+  const tui_menu_config_t cfg = {.items = items, .item_count = 4};
+  tui_menu_state_t *s = NULL;
+  if (tui_menu_state_create(&cfg, &s) != TUI_MENU_OK)
+    return false;
+  /* Visible rows: 0=a, 1=sep, 2=b, 3=c. Labels count non-separator rows. */
+  bool ok = tui_menu_state_number_for_row(s, 0) == 1 &&
+            tui_menu_state_number_for_row(s, 1) == 0 && /* separator */
+            tui_menu_state_number_for_row(s, 2) == 2 &&
+            tui_menu_state_number_for_row(s, 3) == 3;
+  /* row_for_number is the inverse and skips the separator. */
+  ok = ok && tui_menu_state_row_for_number(s, 1) == 0 &&
+       tui_menu_state_row_for_number(s, 2) == 2 &&
+       tui_menu_state_row_for_number(s, 3) == 3 &&
+       tui_menu_state_row_for_number(s, 4) == -1 &&
+       tui_menu_state_row_for_number(s, 0) == -1;
+  tui_menu_state_destroy(s);
+  return ok;
+}
+
 void run_tui_menu_unit_tests(unit_stats_t *stats) {
   {
     const tui_menu_item_t item = {
@@ -426,4 +452,6 @@ void run_tui_menu_unit_tests(unit_stats_t *stats) {
               "tui_menu keeps selected row in viewport");
   unit_record(stats, test_numeric_jump(),
               "tui_menu numeric jump targets visible row, skips disabled");
+  unit_record(stats, test_numbering_skips_separators(),
+              "tui_menu numeric labels stay contiguous across separators");
 }

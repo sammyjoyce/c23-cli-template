@@ -4,6 +4,10 @@
  * Both concise and verbose help iterate over the command and flag tables in
  * commands.c / config.c, so adding a command or flag automatically shows up
  * without editing this file.
+ *
+ * When the CLI styling layer is compiled in (APP_ENABLE_CLI_STYLE), the public
+ * entry points delegate to the styled renderers in src/cli/style. Otherwise a
+ * self-contained plain-text implementation is used.
  */
 
 #include "help.h"
@@ -14,9 +18,32 @@
 
 #include "../core/config.h"
 #include "../core/types.h"
+#include "commands.h"
+
+#ifdef APP_ENABLE_CLI_STYLE
+
+#include "style/cli_help_render.h"
+
+void app_print_concise_help_ex(const char *program_name,
+                               const app_config_t *config) {
+  app_cli_render_root_help(config, stdout, program_name, false);
+}
+
+void app_print_verbose_usage_ex(const char *program_name,
+                                const app_config_t *config) {
+  app_cli_render_root_help(config, stdout, program_name, true);
+}
+
+void app_print_command_help_ex(const char *program_name,
+                               const app_config_t *config,
+                               const app_command_t *command) {
+  app_cli_render_command_help(config, stdout, program_name, command);
+}
+
+#else /* !APP_ENABLE_CLI_STYLE : plain-text fallback */
+
 #include "../utils/colors.h"
 #include "../utils/logging.h"
-#include "commands.h"
 
 static const char *program_or_default(const char *program_name) {
   if (program_name == nullptr || program_name[0] == '\0') {
@@ -104,7 +131,9 @@ static void print_flag_options(bool include_env_hints) {
   }
 }
 
-void app_print_concise_help(const char *program_name) {
+void app_print_concise_help_ex(const char *program_name,
+                               const app_config_t *config) {
+  (void)config;
   program_name = program_or_default(program_name);
 
   printf("%s - A C23 TUI + CLI starter [version %s]\n\n", APP_NAME,
@@ -120,17 +149,12 @@ void app_print_concise_help(const char *program_name) {
   print_global_value_options();
   printf("\n");
 
-  printf("Examples:\n");
-  printf("  $ %s hello\n", program_name);
-  printf("  Hello, World!\n\n");
-
-  printf("  $ %s hello Alice\n", program_name);
-  printf("  Hello, Alice!\n\n");
-
   printf("For more options, run %s --help\n", program_name);
 }
 
-void app_print_verbose_usage(const char *program_name) {
+void app_print_verbose_usage_ex(const char *program_name,
+                                const app_config_t *config) {
+  (void)config;
   program_name = program_or_default(program_name);
 
   const char *bold = app_use_colors(nullptr) ? APP_COLOR_BOLD : "";
@@ -144,11 +168,8 @@ void app_print_verbose_usage(const char *program_name) {
 
   printf("%sDESCRIPTION%s\n", bold, reset);
   printf(
-      "  A ready-to-use C23 starter for command-line and ncurses TUI apps.\n");
-  printf(
-      "  This template provides a solid foundation for building "
-      "command-line\n");
-  printf("  tools with proper error handling, configuration, and testing.\n\n");
+      "  A ready-to-use C23 starter for command-line and ncurses TUI "
+      "apps.\n\n");
 
   printf("%sCOMMANDS%s\n", bold, reset);
   size_t cmd_count = 0;
@@ -168,36 +189,8 @@ void app_print_verbose_usage(const char *program_name) {
   printf("%sENVIRONMENT%s\n", bold, reset);
   printf(
       "  APP_LOG_LEVEL       Set logging level: ERROR, WARNING, INFO, DEBUG\n");
-  printf("                      Default: ERROR\n");
   printf("  APP_CONFIG_PATH     Override the default config file lookup.\n");
   printf("  NO_COLOR            Disable colored output when set.\n\n");
-
-  printf("%sCONFIGURATION%s\n", bold, reset);
-  printf("  Loaded from (first hit wins):\n");
-  printf("    - the path passed to --config\n");
-  printf("    - $APP_CONFIG_PATH\n");
-  printf("    - ~/.config/%s/config.json\n", APP_NAME);
-  printf("    - /etc/%s/config.json\n\n", APP_NAME);
-
-  printf("  Precedence (highest first):\n");
-  printf("    1. Command-line arguments\n");
-  printf("    2. Environment variables\n");
-  printf("    3. Configuration file\n");
-  printf("    4. Built-in defaults\n\n");
-
-  printf("%sEXAMPLES%s\n", bold, reset);
-  printf("  Basic greeting:\n");
-  printf("    $ %s hello\n", program_name);
-  printf("    Hello, World!\n\n");
-
-  printf("  Machine-readable info:\n");
-  printf("    $ %s --json info\n", program_name);
-  printf("    {\"format_version\":\"1.0\", ...}\n\n");
-
-  printf("  Run diagnostics:\n");
-  printf("    $ %s doctor\n", program_name);
-  printf("    $ %s doctor --deep    # also exercises the TUI runtime\n\n",
-         program_name);
 
   printf("%sEXIT CODES%s\n", bold, reset);
   size_t error_count = 0;
@@ -205,27 +198,15 @@ void app_print_verbose_usage(const char *program_name) {
   for (size_t i = 0; i < error_count; i++) {
     printf("  %-4d %s\n", (int)errors[i].code, errors[i].description);
   }
-  printf("\n");
-
-  printf("%sAUTHOR%s\n", bold, reset);
-  printf("  Written by Your Name\n\n");
-
-  printf("%sREPORTING BUGS%s\n", bold, reset);
-  printf(
-      "  Report bugs to: "
-      "https://github.com/yourusername/yourproject/issues\n\n");
-
-  printf("%sSEE ALSO%s\n", bold, reset);
-  printf("  Project homepage: https://github.com/yourusername/yourproject\n");
-  printf(
-      "  Documentation: https://github.com/yourusername/yourproject#readme\n");
 }
 
-void app_print_command_help(const char *program_name,
-                            const app_command_t *command) {
+void app_print_command_help_ex(const char *program_name,
+                               const app_config_t *config,
+                               const app_command_t *command) {
+  (void)config;
   program_name = program_or_default(program_name);
   if (!command) {
-    app_print_concise_help(program_name);
+    app_print_concise_help_ex(program_name, NULL);
     return;
   }
 
@@ -268,4 +249,20 @@ void app_print_command_help(const char *program_name,
       printf("  %s\n", command->examples[i]);
     }
   }
+}
+
+#endif /* APP_ENABLE_CLI_STYLE */
+
+/* Thin wrappers preserving the original API (both build configurations). */
+void app_print_concise_help(const char *program_name) {
+  app_print_concise_help_ex(program_name, nullptr);
+}
+
+void app_print_verbose_usage(const char *program_name) {
+  app_print_verbose_usage_ex(program_name, nullptr);
+}
+
+void app_print_command_help(const char *program_name,
+                            const app_command_t *command) {
+  app_print_command_help_ex(program_name, nullptr, command);
 }

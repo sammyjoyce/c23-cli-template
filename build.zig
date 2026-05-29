@@ -188,17 +188,54 @@ fn prependRunEnvPath(run: *std.Build.Step.Run, key: []const u8, dir: []const u8)
     }
 }
 
-fn linkCurses(module: *std.Build.Module, target: std.Build.ResolvedTarget, curses_prefix: ?[]const u8, b: *std.Build) void {
+// Link the curses/terminfo library into `module`. `lib_name`, when provided,
+// is the exact library detected at configure time (e.g. the terminfo backend's
+// detected name on a host that only ships `tinfo` or `ncurses`); pass null to
+// fall back to the platform default (`ncursesw` on Unix, `pdcurses` on Windows).
+// Hardcoding `ncursesw` here would make the build link a library that may not
+// exist even though detection picked a different one.
+fn linkCurses(module: *std.Build.Module, target: std.Build.ResolvedTarget, curses_prefix: ?[]const u8, b: *std.Build, lib_name: ?[]const u8) void {
     if (curses_prefix) |pref| {
         module.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{pref}) });
         module.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{pref}) });
     }
 
-    if (target.result.os.tag == .windows) {
+    if (lib_name) |name| {
+        module.linkSystemLibrary(name, .{});
+    } else if (target.result.os.tag == .windows) {
         module.linkSystemLibrary("pdcurses", .{});
     } else {
         module.linkSystemLibrary("ncursesw", .{});
     }
+}
+
+// Return true if pkg-config reports the named library exists.
+fn pkgConfigExists(b: *std.Build, name: []const u8) bool {
+    const res = std.process.run(b.allocator, b.graph.io, .{
+        .argv = &.{ "pkg-config", "--exists", name },
+    }) catch return false;
+    defer b.allocator.free(res.stdout);
+    defer b.allocator.free(res.stderr);
+    return switch (res.term) {
+        .exited => |code| code == 0,
+        else => false,
+    };
+}
+
+// Detect a terminfo-capable library for the CLI styling backend. Returns the
+// pkg-config name to link, or null when none is available (callers then use the
+// ANSI fallback backend). Windows ships PDCurses, which provides terminfo too.
+fn detectTerminfoLib(b: *std.Build, target: std.Build.ResolvedTarget) ?[]const u8 {
+    if (target.result.os.tag == .windows) {
+        return if (pkgConfigExists(b, "pdcurses")) "pdcurses" else null;
+    }
+    const candidates = [_][]const u8{ "ncursesw", "tinfo", "ncurses" };
+    for (candidates) |name| {
+        if (pkgConfigExists(b, name)) {
+            return name;
+        }
+    }
+    return null;
 }
 
 pub fn build(b: *std.Build) void {
@@ -241,6 +278,20 @@ pub fn build(b: *std.Build) void {
     const ghostty_vt_prefix = b.option([]const u8, "ghostty-vt-prefix", "Override libghostty-vt install prefix for Ghostty-backed terminal tests");
     const strict = b.option(bool, "strict", "Treat warnings as errors and enable extra diagnostics") orelse false;
     const harden = b.option(bool, "harden", "Add supported compiler hardening flags") orelse false;
+
+    // CLI styling layer (Fang-style help/errors/version). Independent of the
+    // TUI: it uses terminfo for capability detection/emission without entering
+    // curses screen mode, and falls back to an ANSI backend when terminfo is
+    // unavailable.
+    const enable_cli_style = b.option(bool, "enable-cli-style", "Enable styled CLI help/errors/version (default: true)") orelse true;
+    const cli_terminfo_mode = b.option([]const u8, "cli-terminfo", "CLI terminfo backend: auto, required, disabled (default: auto)") orelse "auto";
+
+    const want_terminfo = enable_cli_style and !std.mem.eql(u8, cli_terminfo_mode, "disabled");
+    const terminfo_lib: ?[]const u8 = if (want_terminfo) detectTerminfoLib(b, target) else null;
+    const have_terminfo = terminfo_lib != null;
+    if (want_terminfo and !have_terminfo and std.mem.eql(u8, cli_terminfo_mode, "required")) {
+        std.debug.panic("-Dcli-terminfo=required but no terminfo library (ncursesw/tinfo/ncurses) was found via pkg-config", .{});
+    }
 
     const exe = b.addExecutable(.{
         .name = binary_name,
@@ -317,10 +368,51 @@ pub fn build(b: *std.Build) void {
         c_flags.append(b.allocator, "-DENABLE_TUI=1") catch |err| oom(err);
     }
 
+    if (enable_cli_style) {
+        c_flags.append(b.allocator, "-DAPP_ENABLE_CLI_STYLE=1") catch |err| oom(err);
+    }
+    c_flags.append(b.allocator, b.fmt("-DAPP_HAVE_TERMINFO={d}", .{@intFromBool(have_terminfo)})) catch |err| oom(err);
+
+    // CLI styling sources (shared tokens + cli/style renderers). The terminal
+    // backend is chosen at build time: terminfo when available, else ANSI.
+    const cli_style_sources = [_][]const u8{
+        "src/style/color_math.c",
+        "src/style/design_tokens.c",
+        "src/cli/style/cli_term.c",
+        "src/cli/style/cli_theme.c",
+        "src/cli/style/cli_sgr.c",
+        "src/cli/style/cli_layout.c",
+        "src/cli/style/cli_help_render.c",
+        "src/cli/style/cli_error_render.c",
+        "src/cli/style/cli_version_render.c",
+    };
+
     exe.root_module.addCSourceFiles(.{
         .files = &base_sources,
         .flags = c_flags.items,
     });
+
+    if (enable_cli_style) {
+        exe.root_module.addCSourceFiles(.{
+            .files = &cli_style_sources,
+            .flags = c_flags.items,
+        });
+        const backend = if (have_terminfo)
+            "src/cli/style/cli_term_terminfo.c"
+        else
+            "src/cli/style/cli_term_ansi.c";
+        exe.root_module.addCSourceFiles(.{
+            .files = &.{backend},
+            .flags = c_flags.items,
+        });
+        // The terminfo backend needs the curses/terminfo library + headers. If
+        // the TUI is also enabled it already links curses below; avoid linking
+        // twice. Link the exact library detection chose (`terminfo_lib`) rather
+        // than assuming `ncursesw`: a host may only ship `tinfo` or `ncurses`.
+        if (have_terminfo and !enable_tui) {
+            linkCurses(exe.root_module, target, curses_prefix, b, terminfo_lib);
+        }
+    }
 
     // Add TUI source if enabled
     if (enable_tui) {
@@ -340,7 +432,20 @@ pub fn build(b: *std.Build) void {
     }
 
     if (enable_tui) {
-        linkCurses(exe.root_module, target, curses_prefix, b);
+        // The TUI needs the full curses screen API (ncursesw / pdcurses), so
+        // link the platform default. When the CLI-style terminfo backend is
+        // also compiled and detection chose a *different* library (e.g. `tinfo`
+        // or plain `ncurses`), additionally link that exact name so its
+        // terminfo symbols resolve too.
+        linkCurses(exe.root_module, target, curses_prefix, b, null);
+        const default_curses = if (target.result.os.tag == .windows) "pdcurses" else "ncursesw";
+        if (have_terminfo) {
+            if (terminfo_lib) |name| {
+                if (!std.mem.eql(u8, name, default_curses)) {
+                    exe.root_module.linkSystemLibrary(name, .{});
+                }
+            }
+        }
     }
 
     b.installArtifact(exe);
@@ -367,6 +472,9 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/core/error.c",
             "src/utils/logging.c",
+            // Shared design palette: tui.c seeds its truecolor entries from
+            // APP_DESIGN_PALETTE, so the token definition must be linked in.
+            "src/style/design_tokens.c",
             "src/tui/tui.c",
             "src/tui/tui_menu.c",
             "src/tui/tui_menu_model.c",
@@ -374,7 +482,7 @@ pub fn build(b: *std.Build) void {
         },
         .flags = tui_menu_lib_flags.items,
     });
-    linkCurses(tui_menu_lib.root_module, target, curses_prefix, b);
+    linkCurses(tui_menu_lib.root_module, target, curses_prefix, b, null);
 
     const install_tui_menu_lib = b.addInstallArtifact(tui_menu_lib, .{});
     const install_tui_headers = [_]*std.Build.Step.InstallFile{
@@ -447,6 +555,7 @@ pub fn build(b: *std.Build) void {
             "test/unit_config_tests.c",
             "test/unit_input_tests.c",
             "test/unit_tui_menu_tests.c",
+            "test/unit_cli_style_tests.c",
             "src/core/error.c",
             "src/core/config.c",
             "src/core/config_json.c",
@@ -455,6 +564,15 @@ pub fn build(b: *std.Build) void {
             "src/utils/colors.c",
             "src/utils/memory.c",
             "src/utils/logging.c",
+            // CLI styling layer (ANSI backend: no ncurses link needed).
+            "src/style/color_math.c",
+            "src/style/design_tokens.c",
+            "src/cli/style/cli_term.c",
+            "src/cli/style/cli_term_ansi.c",
+            "src/cli/style/cli_theme.c",
+            "src/cli/style/cli_sgr.c",
+            "src/cli/style/cli_layout.c",
+            "src/cli/style/cli_error_render.c",
         },
         .flags = c_flags.items,
     });

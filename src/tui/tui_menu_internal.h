@@ -58,6 +58,14 @@ int tui_menu_state_mnemonic_jump(tui_menu_state_t *s, wchar_t key,
 /* Numeric accelerator: jump to visible row 0..8 (no auto-confirm). */
 void tui_menu_state_numeric_jump(tui_menu_state_t *s, int visible_row);
 
+/* Numeric labels count listable (non-separator) rows so the displayed
+ * accelerators stay contiguous (1, 2, 3, ...) even when separators split
+ * the list. number_for_row returns the 1-based label for a visible row (0
+ * for separators / out of range); row_for_number is its inverse, mapping a
+ * pressed digit back to the visible row it labels (-1 if none). */
+int tui_menu_state_number_for_row(const tui_menu_state_t *s, int visible_row);
+int tui_menu_state_row_for_number(const tui_menu_state_t *s, int number);
+
 /* Return the items[] index at the given visible row, or -1. */
 int tui_menu_state_visible_at(const tui_menu_state_t *s, int visible_row);
 const tui_menu_config_t *tui_menu_state_config(const tui_menu_state_t *s);
