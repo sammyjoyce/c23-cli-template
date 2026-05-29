@@ -1,7 +1,10 @@
 #include "terminal_vt_scenarios.h"
 
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "terminal_vt_session.h"
 
@@ -301,6 +304,77 @@ int run_tui_bare_invocation(test_stats_t *stats, const char *binary,
   }
   free(snapshot);
   vt_session_close(&session);
+  return failed;
+}
+
+int run_tui_bare_invocation_json(test_stats_t *stats, const char *binary,
+                                 bool tui_enabled) {
+  const char *name =
+      "bare TTY invocation honors json_output instead of launching the TUI";
+  if (!tui_enabled) {
+    test_skip(stats, name, "rebuild with -Denable-tui=true");
+    return 0;
+  }
+
+  // Force JSON output through a config file. A bare invocation on a TTY must
+  // then take the headless path (mirroring `myapp menu` rejecting --json)
+  // rather than launching the TUI, and headless mode must reject the
+  // interactive stdin instead of blocking on it.
+  const char *tmpdir = getenv("TMPDIR");
+  if (!tmpdir || !*tmpdir) {
+    tmpdir = "/tmp";
+  }
+  char config_path[PATH_MAX];
+  snprintf(config_path, sizeof(config_path), "%s/vt-json-config-XXXXXX",
+           tmpdir);
+  const int fd = mkstemp(config_path);
+  if (fd < 0) {
+    return test_fail(stats, name, "failed to create temp config: %s",
+                     strerror(errno));
+  }
+  static const char config_json[] = "{\"json_output\": true}\n";
+  const ssize_t want = (ssize_t)(sizeof(config_json) - 1);
+  const bool wrote = write(fd, config_json, (size_t)want) == want;
+  close(fd);
+  if (!wrote) {
+    unlink(config_path);
+    return test_fail(stats, name, "failed to write temp config");
+  }
+  setenv("APP_CONFIG_PATH", config_path, 1);
+
+  // A wide row keeps the single-line JSON response from wrapping, so the
+  // expected substring stays contiguous in the rendered snapshot.
+  vt_session_t session;
+  const bool started = vt_session_start(&session, binary, NULL, 0, 200, 24);
+
+  char *snapshot = NULL;
+  int failed = 0;
+  if (!started) {
+    failed = test_fail(stats, name, "failed to start PTY session");
+  }
+  if (!failed &&
+      !vt_expect_text(&session, "expects a JSON request object on stdin",
+                      PTY_TIMEOUT_MS, &snapshot)) {
+    failed = test_fail(
+        stats, name,
+        "headless JSON guard message did not appear (TUI may have launched)");
+  }
+  if (!failed && contains_text(snapshot, "STARTER SHOWCASE")) {
+    failed = test_fail(stats, name, "TUI launched despite json_output=true");
+  }
+  if (!failed && vt_wait_for_exit(&session, PTY_TIMEOUT_MS) == 0) {
+    failed = test_fail(stats, name, "expected a non-zero exit");
+  }
+  if (!failed) {
+    test_pass(stats, name);
+  }
+
+  free(snapshot);
+  if (started) {
+    vt_session_close(&session);
+  }
+  unsetenv("APP_CONFIG_PATH");
+  unlink(config_path);
   return failed;
 }
 
