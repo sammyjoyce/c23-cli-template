@@ -87,7 +87,8 @@ static app_error show_data_viewer(void) {
 Register a handler in `src/cli/commands.c` with `.requires_terminal = true`, and guard the TUI call so a non-TUI build still gives a clean message instead of failing to link:
 
 ```c
-app_error app_cmd_viewer(const app_config_t *config, int argc, char **argv) {
+app_error app_cmd_viewer(const app_config_t *config, int argc,
+                         char *const argv[]) {
     (void)config;
     (void)argc;
     (void)argv;
