@@ -11,8 +11,27 @@
 
 #include "tui.h"
 
+/* Display width of a wide character. POSIX wcwidth() is unavailable in the
+ * Windows CRT, so approximate there: control chars are -1, the common East
+ * Asian wide range (>= U+1100) is 2 columns, everything else is 1. */
+#ifdef _WIN32
+static inline int tui_wcwidth(wchar_t wc) {
+  if (wc == 0) {
+    return 0;
+  }
+  if (wc < 32 || (wc >= 0x7f && wc < 0xa0)) {
+    return -1;
+  }
+  return wc >= 0x1100 ? 2 : 1;
+}
+#else
+static inline int tui_wcwidth(wchar_t wc) {
+  return wcwidth(wc);
+}
+#endif
+
 /* Display columns of a NUL-terminated UTF-8 string, decoding multibyte
- * sequences and summing wcwidth() (non-printable / undecodable bytes count
+ * sequences and summing tui_wcwidth() (non-printable / undecodable bytes count
  * as one column). Use this to centre/align text instead of byte strlen,
  * which mis-measures multibyte glyphs. */
 static inline int tui_display_cols(const char *s) {
@@ -40,7 +59,7 @@ static inline int tui_display_cols(const char *s) {
     if (len == 0) {
       break;
     }
-    int w = wcwidth(wc);
+    int w = tui_wcwidth(wc);
     cols += w < 0 ? 1 : w;
     p += len;
     remaining -= len;

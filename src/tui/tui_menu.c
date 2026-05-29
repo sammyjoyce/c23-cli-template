@@ -27,20 +27,6 @@
 #include "tui_menu.h"
 #include "tui_menu_internal.h"
 
-#ifdef _WIN32
-static int tui_wcwidth(wchar_t wc) {
-  if (wc == 0)
-    return 0;
-  if (wc < 32 || (wc >= 0x7f && wc < 0xa0))
-    return -1;
-  return wc >= 0x1100 ? 2 : 1;
-}
-#else
-static int tui_wcwidth(wchar_t wc) {
-  return wcwidth(wc);
-}
-#endif
-
 static void tui_menu_write_wchar(WINDOW *w, int y, int x, wchar_t wc) {
   char mb[MB_LEN_MAX];
   mbstate_t state = {0};
