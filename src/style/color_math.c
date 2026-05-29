@@ -90,3 +90,36 @@ uint8_t app_color_channel_to_u8(unsigned value, unsigned max) {
   }
   return (uint8_t)((value * 255u + (max / 2u)) / max);
 }
+
+bool app_color_read_hex(const char **p, const char *end, int max_digits,
+                        unsigned *value, unsigned *field_max) {
+  if (!p || !*p || !value || !field_max) {
+    return false;
+  }
+  unsigned v = 0;
+  unsigned m = 1;
+  int digits = 0;
+  while (*p < end && digits < max_digits) {
+    char c = **p;
+    unsigned d;
+    if (c >= '0' && c <= '9') {
+      d = (unsigned)(c - '0');
+    } else if (c >= 'a' && c <= 'f') {
+      d = (unsigned)(c - 'a' + 10);
+    } else if (c >= 'A' && c <= 'F') {
+      d = (unsigned)(c - 'A' + 10);
+    } else {
+      break;
+    }
+    v = v * 16u + d;
+    m *= 16u;
+    digits++;
+    (*p)++;
+  }
+  if (digits == 0) {
+    return false;
+  }
+  *value = v;
+  *field_max = m - 1u;
+  return true;
+}

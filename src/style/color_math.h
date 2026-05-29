@@ -43,3 +43,12 @@ uint8_t app_color_rgb_to_ansi16(app_rgb_t rgb);
 
 // Convert an OSC 11 channel (value/max, e.g. 0xffff/0xffff) to 8-bit.
 uint8_t app_color_channel_to_u8(unsigned value, unsigned max);
+
+// Read up to `max_digits` (1..) hexadecimal digits starting at *p (bounded by
+// `end`), accumulating into *value and reporting the largest value a field of
+// that many digits could hold via *field_max (e.g. two digits => 0xff).
+// Advances *p past the consumed digits. Returns false if no hex digit was read.
+// Shared by the OSC 11 response parser and the #RRGGBB / channel theme color
+// parser so both scale through app_color_channel_to_u8 consistently.
+bool app_color_read_hex(const char **p, const char *end, int max_digits,
+                        unsigned *value, unsigned *field_max);

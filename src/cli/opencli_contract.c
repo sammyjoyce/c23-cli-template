@@ -22,6 +22,14 @@ static const app_opencli_metadata_field_t environment_fields[] = {
      .description =
          "Set logging verbosity: ERROR, WARNING, INFO, DEBUG (default: ERROR)"},
     {.name = "NO_COLOR", .description = "Disable colored output when set"},
+    {.name = "APP_CLI_THEME",
+     .description = "CLI theme: auto (detect), dark, or light"},
+    {.name = "APP_CLI_COLOR",
+     .description = "Color profile: auto, never, 16, 256, truecolor"},
+    {.name = "APP_CLI_OSC11",
+     .description = "Set 0 to disable terminal background detection"},
+    {.name = "APP_CLI_ACCENT",
+     .description = "Override accent color (#rrggbb or palette index)"},
 };
 
 static const app_opencli_metadata_field_t configuration_fields[] = {

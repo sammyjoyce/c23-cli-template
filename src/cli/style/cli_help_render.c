@@ -235,8 +235,10 @@ static void help_render_verbose(app_cli_render_ctx_t *ctx) {
       "  APP_LOG_LEVEL       Logging level: ERROR, WARNING, INFO, DEBUG.",
       "  APP_CONFIG_PATH     Override the default config file lookup.",
       "  NO_COLOR            Disable colored output when set.",
-      "  APP_CLI_THEME       Force CLI theme: dark or light.",
-      "  APP_CLI_COLOR       Force color profile: never, 16, 256, truecolor.",
+      "  APP_CLI_THEME       CLI theme: auto (detect), dark, or light.",
+      "  APP_CLI_COLOR       Color profile: auto, never, 16, 256, truecolor.",
+      "  APP_CLI_OSC11       Set 0 to disable terminal background detection.",
+      "  APP_CLI_ACCENT      Override accent (#rrggbb or palette idx).",
   };
   help_render_plain_block(ctx, env_lines,
                           sizeof(env_lines) / sizeof(env_lines[0]));

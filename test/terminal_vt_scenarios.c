@@ -354,6 +354,9 @@ int run_tui_menu_separator(test_stats_t *stats, const char *binary,
   int failed = 0;
   if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
+  if (!failed &&
+      !vt_expect_text(&session, "Progress Pattern", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "menu items did not finish rendering");
   /* Selection starts on Overview. j j j should advance past the separator
    * to Progress Pattern (item 4). */
   if (!failed && !vt_send(&session, "jjj"))
@@ -361,7 +364,7 @@ int run_tui_menu_separator(test_stats_t *stats, const char *binary,
   if (!failed && !vt_send(&session, "\r"))
     failed = test_fail(stats, name, "failed to confirm");
   if (!failed &&
-      !vt_expect_text(&session, "Progress Complete", PTY_TIMEOUT_MS, &snapshot))
+      !vt_expect_text(&session, "PROGRESS COMPLETE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "expected to land on Progress Pattern");
   if (!failed && !vt_send(&session, "x"))
     failed = test_fail(stats, name, "failed to dismiss dialog");
@@ -490,15 +493,18 @@ int run_tui_menu_handler_resize(test_stats_t *stats, const char *binary,
                snapshot ? strlen(snapshot) : 0, 4000);
     failed = test_fail(stats, name, "menu frame did not shrink to terminal");
   }
+  if (!failed &&
+      !vt_expect_text(&session, "Overview", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "menu items did not render after shrink");
   if (!failed && !vt_send(&session, "o"))
     failed = test_fail(stats, name, "failed to open overview handler");
   if (!failed &&
-      !vt_expect_text(&session, "Starter Overview", PTY_TIMEOUT_MS, &snapshot))
+      !vt_expect_text(&session, "STARTER OVERVIEW", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "overview handler did not open");
   if (!failed && !vt_resize(&session, 100, 30))
     failed = test_fail(stats, name, "failed to grow during handler");
   if (!failed &&
-      !vt_expect_text(&session, "Starter Overview", PTY_TIMEOUT_MS, &snapshot))
+      !vt_expect_text(&session, "STARTER OVERVIEW", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "overview disappeared after grow");
   if (!failed && !vt_send(&session, "x"))
     failed = test_fail(stats, name, "failed to dismiss overview");
@@ -539,10 +545,13 @@ int run_tui_menu_mnemonic(test_stats_t *stats, const char *binary,
   int failed = 0;
   if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
+  if (!failed && !vt_expect_text(&session, "System Information", PTY_TIMEOUT_MS,
+                                 &snapshot))
+    failed = test_fail(stats, name, "menu items did not finish rendering");
   /* "&System Information" has unique mnemonic 's' - auto-confirms. */
   if (!failed && !vt_send(&session, "s"))
     failed = test_fail(stats, name, "failed to send 's'");
-  if (!failed && !vt_expect_text(&session, "System Information", PTY_TIMEOUT_MS,
+  if (!failed && !vt_expect_text(&session, "SYSTEM INFORMATION", PTY_TIMEOUT_MS,
                                  &snapshot))
     failed = test_fail(stats, name, "System Information dialog did not appear");
   if (!failed && !vt_expect_text(&session, "Application:", 1000, &snapshot))
@@ -578,6 +587,9 @@ int run_tui_menu_search(test_stats_t *stats, const char *binary,
   int failed = 0;
   if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
+  if (!failed &&
+      !vt_expect_text(&session, "Progress Pattern", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "menu items did not finish rendering");
   if (!failed && !vt_send(&session, "/"))
     failed = test_fail(stats, name, "failed to enter search mode");
   if (!failed && !vt_expect_text(&session, "find:", PTY_TIMEOUT_MS, &snapshot))
@@ -590,7 +602,7 @@ int run_tui_menu_search(test_stats_t *stats, const char *binary,
   if (!failed && !vt_send(&session, "\r"))
     failed = test_fail(stats, name, "failed to confirm");
   if (!failed &&
-      !vt_expect_text(&session, "Progress Complete", PTY_TIMEOUT_MS, &snapshot))
+      !vt_expect_text(&session, "PROGRESS COMPLETE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "Progress dialog did not appear");
   if (!failed && !vt_send(&session, "x"))
     failed = test_fail(stats, name, "failed to dismiss progress");
