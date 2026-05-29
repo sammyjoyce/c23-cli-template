@@ -187,6 +187,17 @@ static app_error app_dispatch_configured_command(app_config_t *config,
 }
 
 static app_error app_run_headless_json(app_config_t *config, int64_t start_ms) {
+  // The headless transport envelope is JSON by definition, so force JSON output
+  // before anything can emit a diagnostic. docs/CONTRACTS.md requires parse and
+  // dispatch errors on stderr as JSON; without this an error reached before the
+  // request parses (interactive-stdin guard, blank stdin, malformed JSON) would
+  // print human text whenever stdout is a TTY but stdin is piped (e.g.
+  // `echo bad | myapp`), since app_config_apply_output_defaults only enables
+  // JSON when stdout is not a terminal. The re-apply after parsing additionally
+  // stops a request body from downgrading the transport.
+  (void)app_config_set_plain_output(config, false);
+  (void)app_config_set_json_output(config, true);
+
   // Reading from a TTY would block forever waiting for input the user has no
   // cue to provide. This path is reached on a bare invocation whenever stdout
   // is not a terminal (e.g. `myapp > out.txt` selects machine output) even
