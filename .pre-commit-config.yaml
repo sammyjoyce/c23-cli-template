@@ -16,7 +16,9 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.6
+    # Keep in lockstep with the CI Lint job (clang-format-18); a different
+    # major version reformats differently and fights the CI check.
+    rev: v18.1.8
     hooks:
       - id: clang-format
         types_or: [c, c++]
