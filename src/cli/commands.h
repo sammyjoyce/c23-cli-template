@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "../core/app_info.h"
 #include "../core/config.h"
 #include "../core/error.h"
 
@@ -107,5 +108,5 @@ app_command_validate_invocation(const app_command_t *command, int argc,
                                 char *const argv[], const char *program_name);
 
 static inline const char *app_yes_no(bool value) {
-  return value ? "yes" : "no";
+  return app_bool_word(value);
 }

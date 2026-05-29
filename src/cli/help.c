@@ -44,6 +44,7 @@ void app_print_command_help_ex(const char *program_name,
 
 #include "../utils/colors.h"
 #include "../utils/logging.h"
+#include "option_meta.h"
 
 static const char *program_or_default(const char *program_name) {
   if (program_name == nullptr || program_name[0] == '\0') {
@@ -63,32 +64,13 @@ static void print_commands_block(void) {
   }
 }
 
-static void format_option_label(char *buf, size_t buf_size, const char *alias,
-                                const char *name, const char *argument_name) {
-  if (alias && name && argument_name) {
-    snprintf(buf, buf_size, "-%s, --%s %s", alias, name, argument_name);
-  } else if (alias && name) {
-    snprintf(buf, buf_size, "-%s, --%s", alias, name);
-  } else if (name && argument_name) {
-    snprintf(buf, buf_size, "--%s %s", name, argument_name);
-  } else if (name) {
-    snprintf(buf, buf_size, "--%s", name);
-  } else if (alias && argument_name) {
-    snprintf(buf, buf_size, "-%s %s", alias, argument_name);
-  } else if (alias) {
-    snprintf(buf, buf_size, "-%s", alias);
-  } else {
-    buf[0] = '\0';
-  }
-}
-
 static void print_builtin_options(void) {
   size_t count = 0;
   const app_builtin_option_t *options = app_builtin_options(&count);
   for (size_t i = 0; i < count; i++) {
     char left[64];
-    format_option_label(left, sizeof(left), options[i].alias, options[i].name,
-                        NULL);
+    app_option_format_label(left, sizeof(left), options[i].name,
+                            options[i].alias, NULL, 0, APP_OPTION_LABEL_CLI);
     printf("  %-20s%s\n", left, options[i].description);
   }
 }
@@ -97,11 +79,10 @@ static void print_global_value_options(void) {
   size_t count = 0;
   const app_global_value_option_t *options = app_global_value_options(&count);
   for (size_t i = 0; i < count; i++) {
-    const char *argument_name =
-        options[i].argument_count > 0 ? options[i].arguments[0].name : NULL;
     char left[64];
-    format_option_label(left, sizeof(left), options[i].alias, options[i].name,
-                        argument_name);
+    app_option_format_label(left, sizeof(left), options[i].name,
+                            options[i].alias, options[i].arguments,
+                            options[i].argument_count, APP_OPTION_LABEL_CLI);
     printf("  %-20s%s\n", left, options[i].description);
   }
 }
@@ -112,15 +93,11 @@ static void print_flag_options(bool include_env_hints) {
   for (size_t i = 0; i < count; i++) {
     const app_flag_spec_t *spec = &flags[i];
     char left[64];
-    if (spec->cli_short && spec->cli_long) {
-      snprintf(left, sizeof(left), "%s, %s", spec->cli_short, spec->cli_long);
-    } else if (spec->cli_long) {
-      snprintf(left, sizeof(left), "%s", spec->cli_long);
-    } else if (spec->cli_short) {
-      snprintf(left, sizeof(left), "%s", spec->cli_short);
-    } else {
+    if (!spec->cli_short && !spec->cli_long) {
       continue;
     }
+    app_option_format_label(left, sizeof(left), spec->cli_long, spec->cli_short,
+                            NULL, 0, APP_OPTION_LABEL_CLI);
     const char *description =
         spec->description ? spec->description : "Boolean flag";
     if (include_env_hints && spec->env_var && spec->env_var[0] != '\0') {
@@ -226,8 +203,8 @@ void app_print_command_help_ex(const char *program_name,
     printf("Options:\n");
     for (size_t i = 0; i < command->option_count; i++) {
       char left[64];
-      format_option_label(left, sizeof(left), NULL, command->options[i].name,
-                          NULL);
+      app_option_format_label(left, sizeof(left), command->options[i].name,
+                              NULL, NULL, 0, APP_OPTION_LABEL_CLI);
       printf("  %-20s%s\n", left, command->options[i].description);
     }
     printf("\n");

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../ui/text_layout.h"
+
 // Resolve light/dark mode. APP_CLI_THEME (or the APP_CLI_TEST_THEME test hook)
 // can force "dark"/"light"; "auto" or unset triggers OSC 11 background
 // detection (which probes the controlling /dev/tty, not the render stream, and
@@ -77,31 +79,13 @@ void app_cli_render_ctx_deinit(app_cli_render_ctx_t *ctx) {
 }
 
 size_t app_cli_text_width(const char *s) {
-  if (!s) {
-    return 0;
-  }
-  size_t width = 0;
-  for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
-    // Count each byte that is not a UTF-8 continuation byte (0x80..0xBF).
-    if ((*p & 0xC0) != 0x80) {
-      width++;
-    }
-  }
-  return width;
+  const int width = app_text_width_utf8(s);
+  return width > 0 ? (size_t)width : 0;
 }
 
 size_t app_cli_text_width_n(const char *s, size_t n) {
-  if (!s) {
-    return 0;
-  }
-  size_t width = 0;
-  const unsigned char *p = (const unsigned char *)s;
-  for (size_t i = 0; i < n; i++) {
-    if ((p[i] & 0xC0) != 0x80) {
-      width++;
-    }
-  }
-  return width;
+  const int width = app_text_width_utf8_n(s, n);
+  return width > 0 ? (size_t)width : 0;
 }
 
 void app_cli_write_n(app_cli_render_ctx_t *ctx, const char *s, size_t n) {

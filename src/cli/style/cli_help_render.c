@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "../../core/error.h"
+#include "../option_meta.h"
 #include "cli_layout.h"
 
 #define APP_HELP_TAGLINE "A C23 TUI + CLI starter"
@@ -89,14 +90,11 @@ static size_t help_gather_global_rows(help_row_t *rows, size_t cap,
   const app_builtin_option_t *builtins = app_builtin_options(&bcount);
   for (size_t i = 0; i < bcount && n < cap; i++) {
     char label[96];
-    if (builtins[i].alias && builtins[i].name) {
-      snprintf(label, sizeof(label), "-%s, --%s", builtins[i].alias,
-               builtins[i].name);
-    } else if (builtins[i].name) {
-      snprintf(label, sizeof(label), "--%s", builtins[i].name);
-    } else {
+    if (!builtins[i].name) {
       continue;
     }
+    app_option_format_label(label, sizeof(label), builtins[i].name,
+                            builtins[i].alias, NULL, 0, APP_OPTION_LABEL_CLI);
     help_row_set(&rows[n++], label, builtins[i].description, NULL);
   }
 
@@ -105,15 +103,11 @@ static size_t help_gather_global_rows(help_row_t *rows, size_t cap,
   for (size_t i = 0; i < fcount && n < cap; i++) {
     const app_flag_spec_t *spec = &flags[i];
     char label[96];
-    if (spec->cli_short && spec->cli_long) {
-      snprintf(label, sizeof(label), "%s, %s", spec->cli_short, spec->cli_long);
-    } else if (spec->cli_long) {
-      snprintf(label, sizeof(label), "%s", spec->cli_long);
-    } else if (spec->cli_short) {
-      snprintf(label, sizeof(label), "%s", spec->cli_short);
-    } else {
+    if (!spec->cli_long && !spec->cli_short) {
       continue;
     }
+    app_option_format_label(label, sizeof(label), spec->cli_long,
+                            spec->cli_short, NULL, 0, APP_OPTION_LABEL_CLI);
     const char *env = (include_env && spec->env_var && spec->env_var[0])
                           ? spec->env_var
                           : NULL;
@@ -124,19 +118,13 @@ static size_t help_gather_global_rows(help_row_t *rows, size_t cap,
   size_t gcount = 0;
   const app_global_value_option_t *globals = app_global_value_options(&gcount);
   for (size_t i = 0; i < gcount && n < cap; i++) {
-    const char *arg =
-        globals[i].argument_count > 0 ? globals[i].arguments[0].name : NULL;
     char label[96];
-    if (globals[i].alias && globals[i].name && arg) {
-      snprintf(label, sizeof(label), "-%s, --%s %s", globals[i].alias,
-               globals[i].name, arg);
-    } else if (globals[i].name && arg) {
-      snprintf(label, sizeof(label), "--%s %s", globals[i].name, arg);
-    } else if (globals[i].name) {
-      snprintf(label, sizeof(label), "--%s", globals[i].name);
-    } else {
+    if (!globals[i].name) {
       continue;
     }
+    app_option_format_label(label, sizeof(label), globals[i].name,
+                            globals[i].alias, globals[i].arguments,
+                            globals[i].argument_count, APP_OPTION_LABEL_CLI);
     help_row_set(&rows[n++], label, globals[i].description, NULL);
   }
 
@@ -336,7 +324,8 @@ void app_cli_render_command_help(const app_config_t *config, FILE *out,
     for (size_t i = 0; i < command->option_count && n < APP_HELP_MAX_ROWS;
          i++) {
       char label[96];
-      snprintf(label, sizeof(label), "--%s", command->options[i].name);
+      app_option_format_label(label, sizeof(label), command->options[i].name,
+                              NULL, NULL, 0, APP_OPTION_LABEL_CLI);
       help_row_set(&rows[n++], label, command->options[i].description, NULL);
     }
     app_cli_section_title(&ctx, "OPTIONS");

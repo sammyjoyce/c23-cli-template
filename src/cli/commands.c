@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "option_meta.h"
+
 // Forward declarations for handlers defined in their own translation units.
 app_error app_cmd_hello(const app_config_t *config, int argc,
                         char *const argv[]);
@@ -175,11 +177,7 @@ const app_builtin_option_t *app_builtin_option_find(const char *arg) {
 
   for (size_t i = 0; i < G_APP_BUILTIN_OPTIONS_COUNT; i++) {
     const app_builtin_option_t *option = &g_app_builtin_options[i];
-    const bool long_match =
-        strncmp(arg, "--", 2) == 0 && strcmp(arg + 2, option->name) == 0;
-    const bool short_match = option->alias && arg[0] == '-' && arg[1] != '-' &&
-                             strcmp(arg + 1, option->alias) == 0;
-    if (long_match || short_match) {
+    if (app_option_token_matches(arg, option->name, option->alias)) {
       return option;
     }
   }
@@ -200,11 +198,7 @@ const app_global_value_option_t *app_global_value_option_find(const char *arg) {
 
   for (size_t i = 0; i < G_APP_GLOBAL_VALUE_OPTIONS_COUNT; i++) {
     const app_global_value_option_t *option = &g_app_global_value_options[i];
-    const bool long_match =
-        strncmp(arg, "--", 2) == 0 && strcmp(arg + 2, option->name) == 0;
-    const bool short_match = option->alias && arg[0] == '-' && arg[1] != '-' &&
-                             strcmp(arg + 1, option->alias) == 0;
-    if (long_match || short_match) {
+    if (app_option_token_matches(arg, option->name, option->alias)) {
       return option;
     }
   }
@@ -229,10 +223,9 @@ const app_command_option_t *app_command_option_find(
     return NULL;
   }
 
-  const char *name = arg + 2;
   for (size_t i = 0; i < command->option_count; i++) {
     const app_command_option_t *option = &command->options[i];
-    if (option->name && strcmp(option->name, name) == 0) {
+    if (app_option_token_matches(arg, option->name, NULL)) {
       return option;
     }
   }

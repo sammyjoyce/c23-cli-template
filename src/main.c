@@ -6,17 +6,11 @@
  * defers command behaviour to the table in src/cli/commands.c.
  */
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#ifdef _WIN32
-#include <io.h>
-#define isatty _isatty
-#define fileno _fileno
-#else
-#include <unistd.h>
-#endif
 
 #include "cli/args.h"
 #include "cli/commands.h"
@@ -24,6 +18,7 @@
 #include "core/config.h"
 #include "core/error.h"
 #include "io/output.h"
+#include "io/terminal.h"
 #include "utils/logging.h"
 #ifdef APP_ENABLE_CLI_STYLE
 #include "cli/style/cli_error_render.h"
@@ -36,10 +31,6 @@ static int64_t app_now_millis(void) {
   }
 
   return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
-}
-
-static bool app_has_interactive_terminal(void) {
-  return isatty(fileno(stdin)) && isatty(fileno(stdout));
 }
 
 static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
@@ -100,6 +91,13 @@ static app_error initialize_app(int argc, char *argv[], app_config_t **config) {
 }
 
 int main(int argc, char *argv[]) {
+  /* Initialize the locale from the environment once at startup so multibyte
+   * (UTF-8) text layout works on both the pure-CLI and TUI paths. mbrtowc and
+   * wcwidth in src/ui/text_layout.c require this; without it the default "C"
+   * locale silently degrades to byte counting. The TUI path re-applies the
+   * same call in tui_init(), which is an idempotent no-op. */
+  setlocale(LC_ALL, "");
+
   const int64_t start_ms = app_now_millis();
 
   app_log_init();
@@ -157,7 +155,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (entry->requires_terminal && !app_has_interactive_terminal()) {
+  if (entry->requires_terminal && !app_terminal_is_interactive()) {
     app_output_format(config, true,
                       "Command '%s' requires an interactive terminal", command);
     app_config_destroy(config);

@@ -17,17 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tui_internal.h"
-#ifdef _WIN32
-#include <io.h>
-#define isatty _isatty
-#define fileno _fileno
-#else
-#include <unistd.h>
-#endif
-
+#include "../io/terminal.h"
 #include "../style/design_tokens.h"
+#include "../ui/text_layout.h"
 #include "../utils/logging.h"
+#include "tui_internal.h"
 
 static bool tui_initialized = false;
 static bool tui_default_colors = false;
@@ -140,19 +134,16 @@ static void tui_uninstall_signal_handlers(void) {
 /* ---- helpers ------------------------------------------------------------- */
 
 static bool tui_has_interactive_terminal(void) {
-  return isatty(fileno(stdin)) && isatty(fileno(stdout));
+  return app_terminal_is_interactive();
 }
 
 static int tui_clamped_strlen(const char *text, int max_len) {
   if (text == nullptr || max_len <= 0) {
     return 0;
   }
-
-  int len = 0;
-  while (len < max_len && text[len] != '\0') {
-    len++;
-  }
-  return len;
+  int columns = 0;
+  (void)app_text_truncate_utf8_columns(text, max_len, &columns);
+  return columns;
 }
 
 static void tui_write_clamped(WINDOW *win, int y, int x, int width,
@@ -176,7 +167,8 @@ static void tui_write_clamped(WINDOW *win, int y, int x, int width,
     return;
   }
 
-  mvwaddnstr(win, y, x, text, width);
+  const size_t bytes = app_text_truncate_utf8_columns(text, width, NULL);
+  mvwaddnstr(win, y, x, text, bytes > (size_t)INT_MAX ? INT_MAX : (int)bytes);
 }
 
 static short tui_default_fg(void) {
@@ -310,7 +302,8 @@ static void tui_init_color_from(short slot, app_rgb_t c) {
 static void tui_define_rgb_palette(void) {
   /* Drive the truecolor palette from the shared design tokens so the TUI and
    * the CLI styling layer stay one source of truth (see design_tokens.h);
-   * init_color() takes the 0..1000 scale. */
+   * init_color() takes the 0..1000 scale. The dead selection slots
+   * (TUI_RGB_SEL_FG/SEL_BG) were removed with the detail-pane cleanup. */
   const app_design_palette_t *p = &APP_DESIGN_PALETTE;
   tui_init_color_from(TUI_RGB_AMBER, p->amber);
   tui_init_color_from(TUI_RGB_FG, p->fg);
@@ -431,17 +424,19 @@ static void tui_draw_window_title(tui_window_t *window, const char *title) {
    * multibyte UTF-8, and we centre by display columns, not byte length. */
   char up[128];
   tui_ascii_upper_copy(up, sizeof(up), title);
-  int cols = tui_display_cols(up);
-  if (cols > max_width) {
-    cols = max_width;
-  }
-  int x_pos = (window->width - cols) / 2;
+  /* Truncate by display columns, but remember the byte length so the
+   * mvwaddnstr byte limit matches multibyte content. */
+  int columns = 0;
+  const size_t title_bytes =
+      app_text_truncate_utf8_columns(up, max_width, &columns);
+  int x_pos = (window->width - columns) / 2;
   if (x_pos < 1) {
     x_pos = 1;
   }
   tui_set_color(window->win, TUI_COLOR_TITLE);
   wattron(window->win, A_BOLD);
-  mvwaddnstr(window->win, 1, x_pos, up, max_width);
+  mvwaddnstr(window->win, 1, x_pos, up,
+             title_bytes > (size_t)INT_MAX ? INT_MAX : (int)title_bytes);
   wattroff(window->win, A_BOLD);
   tui_unset_color(window->win, TUI_COLOR_TITLE);
 }
@@ -595,6 +590,30 @@ void tui_print_centered(WINDOW *win, int y, const char *text) {
   tui_write_clamped(win, y, x, max_x - x, text);
 }
 
+typedef struct {
+  WINDOW *win;
+  int y;
+  int x;
+  int width;
+  int max_y;
+} tui_wrap_emit_ctx_t;
+
+static bool tui_wrap_emit_line(void *userdata, const char *bytes,
+                               size_t byte_count, int columns) {
+  (void)columns;
+  tui_wrap_emit_ctx_t *ctx = userdata;
+  if (ctx->y >= ctx->max_y) {
+    return false;
+  }
+  char line[512];
+  size_t n = byte_count < sizeof(line) - 1 ? byte_count : sizeof(line) - 1;
+  memcpy(line, bytes, n);
+  line[n] = '\0';
+  tui_write_clamped(ctx->win, ctx->y, ctx->x, ctx->width, line);
+  ctx->y++;
+  return true;
+}
+
 void tui_print_wrapped(WINDOW *win, int y, int x, int width, const char *text) {
   if (!win || !text || width <= 0) {
     return;
@@ -615,57 +634,9 @@ void tui_print_wrapped(WINDOW *win, int y, int x, int width, const char *text) {
     width = max_x - x;
   }
 
-  int current_y = y;
-  int current_x = x;
-  const char *p = text;
-
-  while (*p && current_y < max_y) {
-    if (*p == '\n') {
-      current_y++;
-      current_x = x;
-      p++;
-      continue;
-    }
-    if (*p == ' ') {
-      if (current_x + 1 >= x + width) {
-        current_y++;
-        current_x = x;
-      } else {
-        current_x++;
-      }
-      p++;
-      continue;
-    }
-
-    const char *word_start = p;
-    while (*p && *p != ' ' && *p != '\n') {
-      p++;
-    }
-
-    ptrdiff_t word_delta = p - word_start;
-    int word_len = word_delta > INT_MAX ? INT_MAX : (int)word_delta;
-
-    if (current_x > x && (long)current_x + (long)word_len > (long)x + width) {
-      current_y++;
-      current_x = x;
-    }
-
-    while (word_len > 0 && current_y < max_y) {
-      const int line_end = x + width;
-      if (current_x >= line_end) {
-        current_y++;
-        current_x = x;
-        continue;
-      }
-
-      const int remaining = line_end - current_x;
-      const int chunk = word_len < remaining ? word_len : remaining;
-      tui_write_clamped(win, current_y, current_x, chunk, word_start);
-      word_start += chunk;
-      word_len -= chunk;
-      current_x += chunk;
-    }
-  }
+  tui_wrap_emit_ctx_t ctx = {
+      .win = win, .y = y, .x = x, .width = width, .max_y = max_y};
+  app_text_wrap_utf8(text, width, 0, 0, tui_wrap_emit_line, &ctx);
 }
 
 int tui_get_char(void) {

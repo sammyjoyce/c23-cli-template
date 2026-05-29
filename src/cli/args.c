@@ -12,10 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../core/app_info.h"
 #include "../core/config.h"
 #include "../utils/logging.h"
 #include "commands.h"
 #include "help.h"
+#include "option_meta.h"
 #ifdef APP_ENABLE_CLI_STYLE
 #include "style/cli_version_render.h"
 #endif
@@ -30,10 +32,7 @@ static bool app_args_try_bool_flag(const char *arg, app_config_t *config) {
   const app_flag_spec_t *specs = app_flag_table(&count);
   for (size_t i = 0; i < count; i++) {
     const app_flag_spec_t *spec = &specs[i];
-    const bool short_match =
-        spec->cli_short && strcmp(arg, spec->cli_short) == 0;
-    const bool long_match = spec->cli_long && strcmp(arg, spec->cli_long) == 0;
-    if (short_match || long_match) {
+    if (app_option_token_matches(arg, spec->cli_long, spec->cli_short)) {
       if (config) {
         if (app_config_set_flag(config, spec->id, true) != APP_SUCCESS) {
           return false;
@@ -129,14 +128,13 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
 #ifdef APP_ENABLE_CLI_STYLE
       app_cli_render_version(nullptr, stdout, argv[0]);
 #else
-      printf("%s %s\n", APP_NAME, APP_VERSION);
+      const app_build_info_t *build = app_build_info();
+      printf("%s %s\n", build->name, build->version);
       printf("A C23 TUI + CLI starter application\n");
       printf("Built with: Zig, C23\n");
-#ifdef ENABLE_TUI
-      printf("TUI: enabled via curses\n");
-#else
-      printf("TUI: disabled\n");
-#endif
+      printf("TUI: %s\n", app_feature_compiled(APP_FEATURE_TUI)
+                              ? "enabled via curses"
+                              : "disabled");
 #endif
       exit(0);
     }

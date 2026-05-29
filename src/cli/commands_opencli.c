@@ -5,35 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../core/app_info.h"
 #include "../core/config.h"
 #include "../core/error.h"
 #include "../core/types.h"
 #include "../io/output.h"
 #include "commands.h"
 #include "opencli_contract.h"
+#include "option_meta.h"
 
 app_error app_cmd_opencli(const app_config_t *config, int argc,
                           char *const argv[]);
-
-static const char *opencli_option_name(const char *cli_long) {
-  if (!cli_long) {
-    return "";
-  }
-  if (strncmp(cli_long, "--", 2) == 0) {
-    return cli_long + 2;
-  }
-  return cli_long;
-}
-
-static const char *opencli_short_alias(const char *cli_short) {
-  if (!cli_short) {
-    return NULL;
-  }
-  if (cli_short[0] == '-' && cli_short[1] != '\0') {
-    return cli_short + 1;
-  }
-  return cli_short;
-}
 
 static void opencli_print_aliases(FILE *stream, int level, const char *alias) {
   app_json_write_indent(stream, level);
@@ -130,9 +112,10 @@ static void opencli_print_global_value_option(
 
 static void opencli_print_flag_option(FILE *stream, int level,
                                       const app_flag_spec_t *flag, bool comma) {
-  opencli_print_option(stream, level, opencli_option_name(flag->cli_long),
-                       false, opencli_short_alias(flag->cli_short), NULL, 0,
-                       flag->description, comma);
+  opencli_print_option(stream, level,
+                       app_option_normalized_long_name(flag->cli_long), false,
+                       app_option_normalized_short_name(flag->cli_short), NULL,
+                       0, flag->description, comma);
 }
 
 static void opencli_print_options(FILE *stream, int level,
@@ -224,10 +207,13 @@ static void opencli_print_command(FILE *stream, int level,
                                command->example_count,
                                command->requires_terminal);
   if (command->requires_terminal) {
+    const app_feature_info_t *feature = app_feature_find(APP_FEATURE_TUI);
     app_json_write_indent(stream, level + 1);
     fputs("\"metadata\": {\n", stream);
-    app_json_write_pretty_string_field(stream, level + 2, "requires", "ncurses",
-                                       true);
+    app_json_write_pretty_string_field(
+        stream, level + 2, "requires",
+        feature && feature->dependency ? feature->dependency : "terminal",
+        true);
     app_json_write_pretty_bool_field(stream, level + 2, "interactive", true,
                                      false);
     app_json_write_indent(stream, level + 1);
@@ -414,6 +400,7 @@ app_error app_cmd_opencli(const app_config_t *config, int argc,
   (void)argv;
 
   const app_opencli_contract_t *contract = app_opencli_contract();
+  const app_build_info_t *build = app_build_info();
 
   fputs("{\n", stdout);
   app_json_write_pretty_string_field(stdout, 1, "opencli",
@@ -421,7 +408,7 @@ app_error app_cmd_opencli(const app_config_t *config, int argc,
   opencli_print_info(stdout, contract);
   opencli_print_conventions(stdout, contract);
   fputs("  \"command\": {\n", stdout);
-  app_json_write_pretty_string_field(stdout, 2, "name", APP_NAME, true);
+  app_json_write_pretty_string_field(stdout, 2, "name", build->name, true);
   app_json_write_pretty_string_field(stdout, 2, "description",
                                      contract->info.description, true);
   opencli_print_arguments(stdout, 2, contract->root_arguments,

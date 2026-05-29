@@ -184,7 +184,7 @@
           "zig build -Denable-tui=true run -- menu"
         ],
         "metadata": {
-          "requires": "ncurses",
+          "requires": "ncursesw",
           "interactive": true
         }
       },
