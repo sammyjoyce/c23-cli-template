@@ -38,11 +38,11 @@ static const app_feature_info_t APP_FEATURES[] = {
 #endif
      .requires_terminal = true,
      .build_option = "-Denable-tui=true",
-#ifdef _WIN32
-     .dependency = "pdcurses"},
-#else
-     .dependency = "ncursesw"},
-#endif
+     /* Generic curses dependency name. Kept platform-independent so the
+      * OpenCLI `requires` contract (the only consumer) matches the checked-in
+      * opencli.json on every platform; the concrete backend is ncursesw on
+      * Unix and PDCurses (an ncurses-compatible API) on Windows. */
+     .dependency = "ncurses"},
     {.id = APP_FEATURE_CLI_STYLE,
      .key = "cli_style",
      .label = "Styled CLI output",

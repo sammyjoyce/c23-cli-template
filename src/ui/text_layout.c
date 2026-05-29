@@ -1,32 +1,85 @@
 #include "text_layout.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
-#include <wctype.h>
 
-static int app_text_wc_columns(wchar_t wc) {
-#ifdef _WIN32
-  return iswprint(wc) ? 1 : 0;
-#else
-  const int w = wcwidth(wc);
-  return w > 0 ? w : 0;
-#endif
+/* Display columns of a Unicode codepoint. Deliberately locale-independent (no
+ * wcwidth/mbrtowc) so layout is identical on every platform and does not depend
+ * on setlocale() picking a UTF-8 locale (Windows "" is a code page, not UTF-8).
+ * Control and common combining marks are zero width; common East Asian wide and
+ * fullwidth ranges are two; everything else is one. */
+static int app_text_cp_columns(uint32_t cp) {
+  if (cp == 0) {
+    return 0;
+  }
+  if (cp < 0x20 || (cp >= 0x7f && cp < 0xa0)) {
+    return 0; /* C0/C1 control */
+  }
+  if ((cp >= 0x0300 && cp <= 0x036f) || (cp >= 0x1ab0 && cp <= 0x1aff) ||
+      (cp >= 0x1dc0 && cp <= 0x1dff) || (cp >= 0x20d0 && cp <= 0x20ff) ||
+      cp == 0x200b) {
+    return 0; /* combining marks / zero-width space */
+  }
+  if ((cp >= 0x1100 && cp <= 0x115f) || (cp >= 0x2e80 && cp <= 0x303e) ||
+      (cp >= 0x3041 && cp <= 0x33ff) || (cp >= 0x3400 && cp <= 0x4dbf) ||
+      (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0xa000 && cp <= 0xa4cf) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xfe30 && cp <= 0xfe4f) || (cp >= 0xff00 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) || (cp >= 0x20000 && cp <= 0x3fffd)) {
+    return 2; /* East Asian wide / fullwidth */
+  }
+  return 1;
 }
 
+/* Decode one UTF-8 sequence without relying on the C locale. Sets *out_bytes to
+ * the sequence length and *out_columns to its display width. Returns false on
+ * an invalid or truncated sequence, consuming a single byte as width 1 so
+ * callers still make forward progress. */
 static bool app_text_decode_one(const char *text, size_t remaining,
                                 size_t *out_bytes, int *out_columns) {
-  mbstate_t state = {0};
-  wchar_t wc = 0;
-  const size_t n = mbrtowc(&wc, text, remaining, &state);
-  if (n == (size_t)-1 || n == (size_t)-2 || n == 0) {
-    *out_bytes = remaining > 0 ? 1 : 0;
-    *out_columns = remaining > 0 ? 1 : 0;
+  if (remaining == 0) {
+    *out_bytes = 0;
+    *out_columns = 0;
     return false;
   }
-  *out_bytes = n;
-  *out_columns = app_text_wc_columns(wc);
+  const unsigned char *p = (const unsigned char *)text;
+  const unsigned char c = p[0];
+  uint32_t cp;
+  size_t len;
+  if (c < 0x80) {
+    cp = c;
+    len = 1;
+  } else if ((c & 0xe0u) == 0xc0u) {
+    cp = c & 0x1fu;
+    len = 2;
+  } else if ((c & 0xf0u) == 0xe0u) {
+    cp = c & 0x0fu;
+    len = 3;
+  } else if ((c & 0xf8u) == 0xf0u) {
+    cp = c & 0x07u;
+    len = 4;
+  } else {
+    *out_bytes = 1;
+    *out_columns = 1;
+    return false;
+  }
+  if (len > remaining) {
+    *out_bytes = 1;
+    *out_columns = 1;
+    return false;
+  }
+  for (size_t i = 1; i < len; i++) {
+    if ((p[i] & 0xc0u) != 0x80u) {
+      *out_bytes = 1;
+      *out_columns = 1;
+      return false;
+    }
+    cp = (cp << 6) | (p[i] & 0x3fu);
+  }
+  *out_bytes = len;
+  *out_columns = app_text_cp_columns(cp);
   return true;
 }
 
