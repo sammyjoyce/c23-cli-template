@@ -334,7 +334,7 @@ static void app_show_about(void) {
   snprintf(about, sizeof(about),
            "%s %s\n\n"
            "A C23 + ncurses starter template: CLI argument\n"
-           "parsing, an optional TUI with menus, dialogs, and\n"
+           "parsing, a default TUI with menus, dialogs, and\n"
            "progress bars, plus an end-to-end test harness.\n\n"
            "Menu UI inspired by gitlogue.",
            build->name, build->version);

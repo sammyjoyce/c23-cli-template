@@ -9,7 +9,7 @@
 
 A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this
 template**, run the cleanup script, and you have a cross-compiling C project with
-argument parsing, an optional ncurses TUI, end-to-end tests, and a GitHub
+argument parsing, a default ncurses TUI, end-to-end tests, and a GitHub
 Actions CI/CD scaffold.
 
 [Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
@@ -19,7 +19,8 @@ Actions CI/CD scaffold.
 ## Highlights
 
 - **Modern C23, no compiler wrangling** - The latest C standard through Zig's bundled toolchain.
-- **CLI and TUI in one** - Argument parsing and colored output, plus an optional ncurses/PDCurses interface (`-Denable-tui=true`).
+- **CLI and TUI in one** - Argument parsing and colored output, plus a default ncurses/PDCurses interface (`-Denable-tui=false` disables it).
+- **Agent-ready headless mode** - Bare non-TTY launches read a JSON request from stdin, and piped command output defaults to versioned JSON.
 - **Fast, cross-compiling builds** - The Zig build system replaces Make/CMake and targets other platforms out of the box.
 - **Tested end to end** - Three test layers: in-process unit tests, C23 CLI contract tests, and PTY-driven terminal scenarios for real CLI/TUI behavior.
 - **CI/CD scaffold included** - GitHub Actions for builds, tests, linting, release artifacts, and optional security checks.
@@ -51,11 +52,11 @@ gh repo create my-cli \
 git clone https://github.com/YOU/YOUR-REPO
 cd YOUR-REPO
 
-# Build the default CLI starter
+# Build the default CLI + TUI starter
 zig build -Doptimize=ReleaseSafe
 
-# Build with the optional ncurses/PDCurses TUI
-zig build -Doptimize=ReleaseSafe -Denable-tui=true
+# Build without the ncurses/PDCurses TUI
+zig build -Doptimize=ReleaseSafe -Denable-tui=false
 
 # Run (the default binary is named `myapp`; override with `-Dapp-name=`)
 ./zig-out/bin/myapp --help
@@ -68,7 +69,8 @@ The template ships with working commands so you can confirm the build immediatel
 ```bash
 # Greeting command
 $ myapp hello
-Hello, World!
+Hello, World!      # on a TTY
+# {"format_version":"1.0","message":"Hello, World!"} when stdout is piped
 
 $ myapp hello Alice
 Hello, Alice!
@@ -97,8 +99,12 @@ $ myapp opencli
 }
 
 # Interactive TUI showcase
-$ zig build -Denable-tui=true run -- menu
+$ myapp
 # Opens ncurses menus, dialogs, panels, and progress bars
+
+# Headless request/response mode
+$ printf '{"command":"hello","args":["Alice"]}' | myapp
+{"format_version":"1.0","message":"Hello, Alice!"}
 ```
 
 ## Project Layout
@@ -140,12 +146,11 @@ For TUI screens, see [examples/custom-tui.md](examples/custom-tui.md).
 
 ### Prerequisites
 
-Default CLI builds need only:
+Default builds need:
 
 - **Zig 0.16.0** - the version pinned by this template; install via [zvm](https://github.com/tristanisham/zvm) or your package manager
 - **A system C toolchain** - for libc and platform libraries
-
-Optional TUI builds (`-Denable-tui=true`) also need curses development files:
+- **Curses development files** - the TUI is compiled in by default; pass `-Denable-tui=false` for CLI/headless-only builds.
 
 - Ubuntu/Debian: `sudo apt-get install pkg-config libncurses-dev`
 - macOS: `brew install pkg-config ncurses`
@@ -168,16 +173,15 @@ This template provides several tools to enhance your development experience:
 # Build
 zig build                                  # Debug build
 zig build -Doptimize=ReleaseSafe           # Release build
-zig build -Denable-tui=true                # Build with the ncurses/PDCurses TUI
-zig build -Denable-tui=true -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
+zig build -Denable-tui=false               # Build without the ncurses/PDCurses TUI
+zig build -Dcurses-prefix="$(brew --prefix ncurses)"  # macOS/Homebrew TUI
 zig build tui-menu-lib                     # Build the reusable TUI menu static library
 
 # Test
 zig build unit-test                        # In-process unit tests
 zig build test                             # Unit tests + CLI contract tests
 zig build terminal-test                    # Unit + CLI tests; PTY/TUI skipped unless TUI + backend are available
-zig build -Denable-tui=true terminal-test  # TUI build; PTY scenarios run if libghostty-vt is found
-zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # Require Ghostty VT
+zig build -Dterminal-backend=ghostty terminal-test  # Require Ghostty VT
 zig build -Dterminal-backend=none terminal-test  # Never run PTY/TUI scenarios
 zig build check                            # fmt-check + tests (the CI gate)
 
@@ -208,7 +212,7 @@ The template wires up far more than the starter code. The full inventory:
 
 - **Modern C23** - Latest C standard through Zig's bundled C toolchain
 - **Zig Build System** - Fast, reliable builds with cross-compilation
-- **Minimal Dependencies** - Zig and libc by default; curses only for TUI builds
+- **Configurable Dependencies** - Zig/libc plus curses by default; `-Denable-tui=false` removes the TUI dependency
 - **Configurable binary name** - Set via `-Dapp-name=` (default `myapp`)
 
 ### CLI and TUI
@@ -247,7 +251,7 @@ The template wires up far more than the starter code. The full inventory:
 - **C23** - Current standard mode with `nullptr`, attributes, and other portable language improvements
 - **Zig Build** - Superior to Make/CMake, built-in cross-compilation
 - **ncurses/PDCurses** - Proven terminal UI primitives with a small wrapper API
-- **Minimal Dependencies** - Zig and libc by default, with curses behind `-Denable-tui=true`
+- **Configurable Dependencies** - Zig/libc plus curses by default; `-Denable-tui=false` builds without the TUI dependency
 
 ## Documentation
 

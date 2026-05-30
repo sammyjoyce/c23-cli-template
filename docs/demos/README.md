@@ -66,7 +66,7 @@ myapp --unknown-option
 The TUI menu needs a real terminal and live input, so record it by hand rather than through the script:
 
 ```bash
-zig build -Denable-tui=true run -- menu           # try it first
+zig build run                                    # try it first; opens the TUI on a TTY
 asciinema rec docs/demos/recordings/menu.cast     # then record a session
 # drive the menu, press q to quit, then Ctrl-D to stop recording
 agg docs/demos/recordings/menu.cast docs/demos/menu.gif

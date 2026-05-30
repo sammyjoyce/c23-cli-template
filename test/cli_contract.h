@@ -36,6 +36,10 @@ char *cc_copy_string(const char *value);
 command_result_t cc_run_cli(test_context_t *ctx, const char *const *args,
                             size_t arg_count, const env_var_t *env,
                             size_t env_count);
+command_result_t cc_run_cli_with_stdin(test_context_t *ctx,
+                                       const char *const *args,
+                                       size_t arg_count, const char *stdin_text,
+                                       const env_var_t *env, size_t env_count);
 void cc_command_result_free(command_result_t *result);
 bool cc_expect_exit(const command_result_t *result, int expected);
 bool cc_expect_not_exit(const command_result_t *result, int unexpected);
@@ -43,6 +47,11 @@ bool cc_expect_stdout_contains(const command_result_t *result,
                                const char *needle);
 bool cc_expect_stderr_contains(const command_result_t *result,
                                const char *needle);
+// Assert needle appears exactly once in stderr. Used to verify a JSON error
+// path emits a single envelope (one "format_version") rather than several
+// concatenated objects that would break single-document parsers.
+bool cc_expect_stderr_occurs_once(const command_result_t *result,
+                                  const char *needle);
 bool cc_expect_stdout_empty(const command_result_t *result);
 bool cc_write_temp_config(const char *content, char **path_out);
 bool cc_file_exists(const char *path);

@@ -76,6 +76,8 @@ typedef struct {
   const char *const *examples;
   size_t example_count;
   bool requires_terminal;  // hint: command is interactive (e.g. TUI)
+  // Omit from root human help while keeping dispatch/API visibility.
+  bool hidden_from_help;
 } app_command_t;
 
 // Return the registered command list. count is set to the number of entries.
@@ -103,9 +105,12 @@ const app_command_option_t *app_command_option_find(
 // Validate an invocation against command metadata before dispatch. Command
 // options are recognized as --name before a -- delimiter; remaining tokens are
 // positionals and must satisfy the declared arity.
-APP_NODISCARD app_error
-app_command_validate_invocation(const app_command_t *command, int argc,
-                                char *const argv[], const char *program_name);
+APP_NODISCARD app_error app_command_validate_invocation(
+    const app_command_t *command, int argc, char *const argv[],
+    const app_config_t *config, const char *program_name);
+
+// Shared TUI entry point used by both `myapp menu` and bare TTY launches.
+APP_NODISCARD app_error app_run_tui(const app_config_t *config);
 
 static inline const char *app_yes_no(bool value) {
   return app_bool_word(value);

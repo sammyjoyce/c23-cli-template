@@ -15,6 +15,15 @@
 #include <ncurses.h>
 #endif
 
+/* BUTTON5_PRESSED (mouse wheel down) is only defined when the curses build
+ * advertises mouse protocol v2. The ncurses that ships with macOS predates
+ * that, so referencing it unconditionally fails to compile there even though
+ * NCURSES_MOUSE_VERSION is defined. Fall back to a no-op mask so wheel-down
+ * handling compiles everywhere and is simply inert on v1 curses. */
+#ifndef BUTTON5_PRESSED
+#define BUTTON5_PRESSED 0
+#endif
+
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>

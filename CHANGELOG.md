@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- TUI support is compiled in by default; pass `-Denable-tui=false` to build a
+  headless-only binary.
+- Bare `myapp` on a TTY now opens the interactive TUI menu, while command
+  invocations continue to use the CLI command table.
+- Command output defaults to versioned JSON when stdout is not a terminal;
+  pass `--plain` to preserve human text under pipes or redirection.
+
+### Added
+
+- Experimental bare non-TTY headless protocol: read a JSON request from stdin
+  and dispatch it through the existing command table.
+
 ## [0.1.0]
 
 ### Added

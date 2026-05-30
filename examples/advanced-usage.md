@@ -16,8 +16,9 @@ patterns apply.
 ## Output formats and streams
 
 The CLI keeps a stable I/O contract: results go to **stdout**, errors and diagnostics
-go to **stderr**, and `--json` produces machine-readable output (always including a
-`format_version`) where a command supports it.
+go to **stderr**, and non-TTY stdout defaults to machine-readable output (always
+including a `format_version`) where a command supports it. Use `--plain` when a
+pipeline needs human text.
 
 ```bash
 myapp info                       # human-readable
@@ -50,10 +51,12 @@ myapp opencli | jq -r '.command.options[].name'
 myapp opencli | jq -r '.info.version'
 ```
 
-Command output works the same way:
+Command output works the same way. `--json` is explicit; redirection/pipes choose
+the JSON mode by default unless `--plain` is present:
 
 ```bash
 myapp --json info | jq .                  # pretty-print
+myapp info | jq .                         # also JSON because stdout is a pipe
 myapp --json info | jq -r '.format_version'
 ```
 
@@ -106,7 +109,10 @@ printf 'Alice\nBob\nCharlie\n' | xargs -n1 myapp hello
 printf 'Alice\nBob\nCharlie\n' | parallel myapp hello
 
 # Feed command output into another stage
-myapp echo "build complete" | tr '[:lower:]' '[:upper:]'
+myapp --plain echo "build complete" | tr '[:lower:]' '[:upper:]'
+
+# Bare non-TTY invocation accepts a JSON request on stdin
+printf '{"command":"hello","args":["Alice"]}' | myapp | jq .
 
 # Count the commands the binary exposes
 myapp opencli | jq '.command.commands | length'
@@ -130,7 +136,9 @@ myapp --quiet info                 # a CLI flag overrides file and environment
 
 ### Docker
 
-The default build links only libc (no ncurses), so the image stays small. Add ncurses only if you ship the TUI build (`-Denable-tui=true`).
+The default build includes the TUI and therefore links curses. Use
+`-Denable-tui=false` for CLI/headless-only container images when you do not need
+interactive terminal screens.
 
 ```dockerfile
 FROM debian:stable-slim

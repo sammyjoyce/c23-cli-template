@@ -23,8 +23,8 @@ zig build -Dstrict=true check  # stricter local/CI gate: extra warnings as error
 PTY/TUI scenarios only run when the TUI is built and a terminal backend is present:
 
 ```bash
-zig build -Denable-tui=true terminal-test                         # auto-run PTY scenarios when libghostty-vt is found
-zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test  # require Ghostty VT
+zig build terminal-test                                           # auto-run PTY scenarios when libghostty-vt is found
+zig build -Dterminal-backend=ghostty terminal-test                # require Ghostty VT
 zig build -Dterminal-backend=none terminal-test                   # never run PTY/TUI scenarios
 ```
 
@@ -32,7 +32,7 @@ zig build -Dterminal-backend=none terminal-test                   # never run PT
 
 `zig build terminal-test` defaults to `-Dterminal-backend=auto`. In auto mode it runs
 unit and CLI contract tests everywhere, then runs Ghostty VT-backed PTY/TUI scenarios
-only when `-Denable-tui=true` is set and `pkg-config` finds libghostty-vt with the
+when the default TUI build is enabled and `pkg-config` finds libghostty-vt with the
 Terminal and Formatter APIs. The backend is a C runner (`test/terminal_vt_*.c`) that
 runs the app in a real PTY, feeds output through
 [`libghostty-vt`](https://libghostty.tip.ghostty.org/index.html), snapshots the virtual
@@ -49,7 +49,7 @@ The Nix dev shell is a convenience path that wires Zig, the C toolchain, curses,
 
 ```bash
 nix develop
-zig build -Denable-tui=true -Dterminal-backend=ghostty terminal-test
+zig build -Dterminal-backend=ghostty terminal-test
 ```
 
 Outside Nix, install a libghostty-vt build that exposes the development
@@ -59,7 +59,7 @@ Outside Nix, install a libghostty-vt build that exposes the development
 prefix:
 
 ```bash
-zig build -Denable-tui=true terminal-test \
+zig build terminal-test \
   -Dterminal-backend=ghostty \
   -Dghostty-vt-prefix=/path/to/ghostty
 ```

@@ -3,7 +3,7 @@
  *
  * Both concise and verbose help iterate over the command and flag tables in
  * commands.c / config.c, so adding a command or flag automatically shows up
- * without editing this file.
+ * without editing this file unless command metadata hides it from root help.
  *
  * When the CLI styling layer is compiled in (APP_ENABLE_CLI_STYLE), the public
  * entry points delegate to the styled renderers in src/cli/style. Otherwise a
@@ -59,6 +59,9 @@ static void print_commands_block(void) {
   const app_command_t *commands = app_commands(&count);
   printf("Commands:\n");
   for (size_t i = 0; i < count; i++) {
+    if (commands[i].hidden_from_help) {
+      continue;
+    }
     printf("  %-16s%s\n", commands[i].name,
            commands[i].summary ? commands[i].summary : "");
   }
@@ -152,6 +155,9 @@ void app_print_verbose_usage_ex(const char *program_name,
   size_t cmd_count = 0;
   const app_command_t *commands = app_commands(&cmd_count);
   for (size_t i = 0; i < cmd_count; i++) {
+    if (commands[i].hidden_from_help) {
+      continue;
+    }
     printf("  %-18s%s\n", commands[i].name,
            commands[i].summary ? commands[i].summary : "");
   }

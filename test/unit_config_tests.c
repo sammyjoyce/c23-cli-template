@@ -7,6 +7,7 @@
 
 #include "../src/core/config_json.h"
 #include "../src/core/error.h"
+#include "../src/core/request_json.h"
 #include "../src/utils/colors.h"
 #include "../src/utils/memory.h"
 #include "unit_support.h"
@@ -186,6 +187,55 @@ static bool test_config_setter_log_level_exclusivity(void) {
   return ok;
 }
 
+static bool test_request_json_parses_command_args_and_flags(void) {
+  app_request_t request;
+  app_request_init(&request);
+  const char *input =
+      "{\"command\":\"hello\",\"args\":[\"Alice\"],"
+      "\"flags\":{\"debug\":true}}";
+  bool ok = app_request_parse_json(&request, input) == APP_SUCCESS &&
+            request.command && strcmp(request.command, "hello") == 0 &&
+            request.arg_count == 1 && strcmp(request.args[0], "Alice") == 0 &&
+            request.flag_seen[APP_FLAG_DEBUG] &&
+            request.flag_values[APP_FLAG_DEBUG];
+  app_request_destroy(&request);
+  return ok;
+}
+
+static bool test_request_json_applies_to_config(void) {
+  app_request_t request;
+  app_request_init(&request);
+  app_config_t *config = NULL;
+  bool ok = app_request_parse_json(&request,
+                                   "{\"command\":\"echo\",\"args\":[\"hi\"],"
+                                   "\"flags\":{\"plain_output\":true}}") ==
+                APP_SUCCESS &&
+            app_config_create(&config) == APP_SUCCESS;
+  if (ok) {
+    ok = app_request_apply_to_config(&request, config) == APP_SUCCESS &&
+         strcmp(app_config_get_command(config), "echo") == 0 &&
+         app_config_is_plain_output(config);
+  }
+
+  int count = 0;
+  char *const *args =
+      config ? app_config_get_command_args(config, &count) : NULL;
+  ok = ok && count == 1 && args && strcmp(args[0], "hi") == 0;
+
+  app_config_destroy(config);
+  app_request_destroy(&request);
+  return ok;
+}
+
+static bool test_request_json_rejects_unknown_flag(void) {
+  app_request_t request;
+  app_request_init(&request);
+  const app_error err = app_request_parse_json(
+      &request, "{\"command\":\"hello\",\"flags\":{\"bogus\":true}}");
+  app_request_destroy(&request);
+  return err == APP_ERROR_UNKNOWN_OPTION;
+}
+
 static bool test_secret_zero_clears_buffer(void) {
   unsigned char buf[16];
   for (size_t i = 0; i < sizeof(buf); i++) {
@@ -219,6 +269,12 @@ void run_config_unit_tests(unit_stats_t *stats) {
               "config_json enforces log-level exclusivity");
   unit_record(stats, test_config_setter_log_level_exclusivity(),
               "config setters enforce log-level exclusivity");
+  unit_record(stats, test_request_json_parses_command_args_and_flags(),
+              "request_json parses command, args, and flags");
+  unit_record(stats, test_request_json_applies_to_config(),
+              "request_json applies parsed values to config");
+  unit_record(stats, test_request_json_rejects_unknown_flag(),
+              "request_json rejects unknown flags");
 #ifndef _WIN32
   unit_record(stats, test_config_env_no_color_empty_sets_flag(),
               "config env treats empty NO_COLOR as present");

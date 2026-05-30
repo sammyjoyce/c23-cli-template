@@ -38,9 +38,55 @@ zig build test
 - command names, arguments, options, and examples in `opencli.json`
 - public exit codes in `opencli.json`
 - `--json` responses that include `format_version`
+- JSON output as the default whenever stdout is not a terminal; pass `--plain`
+  before the command to keep human text under pipes or redirection
 - `myapp opencli` and `myapp --json opencli` both write the same schema document because the contract is already JSON
 - stdout for command output, stderr for errors and diagnostics
 - config precedence: CLI args > environment > config file > defaults
+
+## Dispatch modes
+
+The binary chooses its front-end from argv shape and terminal attachment:
+
+| Invocation | Condition | Behavior |
+| --- | --- | --- |
+| `myapp` | stdin and stdout are TTYs | Launch the interactive TUI menu. |
+| `myapp <command> ...` | any terminal shape | Dispatch the named CLI command through the command table. |
+| `myapp` | no interactive TTY | Read a headless JSON request object from stdin and dispatch it. |
+
+`--help` and `--version` are immediate-exit flags and keep their human-readable
+stdout behavior even under pipes.
+
+### Headless JSON request protocol
+
+Bare non-TTY invocation is an experimental, versioned machine surface for agents
+and CI wrappers that prefer stdin/stdout over shell-token construction. The
+request shape is:
+
+```json
+{
+  "command": "hello",
+  "args": ["Alice"],
+  "flags": {
+    "debug": false,
+    "quiet": false,
+    "verbose": false,
+    "json_output": true,
+    "plain_output": false,
+    "no_color": false
+  }
+}
+```
+
+Only `command` is required. `args` defaults to an empty array. `flags` uses the
+same JSON keys as config files and currently accepts booleans only. Unknown flag
+names are rejected.
+
+Responses are whatever the dispatched command writes in JSON mode and therefore
+include the same `format_version` convention as `--json` command output. Parse
+and dispatch errors are written to stderr as JSON messages and use the public
+exit codes from `src/core/error.c`. Empty stdin is a `APP_ERROR_MISSING_ARG`
+failure.
 
 **Private (may change without notice):**
 
@@ -79,9 +125,10 @@ zig-out/include/c23-cli-template/tui/tui_progress.h
 
 ## Not yet
 
-Do not add a plugin API, stable ABI promise, headless service, or broad TUI framework
-until multiple generated projects need the same unsupported behavior. Prefer a CLI/spec
-addition or a small library function before any in-process extension system.
+Do not add a plugin API, stable ABI promise, long-running headless service, or
+broad TUI framework until multiple generated projects need the same unsupported
+behavior. Prefer a CLI/spec addition or a small library function before any
+in-process extension system.
 
 ## See also
 
