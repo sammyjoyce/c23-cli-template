@@ -48,6 +48,9 @@ app_error app_json_skip_number(const char **cursor) {
   }
 
   const char *p = app_json_skip_ws(*cursor);
+  if (!p) {
+    return APP_ERROR_INVALID_ARG;
+  }
   if (*p == '-') {
     p++;
   }
