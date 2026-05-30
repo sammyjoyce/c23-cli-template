@@ -515,12 +515,13 @@ app_error tui_run_app(void) {
       break;
     case TUI_MENU_INTERRUPTED:
       /* Ctrl-C/SIGTERM during the interactive menu is a user cancellation, not
-       * a signal-handler setup failure. Clean up the curses screen and return
-       * quietly so `zig build run`/`just run` do not print a misleading
-       * "TUI failed: Signal handling error" diagnostic. Startup failures from
-       * tui_init() still return APP_ERROR_SIGNAL before this loop begins. */
+       * a signal-handler setup failure. Return APP_ERROR_INTERRUPTED so the
+       * caller exits quietly with the conventional 130 status (no misleading
+       * "TUI failed: Signal handling error", but also not a success that would
+       * let `app && next` proceed). Startup failures from tui_init() still
+       * return APP_ERROR_SIGNAL before this loop begins. */
       running = false;
-      err = APP_SUCCESS;
+      err = APP_ERROR_INTERRUPTED;
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:

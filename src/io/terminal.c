@@ -13,6 +13,7 @@
 #define fileno _fileno
 #else
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
 #endif
 
@@ -36,6 +37,21 @@ bool app_terminal_stream_is_tty(app_terminal_stream_t stream) {
 bool app_terminal_is_interactive(void) {
   return app_terminal_stream_is_tty(APP_TERMINAL_STDIN) &&
          app_terminal_stream_is_tty(APP_TERMINAL_STDOUT);
+}
+
+void app_terminal_discard_pending_input(void) {
+  const int fd = app_terminal_fd(APP_TERMINAL_STDIN);
+  if (fd < 0 || !isatty(fd)) {
+    return;
+  }
+#ifndef _WIN32
+  // Drop bytes the TTY queued but no reader consumed — typically a terminfo
+  // probe reply (DSR/u7) that arrives after curses has stopped reading.
+  (void)tcflush(fd, TCIFLUSH);
+#endif
+  // Windows consoles do not emit the terminfo cursor-position replies this
+  // guards against, and PDCurses' flushinp() already drains the curses queue,
+  // so there is nothing further to discard there.
 }
 
 app_terminal_size_t app_terminal_query_size(void) {

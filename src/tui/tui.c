@@ -16,10 +16,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
-#include <termios.h>
-#include <unistd.h>
-#endif
 
 #include "../io/terminal.h"
 #include "../style/design_tokens.h"
@@ -145,16 +141,10 @@ static void tui_discard_pending_input(void) {
   /* ncurses/terminfo may probe the terminal during startup (for example with
    * DSR/u7 cursor-position requests). If an interrupt or early error tears the
    * screen down before wgetch consumes the reply, that reply can leak back to
-   * the shell as text such as "[[26;1R". Flush both ncurses' input queue and,
-   * on POSIX hosts, the underlying terminal input queue before leaving the TUI.
-   */
+   * the shell as text such as "[[26;1R". Drop ncurses' own input queue here,
+   * then the underlying TTY queue via the curses-free terminal helper. */
   (void)flushinp();
-#ifndef _WIN32
-  const int fd = fileno(stdin);
-  if (fd >= 0 && isatty(fd)) {
-    (void)tcflush(fd, TCIFLUSH);
-  }
-#endif
+  app_terminal_discard_pending_input();
 }
 
 static int tui_clamped_strlen(const char *text, int max_len) {

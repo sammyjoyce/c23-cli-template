@@ -286,6 +286,10 @@
       {
         "code": 25,
         "description": "Value out of range"
+      },
+      {
+        "code": 130,
+        "description": "Interrupted"
       }
     ],
     "examples": [

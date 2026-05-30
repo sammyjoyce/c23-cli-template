@@ -19,6 +19,10 @@ app_error app_run_tui(const app_config_t *config) {
     app_output_format(config, true,
                       "TUI failed: terminal is too small (minimum %dx%d).",
                       TUI_MIN_COLS, TUI_MIN_ROWS);
+  } else if (tui_err == APP_ERROR_INTERRUPTED) {
+    // User pressed Ctrl-C at the menu. Propagate the conventional non-zero
+    // status (130) but stay silent: printing app_strerror here would resurface
+    // the exact diagnostic this exit path exists to suppress.
   } else if (tui_err != APP_SUCCESS) {
     app_output_format(config, true, "TUI failed: %s", app_strerror(tui_err));
   }

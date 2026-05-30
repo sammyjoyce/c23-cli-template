@@ -515,10 +515,15 @@ int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
   if (!failed && !vt_send(&session, "\x03"))
     failed = test_fail(stats, name, "failed to send Ctrl-C");
   if (!failed) {
+    /* Ctrl-C is a user cancellation, so the process must exit with the
+     * conventional interrupt status 130 (the shell's 128 + SIGINT): not 0,
+     * which would let `app && next` proceed, and not a generic failure code.
+     * vt_wait_for_exit reports 130 whether the TUI handler returns
+     * APP_ERROR_INTERRUPTED or the process is killed by the signal. */
     const int code = vt_wait_for_exit(&session, PTY_TIMEOUT_MS);
-    if (code != 0)
+    if (code != 130)
       failed =
-          test_fail(stats, name, "expected clean interrupt exit, got %d", code);
+          test_fail(stats, name, "expected interrupt exit 130, got %d", code);
   }
   if (!failed && contains_text(buffer_cstr(&session.transcript),
                                "TUI failed: Signal handling error")) {
