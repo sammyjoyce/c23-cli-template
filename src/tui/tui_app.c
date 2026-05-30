@@ -514,12 +514,14 @@ app_error tui_run_app(void) {
       running = !tui_confirm("Exit", "Return to the shell?");
       break;
     case TUI_MENU_INTERRUPTED:
-      /* Ctrl-C/SIGTERM during the interactive menu is a user cancellation, not
-       * a signal-handler setup failure. Return APP_ERROR_INTERRUPTED so the
-       * caller exits quietly with the conventional 130 status (no misleading
-       * "TUI failed: Signal handling error", but also not a success that would
-       * let `app && next` proceed). Startup failures from tui_init() still
-       * return APP_ERROR_SIGNAL before this loop begins. */
+      /* The shared SIGINT/SIGTERM handler delivers both as a user cancellation.
+       * Map either to APP_ERROR_INTERRUPTED so the caller exits quietly with
+       * 130 — no misleading "TUI failed: Signal handling error", and not a
+       * success that would let `app && next` proceed. We deliberately collapse
+       * both signals onto 130 (SIGINT's 128 + 2) rather than distinguishing
+       * SIGTERM's conventional 143; a caller that needs container-stop
+       * semantics can split them later. Signal-handler *setup* failures in
+       * tui_init() still return APP_ERROR_SIGNAL before this loop begins. */
       running = false;
       err = APP_ERROR_INTERRUPTED;
       break;
