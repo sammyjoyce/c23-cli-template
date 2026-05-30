@@ -257,6 +257,10 @@ jobs:
         run: |
           status=0
           while IFS= read -r -d '' file; do
+            # Skip symlinks: they may point at directories and have no text body.
+            if [ -L "$file" ]; then
+              continue
+            fi
             if ! grep -Iq . "$file"; then
               continue
             fi
@@ -276,6 +280,11 @@ jobs:
           max_bytes=1048576
           status=0
           while IFS= read -r -d '' file; do
+            # Skip symlinks: `wc -c < symlink-to-dir` fails with "Is a directory",
+            # and a symlink's tracked blob is just its tiny target path anyway.
+            if [ -L "$file" ]; then
+              continue
+            fi
             size="$(wc -c < "$file")"
             if [ "$size" -gt "$max_bytes" ]; then
               echo "$file: $size bytes exceeds $max_bytes byte limit"
