@@ -514,14 +514,16 @@ int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
   /* Send Ctrl-C through the PTY. The shell/terminal converts \x03 to SIGINT. */
   if (!failed && !vt_send(&session, "\x03"))
     failed = test_fail(stats, name, "failed to send Ctrl-C");
-  /* Process must exit within PTY_TIMEOUT_MS. The exact signal-derived status
-   * is intentionally not pinned here; this test cares that the TUI tears down
-   * promptly and leaves the terminal usable.
-   */
   if (!failed) {
     const int code = vt_wait_for_exit(&session, PTY_TIMEOUT_MS);
-    if (code < 0)
-      failed = test_fail(stats, name, "process did not exit within timeout");
+    if (code != 0)
+      failed =
+          test_fail(stats, name, "expected clean interrupt exit, got %d", code);
+  }
+  if (!failed && contains_text(buffer_cstr(&session.transcript),
+                               "TUI failed: Signal handling error")) {
+    failed = test_fail(stats, name,
+                       "SIGINT leaked a misleading TUI failure diagnostic");
   }
   if (!failed)
     test_pass(stats, name);

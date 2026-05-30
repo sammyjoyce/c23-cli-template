@@ -514,8 +514,13 @@ app_error tui_run_app(void) {
       running = !tui_confirm("Exit", "Return to the shell?");
       break;
     case TUI_MENU_INTERRUPTED:
+      /* Ctrl-C/SIGTERM during the interactive menu is a user cancellation, not
+       * a signal-handler setup failure. Clean up the curses screen and return
+       * quietly so `zig build run`/`just run` do not print a misleading
+       * "TUI failed: Signal handling error" diagnostic. Startup failures from
+       * tui_init() still return APP_ERROR_SIGNAL before this loop begins. */
       running = false;
-      err = APP_ERROR_SIGNAL;
+      err = APP_SUCCESS;
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:

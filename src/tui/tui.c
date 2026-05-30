@@ -16,6 +16,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
+#include <termios.h>
+#include <unistd.h>
+#endif
 
 #include "../io/terminal.h"
 #include "../style/design_tokens.h"
@@ -137,6 +141,22 @@ static bool tui_has_interactive_terminal(void) {
   return app_terminal_is_interactive();
 }
 
+static void tui_discard_pending_input(void) {
+  /* ncurses/terminfo may probe the terminal during startup (for example with
+   * DSR/u7 cursor-position requests). If an interrupt or early error tears the
+   * screen down before wgetch consumes the reply, that reply can leak back to
+   * the shell as text such as "[[26;1R". Flush both ncurses' input queue and,
+   * on POSIX hosts, the underlying terminal input queue before leaving the TUI.
+   */
+  (void)flushinp();
+#ifndef _WIN32
+  const int fd = fileno(stdin);
+  if (fd >= 0 && isatty(fd)) {
+    (void)tcflush(fd, TCIFLUSH);
+  }
+#endif
+}
+
 static int tui_clamped_strlen(const char *text, int max_len) {
   if (text == nullptr || max_len <= 0) {
     return 0;
@@ -236,6 +256,7 @@ app_error tui_init(void) {
   return APP_SUCCESS;
 
 fail:
+  tui_discard_pending_input();
   tui_uninstall_signal_handlers();
   endwin();
   tui_default_colors = false;
@@ -248,6 +269,7 @@ void tui_cleanup(void) {
     return;
   }
 
+  tui_discard_pending_input();
   clear();
   refresh();
   endwin();
