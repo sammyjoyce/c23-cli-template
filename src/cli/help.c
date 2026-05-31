@@ -116,8 +116,7 @@ void app_print_concise_help_ex(const char *program_name,
   (void)config;
   program_name = program_or_default(program_name);
 
-  printf("%s - A C23 TUI + CLI starter [version %s]\n\n", APP_NAME,
-         APP_VERSION);
+  printf("%s - %s [version %s]\n\n", APP_NAME, APP_DESCRIPTION, APP_VERSION);
   printf("Usage: %s [options] <command> [arguments]\n\n", program_name);
 
   print_commands_block();

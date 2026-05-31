@@ -14,7 +14,6 @@
 #include "../option_meta.h"
 #include "cli_layout.h"
 
-#define APP_HELP_TAGLINE "A C23 TUI + CLI starter"
 #define APP_HELP_MAX_ROWS 64
 
 typedef struct {
@@ -167,8 +166,8 @@ static void help_render_commands(app_cli_render_ctx_t *ctx) {
 
 static void help_render_header(app_cli_render_ctx_t *ctx) {
   app_cli_write_token(ctx, APP_CLI_COLOR_TOKEN_PROGRAM, APP_NAME);
-  app_cli_write_token(ctx, APP_CLI_COLOR_TOKEN_DESCRIPTION,
-                      " - " APP_HELP_TAGLINE);
+  app_cli_write_token(ctx, APP_CLI_COLOR_TOKEN_DESCRIPTION, " - ");
+  app_cli_write_token(ctx, APP_CLI_COLOR_TOKEN_DESCRIPTION, APP_DESCRIPTION);
   app_cli_newline(ctx);
   app_cli_write_token(ctx, APP_CLI_COLOR_TOKEN_COMMENT, "Version " APP_VERSION);
   app_cli_newline(ctx);

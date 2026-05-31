@@ -130,7 +130,7 @@ app_error app_args_handle_immediate_exit(int argc, char *argv[]) {
 #else
       const app_build_info_t *build = app_build_info();
       printf("%s %s\n", build->name, build->version);
-      printf("A C23 TUI + CLI starter application\n");
+      printf("%s\n", APP_DESCRIPTION);
       printf("Built with: Zig, C23\n");
       printf("TUI: %s\n", app_feature_compiled(APP_FEATURE_TUI)
                               ? "enabled via curses"
