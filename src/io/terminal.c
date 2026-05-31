@@ -45,7 +45,7 @@ void app_terminal_discard_pending_input(void) {
     return;
   }
 #ifndef _WIN32
-  // Drop bytes the TTY queued but no reader consumed — typically a terminfo
+  // Drop bytes the TTY queued but no reader consumed, typically a terminfo
   // probe reply (DSR/u7) that arrives after curses has stopped reading.
   (void)tcflush(fd, TCIFLUSH);
 #endif

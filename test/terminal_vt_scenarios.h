@@ -23,5 +23,7 @@ int run_tui_menu_handler_resize(test_stats_t *stats, const char *binary,
                                 bool tui_enabled);
 int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
                         bool tui_enabled);
+int run_tui_menu_sigterm(test_stats_t *stats, const char *binary,
+                         bool tui_enabled);
 
 #endif

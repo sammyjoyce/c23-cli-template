@@ -23,6 +23,6 @@ This page is for problems with the **template itself**, not with a project you g
 | `https://github.com/yourusername/yourproject` | your GitHub owner and repository |
 | `Your Name` | the configured author name |
 | `you@example.com` | the configured author email |
-| `~/.config/myapp` | `~/.config/<your_project_snake>` |
+| `~/.config/myapp` | `~/.config/<your-project-kebab>` |
 
 If some are still present, re-run setup, or preview what would change with `./.template/replacer.sh --dry-run -v`.

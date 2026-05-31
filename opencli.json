@@ -290,6 +290,10 @@
       {
         "code": 130,
         "description": "Interrupted"
+      },
+      {
+        "code": 143,
+        "description": "Terminated"
       }
     ],
     "examples": [

@@ -641,6 +641,10 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
 
   bool exit_loop = false;
   while (!exit_loop) {
+    if (tui_interrupted()) {
+      result.status = TUI_MENU_INTERRUPTED;
+      break;
+    }
     if (!tui_menu_layout_compute(&L, L.frame, config)) {
       result.status = TUI_MENU_TOO_SMALL;
       break;
@@ -666,7 +670,6 @@ tui_menu_result_t tui_show_menu(tui_window_t *window,
 
     if (ch == ERR) {
       if (tui_interrupted()) {
-        tui_acknowledge_interrupt();
         result.status = TUI_MENU_INTERRUPTED;
         exit_loop = true;
       } else {

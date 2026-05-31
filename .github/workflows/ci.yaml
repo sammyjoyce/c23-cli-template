@@ -123,7 +123,11 @@ jobs:
 
       - name: Run `install` step
         run: |
-          zig build install $CURSES_ARGS
+          CURSES_ARGS_ARRAY=()
+          if [ -n "${CURSES_ARGS:-}" ]; then
+            CURSES_ARGS_ARRAY=("$CURSES_ARGS")
+          fi
+          zig build install "${CURSES_ARGS_ARRAY[@]}"
           if [ "${{ runner.os }}" = "Windows" ]; then
             # The default TUI binary links pdcurses.dll. Place it next to the
             # binary so the EXE's own directory (first in the Windows DLL search
@@ -135,7 +139,12 @@ jobs:
         shell: bash
 
       - name: Run `check` step
-        run: zig build -Dstrict=true check $CURSES_ARGS
+        run: |
+          CURSES_ARGS_ARRAY=()
+          if [ -n "${CURSES_ARGS:-}" ]; then
+            CURSES_ARGS_ARRAY=("$CURSES_ARGS")
+          fi
+          zig build -Dstrict=true check "${CURSES_ARGS_ARRAY[@]}"
         timeout-minutes: 10
         shell: bash
 
@@ -199,7 +208,12 @@ jobs:
         shell: bash
 
       - name: Build release binary
-        run: zig build -Doptimize=ReleaseSafe -Dstrict=true -Dharden=true $CURSES_ARGS
+        run: |
+          CURSES_ARGS_ARRAY=()
+          if [ -n "${CURSES_ARGS:-}" ]; then
+            CURSES_ARGS_ARRAY=("$CURSES_ARGS")
+          fi
+          zig build -Doptimize=ReleaseSafe -Dstrict=true -Dharden=true "${CURSES_ARGS_ARRAY[@]}"
         timeout-minutes: 15
         shell: bash
 

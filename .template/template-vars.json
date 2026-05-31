@@ -1,7 +1,7 @@
 {
   "variables": {
     "PROJECT_NAME": {
-      "placeholders": ["My CLI App"],
+      "placeholders": ["My CLI App", "C23 TUI + CLI Starter"],
       "description": "Human-readable project name shown in documentation, metadata, and headings.",
       "sources": ["repository_name"],
       "validation": "^[A-Za-z][A-Za-z0-9 _-]*$"
@@ -28,7 +28,11 @@
       "validation": "^[A-Z][A-Za-z0-9]*$"
     },
     "PROJECT_DESCRIPTION": {
-      "placeholders": ["A ready-to-use C23 TUI + CLI starter."],
+      "placeholders": [
+        "A ready-to-use C23 TUI + CLI starter.",
+        "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs.",
+        "A ready-to-use C23 starter for command-line and ncurses TUI apps."
+      ],
       "description": "Short project description used in README content and package metadata.",
       "sources": ["repository_description"],
       "fallback": "A ready-to-use C23 TUI + CLI starter.",
@@ -38,26 +42,33 @@
       "placeholders": ["Your Name", "Sam Joyce"],
       "description": "Full name of the primary project author.",
       "sources": ["git_user_name", "repository_owner"],
-      "validation": "^[\\w\\s.-]+$"
+      "validation": "^[A-Za-z0-9_ .'-]+$"
     },
     "AUTHOR_EMAIL": {
       "placeholders": ["you@example.com"],
       "description": "Email address for the project author or maintainer.",
       "sources": ["git_user_email"],
       "required": false,
-      "validation": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+      "validation": "^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$"
     },
     "GITHUB_USERNAME": {
       "placeholders": ["yourusername", "sammyjoyce"],
       "description": "GitHub username or organization that owns the repository.",
       "sources": ["repository_owner"],
-      "validation": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$"
+      "validation": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$"
+    },
+    "PROJECT_URL": {
+      "placeholders": ["https://github.com/yourusername/yourproject"],
+      "description": "Canonical repository URL for generated documentation and metadata.",
+      "sources": ["repository_url"],
+      "fallback": "https://github.com/yourusername/yourproject",
+      "validation": "^https?://[^[:space:]]+$"
     },
     "CURRENT_YEAR": {
       "placeholders": ["2025"],
       "description": "Current calendar year for notices and headers.",
       "sources": ["current_year"],
-      "validation": "^\\d{4}$"
+      "validation": "^[0-9]{4}$"
     },
     "PROJECT_LICENSE": {
       "placeholders": ["MIT"],
@@ -92,14 +103,23 @@
     "*.bak"
   ],
   "special_replacements": {
+    "build.zig": {
+      "include/c23-cli-template/": "include/${PROJECT_NAME_KEBAB}/"
+    },
     "build.zig.zon": {
       ".myapp": ".${PROJECT_NAME_SNAKE}"
+    },
+    "docs/CONTRACTS.md": {
+      "include/c23-cli-template/": "include/${PROJECT_NAME_KEBAB}/"
+    },
+    "flake.nix": {
+      "name = \"c23-cli-template\";": "name = \"${PROJECT_NAME_KEBAB}\";"
     },
     "opencli.json": {
       "C23 TUI + CLI Starter": "${PROJECT_NAME}",
       "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs.": "${PROJECT_DESCRIPTION}",
       "Your Name": "${AUTHOR_NAME}",
-      "https://github.com/yourusername/yourproject": "https://github.com/${GITHUB_USERNAME}/${PROJECT_NAME_KEBAB}",
+      "https://github.com/yourusername/yourproject": "${PROJECT_URL}",
       "MIT License": "${PROJECT_LICENSE} License",
       "MIT": "${PROJECT_LICENSE}",
       "myapp hello": "${PROJECT_NAME_KEBAB} hello",
@@ -110,7 +130,7 @@
       "myapp menu": "${PROJECT_NAME_KEBAB} menu",
       "myapp --help": "${PROJECT_NAME_KEBAB} --help",
       "myapp --version": "${PROJECT_NAME_KEBAB} --version",
-      "~/.config/myapp/config.json": "~/.config/${PROJECT_NAME_SNAKE}/config.json"
+      "~/.config/myapp/config.json": "~/.config/${PROJECT_NAME_KEBAB}/config.json"
     }
   }
 }

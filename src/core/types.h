@@ -56,6 +56,16 @@ typedef struct {
 #define APP_NAME "myapp"
 #endif
 
+// Human-readable application title and description
+#ifndef APP_TITLE
+#define APP_TITLE "C23 TUI + CLI Starter"
+#endif
+
+#ifndef APP_DESCRIPTION
+#define APP_DESCRIPTION \
+  "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs."
+#endif
+
 // Build date - should be provided by build system
 #ifndef APP_BUILD_DATE
 #define APP_BUILD_DATE "unknown"

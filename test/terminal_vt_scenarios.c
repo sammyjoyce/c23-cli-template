@@ -537,6 +537,44 @@ int run_tui_menu_sigint(test_stats_t *stats, const char *binary,
   return failed;
 }
 
+int run_tui_menu_sigterm(test_stats_t *stats, const char *binary,
+                         bool tui_enabled) {
+  const char *name = "tui menu SIGTERM cleanly exits";
+  if (!tui_enabled) {
+    test_skip(stats, name, "rebuild with -Denable-tui=true");
+    return 0;
+  }
+  const char *args[] = {"menu"};
+  vt_session_t session;
+  if (!vt_session_start(&session, binary, args, 1, 80, 24)) {
+    return test_fail(stats, name, "failed to start PTY session");
+  }
+
+  char *snapshot = NULL;
+  int failed = 0;
+  if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
+    failed = test_fail(stats, name, "initial menu did not render");
+  if (!failed && kill(session.pid, SIGTERM) != 0)
+    failed = test_fail(stats, name, "failed to send SIGTERM: %s",
+                       strerror(errno));
+  if (!failed) {
+    const int code = vt_wait_for_exit(&session, PTY_TIMEOUT_MS);
+    if (code != 143)
+      failed =
+          test_fail(stats, name, "expected terminate exit 143, got %d", code);
+  }
+  if (!failed && contains_text(buffer_cstr(&session.transcript),
+                               "TUI failed: Signal handling error")) {
+    failed = test_fail(stats, name,
+                       "SIGTERM leaked a misleading TUI failure diagnostic");
+  }
+  if (!failed)
+    test_pass(stats, name);
+  free(snapshot);
+  vt_session_close(&session);
+  return failed;
+}
+
 int run_tui_menu_resize(test_stats_t *stats, const char *binary,
                         bool tui_enabled) {
   const char *name = "tui menu survives shrink-then-grow resize";

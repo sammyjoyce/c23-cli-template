@@ -209,9 +209,11 @@ static bool test_theme_env_light_and_accent_integration(void) {
   char *previous_accent = copy_env("APP_CLI_ACCENT");
   char *previous_color = copy_env("APP_CLI_COLOR");
   char *previous_no_color = copy_env("NO_COLOR");
+  char *previous_term = copy_env("TERM");
   unsetenv("APP_CLI_TEST_THEME");
   unsetenv("APP_CLI_COLOR");
   unsetenv("NO_COLOR");
+  setenv("TERM", "xterm-256color", 1);
 
   FILE *stream = tmpfile();
   if (!stream) {
@@ -220,6 +222,7 @@ static bool test_theme_env_light_and_accent_integration(void) {
     restore_env("APP_CLI_ACCENT", previous_accent);
     restore_env("APP_CLI_COLOR", previous_color);
     restore_env("NO_COLOR", previous_no_color);
+    restore_env("TERM", previous_term);
     return false;
   }
 
@@ -249,6 +252,7 @@ static bool test_theme_env_light_and_accent_integration(void) {
   restore_env("APP_CLI_ACCENT", previous_accent);
   restore_env("APP_CLI_COLOR", previous_color);
   restore_env("NO_COLOR", previous_no_color);
+  restore_env("TERM", previous_term);
   return ok;
 }
 

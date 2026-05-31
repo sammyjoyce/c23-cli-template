@@ -68,40 +68,21 @@ static bool test_use_colors_honors_no_color_without_env_load(void) {
 #endif
 
 static bool test_strerror_covers_every_code(void) {
-  const int codes[] = {
-      APP_SUCCESS,
-      APP_ERROR_INVALID_ARG,
-      APP_ERROR_INVALID_COMMAND,
-      APP_ERROR_CONFIG,
-      APP_ERROR_CONFIG_PARSE,
-      APP_ERROR_CONFIG_INVALID,
-      APP_ERROR_MISSING_ARG,
-      APP_ERROR_UNKNOWN_OPTION,
-      APP_ERROR_MEMORY,
-      APP_ERROR_IO,
-      APP_ERROR_PERMISSION,
-      APP_ERROR_INTERNAL,
-      APP_ERROR_THREADING,
-      APP_ERROR_RESOURCE,
-      APP_ERROR_SIGNAL,
-      APP_ERROR_NOT_FOUND,
-      APP_ERROR_INVALID_DATA,
-      APP_ERROR_PARSE_ERROR,
-      APP_ERROR_VALIDATION,
-      APP_ERROR_OVERFLOW,
-      APP_ERROR_UNDERFLOW,
-      APP_ERROR_OUT_OF_RANGE,
-  };
+  size_t count = 0;
+  const app_error_info_t *errors = app_error_table(&count);
+  if (!errors || count == 0) {
+    return false;
+  }
 
-  for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
-    const char *msg = app_strerror((app_error)codes[i]);
+  for (size_t i = 0; i < count; i++) {
+    const char *msg = app_strerror(errors[i].code);
     if (!msg || msg[0] == '\0') {
-      fprintf(stderr, "app_strerror returned empty for code %d\n", codes[i]);
+      fprintf(stderr, "app_strerror returned empty for code %d\n",
+              errors[i].code);
       return false;
     }
-    if (strcmp(msg, "Unknown error") == 0 &&
-        codes[i] != APP_ERROR_FEATURE_BASE) {
-      fprintf(stderr, "code %d hit the default branch\n", codes[i]);
+    if (strcmp(msg, "Unknown error") == 0) {
+      fprintf(stderr, "code %d hit the default branch\n", errors[i].code);
       return false;
     }
   }

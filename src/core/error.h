@@ -14,9 +14,8 @@
 
 // Public error codes are grouped by category with reserved ranges to aid
 // debugging. Keep descriptions user-facing; this list generates both the enum
-// and the public error table. APP_ERROR_INTERRUPTED uses 130 so a Ctrl-C at the
-// interactive TUI exits with the shell's conventional 128 + SIGINT status
-// rather than a misleading 0 or a generic failure code.
+// and the public error table. Signal-derived interactive exits use the shell
+// convention: 128 + signal number.
 #define APP_ERROR_LIST(X)                                                 \
   X(APP_SUCCESS, 0, "Success")                                            \
   X(APP_ERROR_INVALID_ARG, 1, "Invalid argument")                         \
@@ -40,7 +39,8 @@
   X(APP_ERROR_OVERFLOW, 23, "Numeric overflow")                           \
   X(APP_ERROR_UNDERFLOW, 24, "Numeric underflow")                         \
   X(APP_ERROR_OUT_OF_RANGE, 25, "Value out of range")                     \
-  X(APP_ERROR_INTERRUPTED, 130, "Interrupted")
+  X(APP_ERROR_INTERRUPTED, 130, "Interrupted")                            \
+  X(APP_ERROR_TERMINATED, 143, "Terminated")
 
 typedef enum {
 #define APP_ERROR_ENUM_ITEM(name, code, description) name = code,

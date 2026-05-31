@@ -15,10 +15,10 @@
 app_error app_run_tui(const app_config_t *config) {
 #ifdef ENABLE_TUI
   const app_error tui_err = tui_run_app();
-  // Interactive cancellation propagates the conventional 130 status silently;
-  // printing app_strerror would resurface the diagnostic this path suppresses.
-  if (tui_err == APP_ERROR_INTERRUPTED) {
-    return APP_ERROR_INTERRUPTED;
+  // Signal-driven exits already use conventional shell statuses. Keep them
+  // quiet instead of printing a misleading TUI failure diagnostic.
+  if (tui_err == APP_ERROR_INTERRUPTED || tui_err == APP_ERROR_TERMINATED) {
+    return tui_err;
   }
   if (tui_err == APP_ERROR_OUT_OF_RANGE) {
     app_output_format(config, true,

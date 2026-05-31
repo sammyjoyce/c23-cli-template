@@ -25,7 +25,7 @@
 
 static bool tui_initialized = false;
 static bool tui_default_colors = false;
-static volatile sig_atomic_t tui_interrupted_flag = 0;
+static volatile sig_atomic_t tui_interrupted_signal = 0;
 static int tui_saved_cursor_state = 0;
 static tui_window_t *tui_background_win = NULL;
 #define TUI_BACKGROUND_STACK_MAX 16
@@ -87,9 +87,8 @@ static struct sigaction tui_previous_sigterm;
 static bool tui_signal_handlers_installed = false;
 
 static void tui_signal_handler(int signum) {
-  (void)signum;
   const int saved_errno = errno;
-  tui_interrupted_flag = 1;
+  tui_interrupted_signal = signum;
   errno = saved_errno;
 }
 #endif
@@ -107,7 +106,8 @@ static app_error tui_install_signal_handlers(void) {
 
   struct sigaction sa_term = {.sa_handler = tui_signal_handler};
   sigemptyset(&sa_term.sa_mask);
-  sa_term.sa_flags = SA_RESTART;
+  /* Match SIGINT: wake blocking wgetch() so SIGTERM can shut down promptly. */
+  sa_term.sa_flags = 0;
   if (sigaction(SIGTERM, &sa_term, &tui_previous_sigterm) != 0) {
     const int saved_errno = errno;
     (void)sigaction(SIGINT, &tui_previous_sigint, NULL);
@@ -137,14 +137,14 @@ static bool tui_has_interactive_terminal(void) {
   return app_terminal_is_interactive();
 }
 
-static void tui_discard_pending_input(void) {
-  /* ncurses/terminfo may probe the terminal during startup (for example with
-   * DSR/u7 cursor-position requests). If an interrupt or early error tears the
+static void tui_discard_curses_input(void) {
+  /* ncurses/terminfo may probe the terminal during startup, for example with
+   * DSR/u7 cursor-position requests. If an interrupt or early error tears the
    * screen down before wgetch consumes the reply, that reply can leak back to
-   * the shell as text such as "[[26;1R". Drop ncurses' own input queue here,
-   * then the underlying TTY queue via the curses-free terminal helper. */
+   * the shell as text such as "[[26;1R". Drop ncurses' own input queue before
+   * endwin(), then flush the underlying TTY queue after terminal modes are
+   * restored. */
   (void)flushinp();
-  app_terminal_discard_pending_input();
 }
 
 static int tui_clamped_strlen(const char *text, int max_len) {
@@ -210,7 +210,9 @@ app_error tui_init(void) {
 
   app_error err = tui_install_signal_handlers();
   if (err != APP_SUCCESS) {
+    tui_discard_curses_input();
     endwin();
+    app_terminal_discard_pending_input();
     return err;
   }
 
@@ -246,11 +248,12 @@ app_error tui_init(void) {
   return APP_SUCCESS;
 
 fail:
-  tui_discard_pending_input();
+  tui_discard_curses_input();
   tui_uninstall_signal_handlers();
   endwin();
+  app_terminal_discard_pending_input();
   tui_default_colors = false;
-  tui_interrupted_flag = 0;
+  tui_interrupted_signal = 0;
   return err;
 }
 
@@ -259,16 +262,17 @@ void tui_cleanup(void) {
     return;
   }
 
-  tui_discard_pending_input();
+  tui_discard_curses_input();
   clear();
   refresh();
   endwin();
+  app_terminal_discard_pending_input();
   tui_uninstall_signal_handlers();
 
   tui_initialized = false;
   tui_default_colors = false;
   tui_clear_background_window();
-  tui_interrupted_flag = 0;
+  tui_interrupted_signal = 0;
   LOG_DEBUG("TUI cleaned up");
 }
 
@@ -277,11 +281,15 @@ bool tui_is_initialized(void) {
 }
 
 bool tui_interrupted(void) {
-  return tui_interrupted_flag != 0;
+  return tui_interrupted_signal != 0;
+}
+
+int tui_interrupt_signal(void) {
+  return (int)tui_interrupted_signal;
 }
 
 void tui_acknowledge_interrupt(void) {
-  tui_interrupted_flag = 0;
+  tui_interrupted_signal = 0;
 }
 
 /* ---- color management --------------------------------------------------- */
@@ -774,7 +782,6 @@ bool tui_modal_run(int height, int width, const char *title,
 
   while (1) {
     if (tui_interrupted()) {
-      tui_acknowledge_interrupt();
       break;
     }
     const int ch = wgetch(window->win);

@@ -244,6 +244,8 @@ pub fn build(b: *std.Build) void {
 
     const version_str = b.option([]const u8, "version", "Application version string") orelse "0.1.0";
     const app_name = b.option([]const u8, "app-name", "Application and binary name") orelse "myapp";
+    const app_title = b.option([]const u8, "app-title", "Human-readable application title") orelse "C23 TUI + CLI Starter";
+    const app_description = b.option([]const u8, "app-description", "Application description") orelse "A ready-to-use C23 starter for command-line tools and ncurses terminal UIs.";
     const binary_name = app_name;
 
     // Attempt to inject current git commit hash, fall back to "unknown".
@@ -368,6 +370,8 @@ pub fn build(b: *std.Build) void {
     }
     c_flags.append(b.allocator, cStringDefine(b, "APP_VERSION", version_str)) catch |err| oom(err);
     c_flags.append(b.allocator, cStringDefine(b, "APP_NAME", app_name)) catch |err| oom(err);
+    c_flags.append(b.allocator, cStringDefine(b, "APP_TITLE", app_title)) catch |err| oom(err);
+    c_flags.append(b.allocator, cStringDefine(b, "APP_DESCRIPTION", app_description)) catch |err| oom(err);
     c_flags.append(b.allocator, cStringDefine(b, "APP_GIT_COMMIT", git_commit)) catch |err| oom(err);
     c_flags.append(b.allocator, cStringDefine(b, "APP_BUILD_DATE", build_date)) catch |err| oom(err);
 

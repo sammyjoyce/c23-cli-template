@@ -194,12 +194,14 @@ static bool run_detection_policy_contract(void) {
   char *saved_bg = copy_env("APP_CLI_TEST_BG");
   char *saved_nc = copy_env("NO_COLOR");
   char *saved_color = copy_env("APP_CLI_COLOR");
+  char *saved_term = copy_env("TERM");
 
   // Clean slate for the env gates we drive explicitly.
   unsetenv("APP_CLI_OSC11");
   unsetenv("CI");
   unsetenv("NO_COLOR");
   unsetenv("APP_CLI_COLOR");
+  setenv("TERM", "xterm-256color", 1);
 
   app_config_t *enabled = NULL;
   app_config_t *disabled = make_no_color_config();
@@ -248,6 +250,7 @@ static bool run_detection_policy_contract(void) {
   restore_env("APP_CLI_TEST_BG", saved_bg);
   restore_env("NO_COLOR", saved_nc);
   restore_env("APP_CLI_COLOR", saved_color);
+  restore_env("TERM", saved_term);
   return ok;
 }
 

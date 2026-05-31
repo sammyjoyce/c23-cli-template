@@ -15,4 +15,3 @@ Developer documentation for working on a project generated from this template. S
 - [README](../README.md) - project overview and quick start
 - [CONTRIBUTING](../CONTRIBUTING.md) - workflow, branch, and commit conventions
 - [examples/](../examples/) - task-focused how-tos: add a command, build a TUI, scripting
-- [Using This Template](../.template/TEMPLATE_USAGE.md) - first-run setup for a freshly generated repo

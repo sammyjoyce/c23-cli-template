@@ -210,7 +210,7 @@ static void help_render_verbose(app_cli_render_ctx_t *ctx) {
 
   app_cli_section_title(ctx, "DESCRIPTION");
   static const char *const desc_lines[] = {
-      "  A ready-to-use C23 starter for command-line and ncurses TUI apps.",
+      ("  " APP_DESCRIPTION),
       "  It provides a solid foundation with error handling, configuration,",
       "  and testing baked in.",
   };

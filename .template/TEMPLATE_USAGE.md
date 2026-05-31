@@ -60,6 +60,7 @@ PROJECT_DESCRIPTION="A focused terminal tool." \
 AUTHOR_NAME="Your Name" \
 AUTHOR_EMAIL="you@example.com" \
 GITHUB_USERNAME="yourusername" \
+PROJECT_URL="https://github.com/yourusername/my-cli" \
 PROJECT_LICENSE="MIT" \
 bash ./.template/setup.sh --non-interactive --cleanup
 ```
@@ -84,6 +85,7 @@ Variables are configured in `.template/template-vars.json`.
 | `AUTHOR_NAME` | Primary maintainer name | `Your Name` |
 | `AUTHOR_EMAIL` | Maintainer email | `you@example.com` |
 | `GITHUB_USERNAME` | GitHub owner or organization | `yourusername` |
+| `PROJECT_URL` | Canonical repository URL | `https://github.com/yourusername/my-cli` |
 | `CURRENT_YEAR` | Notice year | `2026` |
 | `PROJECT_LICENSE` | SPDX-style license identifier | `MIT` |
 

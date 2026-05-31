@@ -52,6 +52,7 @@ APP_NODISCARD app_error tui_init(void);
 void tui_cleanup(void);
 bool tui_is_initialized(void);
 bool tui_interrupted(void);
+int tui_interrupt_signal(void);
 void tui_acknowledge_interrupt(void);
 
 // Color management
