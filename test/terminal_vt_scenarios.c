@@ -555,8 +555,8 @@ int run_tui_menu_sigterm(test_stats_t *stats, const char *binary,
   if (!vt_expect_text(&session, "STARTER SHOWCASE", PTY_TIMEOUT_MS, &snapshot))
     failed = test_fail(stats, name, "initial menu did not render");
   if (!failed && kill(session.pid, SIGTERM) != 0)
-    failed = test_fail(stats, name, "failed to send SIGTERM: %s",
-                       strerror(errno));
+    failed =
+        test_fail(stats, name, "failed to send SIGTERM: %s", strerror(errno));
   if (!failed) {
     const int code = vt_wait_for_exit(&session, PTY_TIMEOUT_MS);
     if (code != 143)
