@@ -47,9 +47,12 @@ typedef enum {
   APP_ERROR_LIST(APP_ERROR_ENUM_ITEM)
 #undef APP_ERROR_ENUM_ITEM
 
-  // Feature-specific errors (30+): Reserved for application-specific features
-  // that may be added by users of this template.
+  // Feature-specific errors may use 30..125. Keep 126..127 available for
+  // common shell launch/command statuses, and keep 128+signal reserved for
+  // signal-derived exits such as APP_ERROR_INTERRUPTED and
+  // APP_ERROR_TERMINATED.
   APP_ERROR_FEATURE_BASE = 30,
+  APP_ERROR_FEATURE_MAX = 125,
 } app_error;
 
 typedef struct {
