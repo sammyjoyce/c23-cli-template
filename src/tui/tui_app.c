@@ -13,7 +13,6 @@
  * (message dialog, confirm, input dialog, progress bar, custom layout,
  * sub-menu). Treat them as documentation you can delete or copy from.
  */
-#include <signal.h>
 #include <stdio.h>
 
 #include "../core/app_info.h"
@@ -460,9 +459,7 @@ static void app_dispatch(int id) {
 }
 
 static app_error app_error_from_tui_interrupt(void) {
-  const int signum = tui_interrupt_signal();
-  tui_acknowledge_interrupt();
-  return signum == SIGTERM ? APP_ERROR_TERMINATED : APP_ERROR_INTERRUPTED;
+  return tui_take_interrupt_error();
 }
 
 /* ============================================================

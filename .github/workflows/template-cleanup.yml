@@ -72,4 +72,12 @@ jobs:
         with:
           commit_message: "chore: cleanup template files"
           branch: main
-          file_pattern: "README.md CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE SECURITY.md build.zig build.zig.zon opencli.json renovate.json .github .devcontainer .template .templatesyncignore docs examples src test .clang-format .editorconfig .envrc .gitattributes .gitignore .markdownlint.json .pre-commit-config.yaml"
+          file_pattern: "README.md CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE SECURITY.md build.zig build.zig.zon flake.nix opencli.json renovate.json .github .devcontainer .template .templatesyncignore docs examples src test .clang-format .editorconfig .envrc .gitattributes .gitignore .markdownlint.json .pre-commit-config.yaml"
+
+      - name: "Verify cleanup committed every generated change"
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            exit 1
+          fi
+        shell: bash

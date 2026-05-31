@@ -284,12 +284,10 @@ bool tui_interrupted(void) {
   return tui_interrupted_signal != 0;
 }
 
-int tui_interrupt_signal(void) {
-  return (int)tui_interrupted_signal;
-}
-
-void tui_acknowledge_interrupt(void) {
+app_error tui_take_interrupt_error(void) {
+  const int signum = (int)tui_interrupted_signal;
   tui_interrupted_signal = 0;
+  return signum == SIGTERM ? APP_ERROR_TERMINATED : APP_ERROR_INTERRUPTED;
 }
 
 /* ---- color management --------------------------------------------------- */
