@@ -52,7 +52,7 @@ APP_NODISCARD app_error tui_init(void);
 void tui_cleanup(void);
 bool tui_is_initialized(void);
 bool tui_interrupted(void);
-void tui_acknowledge_interrupt(void);
+APP_NODISCARD app_error tui_take_interrupt_error(void);
 
 // Color management
 APP_NODISCARD app_error tui_init_colors(void);

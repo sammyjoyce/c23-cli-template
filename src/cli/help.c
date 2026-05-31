@@ -116,8 +116,7 @@ void app_print_concise_help_ex(const char *program_name,
   (void)config;
   program_name = program_or_default(program_name);
 
-  printf("%s - A C23 TUI + CLI starter [version %s]\n\n", APP_NAME,
-         APP_VERSION);
+  printf("%s - %s [version %s]\n\n", APP_NAME, APP_DESCRIPTION, APP_VERSION);
   printf("Usage: %s [options] <command> [arguments]\n\n", program_name);
 
   print_commands_block();
@@ -140,16 +139,14 @@ void app_print_verbose_usage_ex(const char *program_name,
   const char *bold = app_use_colors(nullptr) ? APP_COLOR_BOLD : "";
   const char *reset = app_use_colors(nullptr) ? APP_COLOR_RESET : "";
 
-  printf("%s%s - A C23 TUI + CLI starter%s\n", bold, APP_NAME, reset);
+  printf("%s%s - %s%s\n", bold, APP_NAME, APP_DESCRIPTION, reset);
   printf("Version %s\n\n", APP_VERSION);
 
   printf("%sUSAGE%s\n", bold, reset);
   printf("  %s [options] <command> [arguments]\n\n", program_name);
 
   printf("%sDESCRIPTION%s\n", bold, reset);
-  printf(
-      "  A ready-to-use C23 starter for command-line and ncurses TUI "
-      "apps.\n\n");
+  printf("  %s\n\n", APP_DESCRIPTION);
 
   printf("%sCOMMANDS%s\n", bold, reset);
   size_t cmd_count = 0;

@@ -458,6 +458,10 @@ static void app_dispatch(int id) {
   }
 }
 
+static app_error app_error_from_tui_interrupt(void) {
+  return tui_take_interrupt_error();
+}
+
 /* ============================================================
  * Section 3: Entry point - usually no edits needed here.
  * ============================================================ */
@@ -515,7 +519,7 @@ app_error tui_run_app(void) {
       break;
     case TUI_MENU_INTERRUPTED:
       running = false;
-      err = APP_ERROR_SIGNAL;
+      err = app_error_from_tui_interrupt();
       break;
     case TUI_MENU_TOO_SMALL:
     case TUI_MENU_INVALID_ARG:

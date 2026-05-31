@@ -8,8 +8,8 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ```bash
 # Fork, clone, branch
-git clone https://github.com/<your-user>/c23-cli-template
-cd c23-cli-template
+git clone https://github.com/yourusername/yourproject
+cd yourproject
 git checkout -b your-change
 
 # Build and test
@@ -27,7 +27,7 @@ Open a PR against `main`. CI runs `zig build check` on Linux, macOS, and Windows
 
 ## Reporting issues
 
-Before opening one, search [existing issues](https://github.com/sammyjoyce/c23-cli-template/issues). Use the templates when they apply, and include:
+Before opening one, search [existing issues](https://github.com/yourusername/yourproject/issues). Use the templates when they apply, and include:
 
 - your operating system and version,
 - `zig version`,
@@ -51,7 +51,8 @@ zvm install 0.16.0 && zvm use 0.16.0
 
 ### Platform dependencies
 
-Only needed for `-Denable-tui=true` builds. (The default build links only libc.)
+Default builds link curses/PDCurses for the TUI. Pass `-Denable-tui=false` for a
+CLI/headless-only build that links only libc.
 
 | Platform | Install |
 | --- | --- |
@@ -160,7 +161,7 @@ app_error process_input(const char *input, size_t len) {
 │   ├── cli/        command parsing, help, command table
 │   ├── core/       configuration, typed errors
 │   ├── io/         text and JSON output
-│   ├── tui/        ncurses windows, menus, progress (opt-in)
+│   ├── tui/        ncurses windows, menus, progress (default unless disabled)
 │   └── utils/      logging, colors, secret zeroing
 ├── test/           unit tests + CLI contract + PTY/TUI scenarios
 ├── build.zig
@@ -171,7 +172,7 @@ app_error process_input(const char *input, size_t len) {
 ## Getting help
 
 - [docs/](docs/): architecture, contracts, testing, Zig primer
-- [Existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
+- [Existing issues](https://github.com/yourusername/yourproject/issues)
 
 ## License
 

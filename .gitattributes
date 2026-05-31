@@ -1,7 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
-# Mark as template repository
+# Classify template metadata as YAML in language statistics.
 .github/template.yml linguist-language=YAML
 
 # Ensure consistent line endings

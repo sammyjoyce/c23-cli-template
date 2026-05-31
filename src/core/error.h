@@ -14,7 +14,8 @@
 
 // Public error codes are grouped by category with reserved ranges to aid
 // debugging. Keep descriptions user-facing; this list generates both the enum
-// and the public error table.
+// and the public error table. Signal-derived interactive exits use the shell
+// convention: 128 + signal number.
 #define APP_ERROR_LIST(X)                                                 \
   X(APP_SUCCESS, 0, "Success")                                            \
   X(APP_ERROR_INVALID_ARG, 1, "Invalid argument")                         \
@@ -37,16 +38,21 @@
   X(APP_ERROR_VALIDATION, 22, "Validation failed")                        \
   X(APP_ERROR_OVERFLOW, 23, "Numeric overflow")                           \
   X(APP_ERROR_UNDERFLOW, 24, "Numeric underflow")                         \
-  X(APP_ERROR_OUT_OF_RANGE, 25, "Value out of range")
+  X(APP_ERROR_OUT_OF_RANGE, 25, "Value out of range")                     \
+  X(APP_ERROR_INTERRUPTED, 130, "Interrupted")                            \
+  X(APP_ERROR_TERMINATED, 143, "Terminated")
 
 typedef enum {
 #define APP_ERROR_ENUM_ITEM(name, code, description) name = code,
   APP_ERROR_LIST(APP_ERROR_ENUM_ITEM)
 #undef APP_ERROR_ENUM_ITEM
 
-  // Feature-specific errors (30+): Reserved for application-specific features
-  // that may be added by users of this template.
+  // Feature-specific errors may use 30..125. Keep 126..127 available for
+  // common shell launch/command statuses, and keep 128+signal reserved for
+  // signal-derived exits such as APP_ERROR_INTERRUPTED and
+  // APP_ERROR_TERMINATED.
   APP_ERROR_FEATURE_BASE = 30,
+  APP_ERROR_FEATURE_MAX = 125,
 } app_error;
 
 typedef struct {

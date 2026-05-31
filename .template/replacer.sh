@@ -104,6 +104,28 @@ detect_repository_owner() {
     printf '%s\n' "${path%%/*}"
 }
 
+detect_repository_web_url() {
+    local url path
+    url=$(detect_repository_url)
+    case "$url" in
+        git@github.com:*)
+            path=${url#git@github.com:}
+            ;;
+        https://github.com/*)
+            path=${url#https://github.com/}
+            ;;
+        http://github.com/*)
+            path=${url#http://github.com/}
+            ;;
+        *)
+            return
+            ;;
+    esac
+    path=${path%.git}
+    [[ $path == */* ]] || return
+    printf 'https://github.com/%s\n' "$path"
+}
+
 detect_license() {
     if [[ -f "$repo_root/LICENSE" ]] && grep -qi 'MIT License' "$repo_root/LICENSE"; then
         printf 'MIT\n'
@@ -117,6 +139,9 @@ detect_source() {
             ;;
         repository_owner)
             detect_repository_owner
+            ;;
+        repository_url)
+            detect_repository_web_url
             ;;
         git_user_name)
             git -C "$repo_root" config user.name 2>/dev/null || true
@@ -290,6 +315,12 @@ for key in "${VAR_KEYS[@]}"; do
     validate_value "$key"
 done
 
+if [[ ${VAR_VALUES[PROJECT_URL]:-} == "https://github.com/yourusername/yourproject" &&
+      -n ${VAR_VALUES[GITHUB_USERNAME]:-} &&
+      -n ${VAR_VALUES[PROJECT_NAME_KEBAB]:-} ]]; then
+    VAR_VALUES[PROJECT_URL]="https://github.com/${VAR_VALUES[GITHUB_USERNAME]}/${VAR_VALUES[PROJECT_NAME_KEBAB]}"
+fi
+
 if (( verbose )); then
     for key in "${VAR_KEYS[@]}"; do
         printf '[replacer] %s=%s\n' "$key" "${VAR_VALUES[$key]:-}" >&2
@@ -333,9 +364,23 @@ done
 
 # Generic replacements come only from placeholders declared in template-vars.json.
 # Add new placeholders there rather than growing an ad-hoc broad replacement list.
-project_snake="${VAR_VALUES[PROJECT_NAME_SNAKE]:-}"
+project_kebab="${VAR_VALUES[PROJECT_NAME_KEBAB]:-}"
 # shellcheck disable=SC2088 # Literal documentation/config placeholder.
-[[ -n $project_snake ]] && add_generic "~/.config/myapp" "~/.config/$project_snake"
+[[ -n $project_kebab ]] && add_generic "~/.config/myapp" "~/.config/$project_kebab"
+
+sort_generic_order() {
+    local sorted=()
+    while IFS= read -r pattern; do
+        sorted+=("$pattern")
+    done < <(
+        for pattern in "${GENERIC_ORDER[@]}"; do
+            printf '%06d\t%s\n' "${#pattern}" "$pattern"
+        done | sort -r -n -k1,1 | cut -f2-
+    )
+    GENERIC_ORDER=("${sorted[@]}")
+}
+
+sort_generic_order
 
 readarray -t FILE_PATTERNS < <(jq -r '(.file_patterns // [])[]?' "$vars_json")
 readarray -t EXCLUDE_PATTERNS < <(jq -r '(.exclude_patterns // [])[]?' "$vars_json")

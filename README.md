@@ -4,7 +4,6 @@
 [![License](https://img.shields.io/github/license/sammyjoyce/c23-cli-template?style=for-the-badge)](https://github.com/sammyjoyce/c23-cli-template/blob/main/LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=CI)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![Zig](https://img.shields.io/badge/Zig-0.16.0-F7A41D?style=for-the-badge&logo=zig)](https://ziglang.org/)
-[![Build](https://img.shields.io/github/actions/workflow/status/sammyjoyce/c23-cli-template/ci.yaml?style=for-the-badge&label=Build)](https://github.com/sammyjoyce/c23-cli-template/actions/workflows/ci.yaml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/sammyjoyce/c23-cli-template?style=for-the-badge&label=OpenSSF%20Scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/sammyjoyce/c23-cli-template)
 
 A ready-to-use C23 starter for command-line tools and terminal UIs. Click **Use this
@@ -12,7 +11,7 @@ template**, run the cleanup script, and you have a cross-compiling C project wit
 argument parsing, a default ncurses TUI, end-to-end tests, and a GitHub
 Actions CI/CD scaffold.
 
-[Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [View Demo](https://github.com/sammyjoyce/c23-cli-template) • [Report Bug](https://github.com/sammyjoyce/c23-cli-template/issues)
+[Use this template](https://github.com/sammyjoyce/c23-cli-template/generate) • [Read the setup guide](.template/TEMPLATE_USAGE.md) • [Report a template issue](https://github.com/sammyjoyce/c23-cli-template/issues)
 
 ---
 
@@ -255,7 +254,7 @@ The template wires up far more than the starter code. The full inventory:
 
 ## Documentation
 
-Start with [**Using This Template**](/.template/TEMPLATE_USAGE.md) for the full setup guide.
+Start with [**Using This Template**](.template/TEMPLATE_USAGE.md) for the full setup guide.
 
 ### Developer resources
 
@@ -288,7 +287,7 @@ For problems with the template itself:
 
 - Check [existing issues](https://github.com/sammyjoyce/c23-cli-template/issues)
 - Create a new issue
-- Read [template support](/.template/TEMPLATE_SUPPORT.md)
+- Read [template support](.template/TEMPLATE_SUPPORT.md)
 
 ### Your project issues
 
@@ -297,13 +296,6 @@ For issues with your generated project:
 - Use your own repository's issues
 - Check Zig [documentation](https://ziglang.org/documentation/)
 - See C23 [reference](https://en.cppreference.com/w/c/23)
-
-## Projects using this template
-
-> Using this template? [Add your project!](https://github.com/sammyjoyce/c23-cli-template/edit/main/README.md)
-
-- [Example CLI](https://github.com/example/cli) - Description
-- Your project here!
 
 ## License
 
@@ -316,5 +308,3 @@ When you use this template, you can choose any license for your project.
 **Ready to build your CLI app?**
 
 [![Use this template](https://img.shields.io/badge/Use%20this-template-success?style=for-the-badge&logo=github)](https://github.com/sammyjoyce/c23-cli-template/generate)
-
-Made by the open source community

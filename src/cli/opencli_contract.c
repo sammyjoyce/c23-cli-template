@@ -65,10 +65,8 @@ static const app_opencli_contract_t g_opencli_contract = {
     .opencli_version = "0.1",
     .info =
         {
-            .title = "C23 TUI + CLI Starter",
-            .description =
-                "A ready-to-use C23 starter for command-line tools and "
-                "ncurses terminal UIs.",
+            .title = APP_TITLE,
+            .description = APP_DESCRIPTION,
             .version = APP_VERSION,
             .contact =
                 {

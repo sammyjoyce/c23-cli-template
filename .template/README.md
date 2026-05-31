@@ -67,6 +67,7 @@ Add or change variables in `template-vars.json`. Each entry uses this shape:
 | `repository_name` | The repository name (from Git or GitHub) |
 | `repository_description` | The repository description |
 | `repository_owner` | The GitHub owner or organization |
+| `repository_url` | The GitHub repository URL |
 | `git_user_name` | `git config user.name` |
 | `git_user_email` | `git config user.email` |
 | `current_year` | The current calendar year |
